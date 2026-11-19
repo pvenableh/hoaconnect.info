@@ -244,7 +244,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
 
             <!-- Drafting is a real model call now (P6), so the button says so
                  while it runs. Its steps land in the approvals chip beside it. -->
-            <Button
+            <AppButton
               variant="outline"
               size="sm"
               class="rounded-full shrink-0"
@@ -257,7 +257,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
                 :class="planning ? 'animate-spin' : ''"
               />
               {{ planning ? "Drafting…" : "Draft a plan" }}
-            </Button>
+            </AppButton>
 
             <button
               v-if="!hasEntity"
@@ -375,7 +375,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
           </ul>
           <div v-if="hiddenNoticeCount > 0 || proposeError" class="director-line__foot">
             <p v-if="proposeError" class="text-xs text-destructive">{{ proposeError }}</p>
-            <Button
+            <AppButton
               v-if="hiddenNoticeCount > 0"
               variant="link"
               size="sm"
@@ -383,7 +383,7 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
               @click="noticesExpanded = !noticesExpanded"
             >
               {{ noticesExpanded ? "Show fewer" : `Show ${hiddenNoticeCount} more` }}
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>

@@ -354,14 +354,14 @@ const materials = [
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="appearance.toggle()">
+          <AppButton variant="outline" size="sm" @click="appearance.toggle()">
             <Icon :name="appearance.isDark.value ? 'lucide:sun' : 'lucide:moon'" />
             {{ appearance.isDark.value ? "Light" : "Dark" }}
-          </Button>
-          <Button variant="outline" size="sm" @click="replayLoad">
+          </AppButton>
+          <AppButton variant="outline" size="sm" @click="replayLoad">
             <span class="spinner-ios spinner-ios--sm" />
             Replay load
-          </Button>
+          </AppButton>
         </div>
       </header>
 
@@ -425,20 +425,20 @@ const materials = [
         <p class="type-body">Pill by default. One primary action per view.</p>
         <div class="ios-card p-5 mt-3 space-y-4">
           <div class="flex flex-wrap items-center gap-2">
-            <Button>Primary</Button>
-            <Button variant="secondary">Secondary</Button>
-            <Button variant="outline">Outline</Button>
-            <Button variant="ghost">Ghost</Button>
-            <Button variant="destructive">Delete</Button>
-            <Button variant="link">Link</Button>
+            <AppButton>Primary</AppButton>
+            <AppButton variant="secondary">Secondary</AppButton>
+            <AppButton variant="outline">Outline</AppButton>
+            <AppButton variant="ghost">Ghost</AppButton>
+            <AppButton variant="destructive">Delete</AppButton>
+            <AppButton variant="link">Link</AppButton>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <Button size="sm">Small</Button>
-            <Button>Default</Button>
-            <Button size="lg">Large</Button>
-            <Button size="icon" aria-label="Add"><Icon name="lucide:plus" /></Button>
-            <Button size="icon-sm" variant="outline" aria-label="Edit"><Icon name="lucide:pencil" /></Button>
-            <Button disabled>Disabled</Button>
+            <AppButton size="sm">Small</AppButton>
+            <AppButton>Default</AppButton>
+            <AppButton size="lg">Large</AppButton>
+            <AppButton size="icon" aria-label="Add"><Icon name="lucide:plus" /></AppButton>
+            <AppButton size="icon-sm" variant="outline" aria-label="Edit"><Icon name="lucide:pencil" /></AppButton>
+            <AppButton disabled>Disabled</AppButton>
           </div>
           <!-- T3 / T4 — docs/button-type-case-system.md. -->
           <div class="flex flex-wrap items-center gap-2" data-kit="action-buttons">
@@ -475,7 +475,7 @@ const materials = [
         <div class="ios-card p-5 mt-3 flex flex-wrap items-center gap-2" data-kit="overlays">
           <Dialog>
             <DialogTrigger as-child>
-              <Button variant="outline" data-kit-open="dialog">Dialog</Button>
+              <AppButton variant="outline" data-kit-open="dialog">Dialog</AppButton>
             </DialogTrigger>
             <AppDialogContent>
               <DialogHeader>
@@ -485,16 +485,16 @@ const materials = [
               <AppInput placeholder="Unit 4B" />
               <DialogFooter>
                 <DialogClose as-child>
-                  <Button variant="outline">Cancel</Button>
+                  <AppButton variant="outline">Cancel</AppButton>
                 </DialogClose>
-                <Button>Save</Button>
+                <AppButton>Save</AppButton>
               </DialogFooter>
             </AppDialogContent>
           </Dialog>
 
           <Sheet>
             <SheetTrigger as-child>
-              <Button variant="outline" data-kit-open="sheet">Sheet</Button>
+              <AppButton variant="outline" data-kit-open="sheet">Sheet</AppButton>
             </SheetTrigger>
             <AppSheetContent>
               <SheetHeader>
@@ -506,7 +506,7 @@ const materials = [
 
           <Popover>
             <PopoverTrigger as-child>
-              <Button variant="outline" data-kit-open="popover">Popover</Button>
+              <AppButton variant="outline" data-kit-open="popover">Popover</AppButton>
             </PopoverTrigger>
             <AppPopoverContent class="w-64">
               <p class="type-card">Unit 4B</p>
@@ -516,7 +516,7 @@ const materials = [
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
-              <Button variant="outline" data-kit-open="dropdown">Menu</Button>
+              <AppButton variant="outline" data-kit-open="dropdown">Menu</AppButton>
             </DropdownMenuTrigger>
             <AppDropdownMenuContent>
               <DropdownMenuLabel>Unit 4B</DropdownMenuLabel>
@@ -529,7 +529,7 @@ const materials = [
           <TooltipProvider :delay-duration="0">
             <Tooltip>
               <TooltipTrigger as-child>
-                <Button variant="outline" data-kit-open="tooltip">Tooltip</Button>
+                <AppButton variant="outline" data-kit-open="tooltip">Tooltip</AppButton>
               </TooltipTrigger>
               <AppTooltipContent>Shown on hover and on focus</AppTooltipContent>
             </Tooltip>
@@ -545,7 +545,7 @@ const materials = [
             </AppSelectContent>
           </Select>
 
-          <Button variant="destructive" data-kit-open="confirm" @click="askDelete">Delete Unit…</Button>
+          <AppButton variant="destructive" data-kit-open="confirm" @click="askDelete">Delete Unit…</AppButton>
           <span v-if="confirmResult" class="type-meta" data-kit="confirm-result">{{ confirmResult }}</span>
         </div>
       </section>
@@ -559,10 +559,10 @@ const materials = [
           what your role may see. Here it searches the sample members below.
         </p>
         <div class="mt-3">
-          <Button variant="outline" data-kit-open="spotlight" @click="spotlight.open()">
+          <AppButton variant="outline" data-kit-open="spotlight" @click="spotlight.open()">
             <Icon name="lucide:search" />
             Search
-          </Button>
+          </AppButton>
         </div>
       </section>
 
@@ -683,9 +683,9 @@ const materials = [
             @row-click="() => (sheetOpen = true)"
           >
             <template #toolbar>
-              <Button size="sm" variant="outline" @click="showEmpty = !showEmpty">
+              <AppButton size="sm" variant="outline" @click="showEmpty = !showEmpty">
                 {{ showEmpty ? "Show rows" : "Show empty state" }}
-              </Button>
+              </AppButton>
             </template>
             <template #cell-balance="{ value }">
               <span :class="value < 0 ? 'text-destructive' : ''">
@@ -706,9 +706,9 @@ const materials = [
           checkboxes and a selection bar. Rows open the resource's panel.
         </p>
         <div class="mt-3 space-y-3">
-          <Button size="sm" variant="outline" @click="toggleKitResourceEmpty">
+          <AppButton size="sm" variant="outline" @click="toggleKitResourceEmpty">
             {{ kitResourceEmpty ? "Show Rows" : "Show Empty State" }}
-          </Button>
+          </AppButton>
           <AppResourceIndex
             :resource="kitResource"
             :columns="columns"
@@ -740,7 +740,7 @@ const materials = [
               </span>
             </template>
             <template #bulk="{ rows }">
-              <Button size="sm" variant="outline" :disabled="!rows.length">Message Selected</Button>
+              <AppButton size="sm" variant="outline" :disabled="!rows.length">Message Selected</AppButton>
             </template>
           </AppResourceIndex>
         </div>
@@ -760,9 +760,9 @@ const materials = [
           rows that carry something long: toggle it above.
         </p>
         <div class="mt-3 space-y-3">
-          <Button size="sm" variant="outline" @click="kitStacked = !kitStacked">
+          <AppButton size="sm" variant="outline" @click="kitStacked = !kitStacked">
             {{ kitStacked ? "Show Columns" : "Show Stacked Rows" }}
-          </Button>
+          </AppButton>
           <AppResourceIndex
             :resource="kitGrouped"
             :columns="kitJobColumns"
@@ -873,7 +873,7 @@ const materials = [
               description="Published documents appear here for every resident."
               icon="lucide:file-text"
             >
-              <Button size="sm">Upload a document</Button>
+              <AppButton size="sm">Upload a document</AppButton>
             </AppEmptyState>
           </div>
           <div class="ios-card">
@@ -882,7 +882,7 @@ const materials = [
               title="No matches"
               description="Try a different search or clear your filters."
             >
-              <Button size="sm" variant="outline">Clear filters</Button>
+              <AppButton size="sm" variant="outline">Clear filters</AppButton>
             </AppEmptyState>
           </div>
         </div>
@@ -898,8 +898,8 @@ const materials = [
             footnote="You can rename and renumber units later."
           >
             <template #actions>
-              <Button size="sm">Add Unit</Button>
-              <Button size="sm" variant="outline">Import CSV</Button>
+              <AppButton size="sm">Add Unit</AppButton>
+              <AppButton size="sm" variant="outline">Import CSV</AppButton>
             </template>
           </AppEmptyState>
         </div>
@@ -1003,8 +1003,8 @@ const materials = [
           or with a flick it goes, otherwise it springs back.
         </p>
         <div class="mt-3">
-          <Button @click="sheetOpen = true">Open sheet</Button>
-          <Button variant="outline" class="ml-2" @click="sizedSheetOpen = true">Open wide (size="lg")</Button>
+          <AppButton @click="sheetOpen = true">Open sheet</AppButton>
+          <AppButton variant="outline" class="ml-2" @click="sizedSheetOpen = true">Open wide (size="lg")</AppButton>
         </div>
         <p class="helper-text mt-2">
           Below md it is the sheet; at md and up the same component presents as a
@@ -1081,7 +1081,7 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
                   <p class="text-xs t-text-muted">You can still read everything, pay dues, and send requests to the board.</p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">Contact the board</Button>
+              <AppButton variant="outline" size="sm">Contact the board</AppButton>
             </div>
           </div>
           <p class="ios-card card-attention p-3 text-sm t-text-muted">
@@ -1121,8 +1121,8 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
     <AppBottomSheet v-model:open="sizedSheetOpen" size="lg" title="Invite members" description="Each person gets an email with a sign-in link.">
       <AppTextarea placeholder="one@example.com, two@example.com" />
       <template #footer>
-        <Button variant="ghost" @click="sizedSheetOpen = false">Cancel</Button>
-        <Button @click="sizedSheetOpen = false">Send Invites</Button>
+        <AppButton variant="ghost" @click="sizedSheetOpen = false">Cancel</AppButton>
+        <AppButton @click="sizedSheetOpen = false">Send Invites</AppButton>
       </template>
     </AppBottomSheet>
 
@@ -1138,8 +1138,8 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
         </div>
       </div>
       <template #footer>
-        <Button variant="ghost" @click="sheetOpen = false">Cancel</Button>
-        <Button @click="sheetOpen = false">Post</Button>
+        <AppButton variant="ghost" @click="sheetOpen = false">Cancel</AppButton>
+        <AppButton @click="sheetOpen = false">Post</AppButton>
       </template>
     </AppBottomSheet>
   </div>

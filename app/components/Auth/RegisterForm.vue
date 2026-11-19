@@ -8,7 +8,6 @@ import { refDebounced } from "@vueuse/core";
 import type { AppliedCoupon } from "#core/app/composables/useCoupons";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
 import { Loader2, Check, X } from "lucide-vue-next";
 
@@ -217,10 +216,10 @@ const onSubmit = handleSubmit(async (values) => {
           />
 
           <div class="flex flex-col gap-4 pt-3">
-            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
+            <AppButton type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Creating account..." : "Create account" }}
-            </Button>
+            </AppButton>
 
             <p class="text-center type-meta">
               Already have an account?

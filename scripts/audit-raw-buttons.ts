@@ -72,7 +72,7 @@ runFileAudit({
   scan: (src) => findRawButtons(src),
   exclude: (f) => isVendoredUi(f) || PRIMITIVES.includes(f),
   fix: [
-    "Use `<Button>` (primary / outline / ghost) `<ActionButton>` (inline T3/T4) — docs/button-type-case-system.md.",
+    "Use `<AppButton>` (primary / outline / ghost) `<ActionButton>` (inline T3/T4) — docs/button-type-case-system.md.",
     "Tag a deliberate raw button `allow-raw-button: <why>` (a calendar cell, a drag handle).",
   ],
 });

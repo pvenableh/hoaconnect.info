@@ -73,11 +73,11 @@ const save = async () => {
       </p>
     </div>
     <template #footer>
-      <Button variant="outline" @click="open = false">Cancel</Button>
-      <Button :disabled="!canSave" @click="save">
+      <AppButton variant="outline" @click="open = false">Cancel</AppButton>
+      <AppButton :disabled="!canSave" @click="save">
         <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         Record Paid
-      </Button>
+      </AppButton>
     </template>
   </AppBottomSheet>
 </template>

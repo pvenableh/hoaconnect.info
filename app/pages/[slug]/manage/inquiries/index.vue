@@ -111,9 +111,9 @@ const createViolation = async () => {
     <PageContainer class="space-y-6">
       <div class="flex items-center justify-between gap-2">
         <h1 class="text-2xl font-semibold t-text">Inquiries</h1>
-        <Button v-if="canCreateViolation" class="rounded-full" @click="openNew">
+        <AppButton v-if="canCreateViolation" class="rounded-full" @click="openNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />New violation
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Filters -->
@@ -146,7 +146,7 @@ const createViolation = async () => {
           :filtered="!!requests?.length"
         >
           <template v-if="canCreateViolation" #empty-actions>
-            <Button class="rounded-full" @click="openNew">New Violation</Button>
+            <AppButton class="rounded-full" @click="openNew">New Violation</AppButton>
           </template>
         </RequestsRequestList>
       </div>
@@ -185,10 +185,10 @@ const createViolation = async () => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" class="rounded-full" @click="showNew = false">Cancel</Button>
-          <Button class="rounded-full" :disabled="creating" @click="createViolation">
+          <AppButton variant="outline" class="rounded-full" @click="showNew = false">Cancel</AppButton>
+          <AppButton class="rounded-full" :disabled="creating" @click="createViolation">
             {{ creating ? "Creating…" : "Create violation" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

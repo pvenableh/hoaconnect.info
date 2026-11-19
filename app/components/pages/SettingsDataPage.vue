@@ -202,14 +202,14 @@ onMounted(load);
             An export is being prepared. You can close this page — we'll keep going.
           </p>
           <span v-else />
-          <Button :disabled="requesting || inFlight" @click="requestExport">
+          <AppButton :disabled="requesting || inFlight" @click="requestExport">
             <Icon
               v-if="requesting"
               name="lucide:loader-2"
               class="mr-2 h-4 w-4 animate-spin"
             />
             Request export
-          </Button>
+          </AppButton>
         </div>
       </CardContent>
     </AppCard>
@@ -270,7 +270,7 @@ onMounted(load);
               >
                 {{ daysLeft(row.expiresAt) }}d left
               </span>
-              <Button
+              <AppButton
                 v-if="row.status === 'ready'"
                 as="a"
                 :href="`/api/org/export/${row.id}/download`"
@@ -279,7 +279,7 @@ onMounted(load);
               >
                 <Icon name="lucide:download" class="mr-2 h-4 w-4" />
                 Download
-              </Button>
+              </AppButton>
               <span v-else class="text-xs text-muted-foreground">
                 {{ STATUS_VISUAL[row.status].label }}
               </span>

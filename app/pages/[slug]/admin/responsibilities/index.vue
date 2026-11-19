@@ -187,26 +187,26 @@ const emptyDescription = computed(() =>
           <span v-if="!asOfIsToday" class="type-meta text-warning">As of {{ registerDay(asOf) }}</span>
         </template>
         <template #actions>
-          <Button v-if="viewer.canEdit" variant="outline" class="rounded-full" @click="applyFlorida">
+          <AppButton v-if="viewer.canEdit" variant="outline" class="rounded-full" @click="applyFlorida">
             <Icon name="lucide:list-plus" class="w-4 h-4 mr-1.5" />
             Start from the Florida condominium list
-          </Button>
-          <Button variant="outline" class="rounded-full" as-child>
+          </AppButton>
+          <AppButton variant="outline" class="rounded-full" as-child>
             <a :href="pdfHref" target="_blank" rel="noopener">
               <Icon name="lucide:file-down" class="w-4 h-4 mr-1.5" />
               Export PDF
             </a>
-          </Button>
+          </AppButton>
           <ResponsibilitiesVisibilityMenu
             v-if="viewer.isAdmin"
             :visibility="visibility"
             :rows="register.rows"
             :set-visibility="reg.setVisibility"
           />
-          <Button v-if="viewer.canEdit" class="rounded-full" @click="creating = true">
+          <AppButton v-if="viewer.canEdit" class="rounded-full" @click="creating = true">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             New job
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -222,7 +222,7 @@ const emptyDescription = computed(() =>
 
       <AppEmptyState v-if="view === 'grid' && emptyFocus" :title="emptyFocus.title" :description="emptyFocus.description" icon="lucide:filter-x" size="sm">
         <template #actions>
-          <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+          <AppButton variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</AppButton>
         </template>
       </AppEmptyState>
 
@@ -285,7 +285,7 @@ const emptyDescription = computed(() =>
           <div class="flex items-center gap-2">
             <Label for="register-as-of" class="type-meta t-text-muted">As of</Label>
             <DateInput id="register-as-of" :model-value="asOf" class="w-40" @update:model-value="onAsOf" />
-            <Button v-if="!asOfIsToday" variant="ghost" size="sm" @click="reg.setAsOf(null)">Today</Button>
+            <AppButton v-if="!asOfIsToday" variant="ghost" size="sm" @click="reg.setAsOf(null)">Today</AppButton>
           </div>
         </template>
 
@@ -323,21 +323,21 @@ const emptyDescription = computed(() =>
         <ResponsibilitiesMapSlider :days="snapDays" :model-value="day" :today="today" @update:model-value="slideTo" @type="typeDay" />
         <AppEmptyState v-if="register.error" title="Could not load" :description="register.error" icon="lucide:cloud-off" size="sm">
           <template #actions>
-            <Button variant="outline" size="sm" @click="register.refresh()">Try Again</Button>
+            <AppButton variant="outline" size="sm" @click="register.refresh()">Try Again</AppButton>
           </template>
         </AppEmptyState>
         <p v-else-if="register.pending && !register.total" class="type-meta t-text-muted">Loading…</p>
         <AppEmptyState v-else-if="!register.total" title="No jobs yet" :description="emptyDescription" icon="lucide:list-checks">
           <template v-if="viewer.canEdit" #actions>
-            <Button class="rounded-full" @click="creating = true">
+            <AppButton class="rounded-full" @click="creating = true">
               <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
               New job
-            </Button>
+            </AppButton>
           </template>
         </AppEmptyState>
         <AppEmptyState v-else-if="emptyFocus" :title="emptyFocus.title" :description="emptyFocus.description" icon="lucide:filter-x" size="sm">
           <template #actions>
-            <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+            <AppButton variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</AppButton>
           </template>
         </AppEmptyState>
         <ResponsibilitiesMap

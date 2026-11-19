@@ -217,7 +217,7 @@ const resetForm = () => {
               If you meant someone else, check the address for a typo — restoring
               is not something an invitation should do by accident.
             </p>
-            <Button
+            <AppButton
               v-if="blocked.restore"
               size="sm"
               variant="outline"
@@ -230,7 +230,7 @@ const resetForm = () => {
                   ? `Restore ${blocked.restore.name}`
                   : `Set ${blocked.restore.name} active`
               }}
-            </Button>
+            </AppButton>
           </AlertDescription>
         </Alert>
 
@@ -343,16 +343,16 @@ const resetForm = () => {
     </CardContent>
 
     <CardFooter class="flex justify-between">
-      <Button variant="outline" @click="resetForm" :disabled="loading">
+      <AppButton variant="outline" @click="resetForm" :disabled="loading">
         Reset
-      </Button>
+      </AppButton>
 
-      <Button
+      <AppButton
         @click="handleSubmit"
         :disabled="loading || !isValid || loadingData"
       >
         {{ loading ? "Sending..." : "Send Invitation" }}
-      </Button>
+      </AppButton>
     </CardFooter>
   </AppCard>
 </template>

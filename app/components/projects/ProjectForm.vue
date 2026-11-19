@@ -144,11 +144,11 @@ async function submit() {
     </div>
 
     <div class="flex items-center justify-end gap-2 pt-2">
-      <Button type="button" variant="outline" class="rounded-full" @click="emit('cancel')">Cancel</Button>
-      <Button type="submit" class="rounded-full" :disabled="saving || !form.title.trim()">
+      <AppButton type="button" variant="outline" class="rounded-full" @click="emit('cancel')">Cancel</AppButton>
+      <AppButton type="submit" class="rounded-full" :disabled="saving || !form.title.trim()">
         <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         {{ isEdit ? "Save changes" : "Create project" }}
-      </Button>
+      </AppButton>
     </div>
   </form>
 </template>

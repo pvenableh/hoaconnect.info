@@ -112,11 +112,11 @@ const submit = () => {
     </div>
 
     <div class="flex justify-end gap-2 pt-1">
-      <Button variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</Button>
-      <Button class="rounded-full" :disabled="!canSubmit || submitting" @click="submit">
+      <AppButton variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</AppButton>
+      <AppButton class="rounded-full" :disabled="!canSubmit || submitting" @click="submit">
         <Icon v-if="submitting" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         {{ record ? "Save" : "Add pet" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

@@ -261,7 +261,7 @@ const doPromote = async () => {
 
       <!-- Transitions -->
       <div v-if="transitions.length" class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border">
-        <Button
+        <AppButton
           v-for="t in transitions"
           :key="t.to"
           size="sm"
@@ -271,7 +271,7 @@ const doPromote = async () => {
           @click="doTransition(t.to, t.label)"
         >
           {{ t.label }}
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Spawn channel / task (board + admin) -->
@@ -280,7 +280,7 @@ const doPromote = async () => {
         class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border"
       >
         <template v-if="linkedChannel">
-          <Button
+          <AppButton
             size="sm"
             variant="outline"
             class="rounded-full"
@@ -290,15 +290,15 @@ const doPromote = async () => {
           >
             <Icon name="lucide:messages-square" class="w-3.5 h-3.5 mr-1" />
             {{ showDiscussion ? "Hide discussion" : "Discussion" }}
-          </Button>
+          </AppButton>
           <NuxtLink :to="buildOrgPath(`/admin/channels/${linkedChannel.slug}`)">
-            <Button size="sm" variant="ghost" class="rounded-full t-text-muted" title="Open in Channels">
+            <AppButton size="sm" variant="ghost" class="rounded-full t-text-muted" title="Open in Channels">
               <Icon name="lucide:external-link" class="w-3.5 h-3.5" />
               <span class="sr-only">Open in Channels</span>
-            </Button>
+            </AppButton>
           </NuxtLink>
         </template>
-        <Button
+        <AppButton
           v-else
           size="sm"
           variant="outline"
@@ -309,8 +309,8 @@ const doPromote = async () => {
         >
           <Icon name="lucide:message-square-plus" class="w-3.5 h-3.5 mr-1" />
           Start a channel
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           size="sm"
           variant="outline"
           class="rounded-full"
@@ -319,7 +319,7 @@ const doPromote = async () => {
         >
           <Icon name="lucide:list-plus" class="w-3.5 h-3.5 mr-1" />
           Spawn task
-        </Button>
+        </AppButton>
       </div>
 
       <!-- The linked channel, inline -->
@@ -348,12 +348,12 @@ const doPromote = async () => {
         class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t t-border"
       >
         <NuxtLink v-if="linkedProject" :to="buildOrgPath(`/admin/projects/${linkedProject.id}`)">
-          <Button size="sm" variant="outline" class="rounded-full">
+          <AppButton size="sm" variant="outline" class="rounded-full">
             <Icon name="lucide:kanban-square" class="w-3.5 h-3.5 mr-1" />
             {{ linkedProject.title || "View project" }}
-          </Button>
+          </AppButton>
         </NuxtLink>
-        <Button
+        <AppButton
           v-else
           size="sm"
           variant="outline"
@@ -363,7 +363,7 @@ const doPromote = async () => {
         >
           <Icon name="lucide:rocket" class="w-3.5 h-3.5 mr-1" />
           Promote to project
-        </Button>
+        </AppButton>
       </div>
     </div>
 
@@ -385,21 +385,21 @@ const doPromote = async () => {
           Invite the ticket author{{ authorName ? ` (${authorName})` : "" }}
         </label>
         <DialogFooter class="gap-2">
-          <Button
+          <AppButton
             variant="outline"
             :disabled="spawningChannel"
             @click="showSpawnDialog = false"
           >
             Cancel
-          </Button>
-          <Button :disabled="spawningChannel" @click="doSpawnChannel">
+          </AppButton>
+          <AppButton :disabled="spawningChannel" @click="doSpawnChannel">
             <Icon
               v-if="spawningChannel"
               name="lucide:loader-2"
               class="w-4 h-4 mr-1 animate-spin"
             />
             Create channel
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -436,10 +436,10 @@ const doPromote = async () => {
         </div>
       </div>
       <div v-if="isBoard" class="flex justify-end mt-3">
-        <Button size="sm" class="rounded-full" :disabled="savingMeta" @click="saveMetadata">
+        <AppButton size="sm" class="rounded-full" :disabled="savingMeta" @click="saveMetadata">
           <Icon v-if="savingMeta" name="lucide:loader-2" class="w-3.5 h-3.5 mr-1 animate-spin" />
           Save details
-        </Button>
+        </AppButton>
       </div>
     </div>
 

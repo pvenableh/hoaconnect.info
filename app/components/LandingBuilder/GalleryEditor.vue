@@ -65,7 +65,7 @@ const removeImage = (i: number) => g.value.images.splice(i, 1);
       <div v-else class="flex flex-wrap gap-3">
         <div v-for="(id, j) in landing.gallery.images" :key="id" class="relative">
           <img :src="fileUrl(id, 'small')" class="h-20 w-28 object-cover rounded border t-border" />
-          <Button
+          <AppButton
             type="button"
             variant="destructive"
             size="icon"
@@ -75,7 +75,7 @@ const removeImage = (i: number) => g.value.images.splice(i, 1);
             @click="removeImage(j)"
           >
             <Icon name="lucide:x" class="w-3.5 h-3.5" />
-          </Button>
+          </AppButton>
         </div>
       </div>
     </template>

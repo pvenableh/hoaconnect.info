@@ -45,9 +45,9 @@ const STATUS_TONE: Record<string, string> = {
         <h2 class="type-card t-text">Ask my community</h2>
         <p class="type-meta t-text-muted">Dues, rules, maintenance, neighbours: your HOA answers these.</p>
         <div v-if="askable.length" class="mt-3 flex flex-wrap gap-2">
-          <Button v-for="c in askable" :key="c.id" as="a" :href="`/${c.slug}/requests?ask=1`" variant="outline" size="sm">
+          <AppButton v-for="c in askable" :key="c.id" as="a" :href="`/${c.slug}/requests?ask=1`" variant="outline" size="sm">
             Ask {{ askable.length > 1 ? c.name : "your community" }}
-          </Button>
+          </AppButton>
         </div>
         <p v-else class="mt-3 type-micro t-text-muted">You're not a member of a community you can ask.</p>
       </section>
@@ -56,9 +56,9 @@ const STATUS_TONE: Record<string, string> = {
         <h2 class="type-card t-text">Contact HOA Connect</h2>
         <p class="type-meta t-text-muted">Something in the app isn't working, a billing question, or an idea.</p>
         <div class="mt-3">
-          <Button v-if="canContact" as="a" :href="from ? `/support/new?from=${encodeURIComponent(from)}` : '/support/new'" size="sm">
+          <AppButton v-if="canContact" as="a" :href="from ? `/support/new?from=${encodeURIComponent(from)}` : '/support/new'" size="sm">
             Contact HOA Connect
-          </Button>
+          </AppButton>
           <p v-else class="type-micro t-text-muted">Ask your community's HOA Admin to contact HOA Connect for you.</p>
         </div>
       </section>
@@ -90,7 +90,7 @@ const STATUS_TONE: Record<string, string> = {
         icon="lucide:life-buoy"
       />
       <div class="mt-2 flex justify-end">
-        <Button variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</Button>
+        <AppButton variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</AppButton>
       </div>
     </section>
   </PageContainer>

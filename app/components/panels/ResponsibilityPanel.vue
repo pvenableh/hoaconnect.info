@@ -110,11 +110,11 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
     <template v-if="canAct" #actions>
       <DropdownMenu v-if="openHolders.length > 1">
         <DropdownMenuTrigger as-child>
-          <Button size="sm" class="rounded-full">
+          <AppButton size="sm" class="rounded-full">
             <Icon name="lucide:repeat" class="w-4 h-4 mr-1.5" />
             Hand Over
             <Icon name="lucide:chevron-down" class="w-3.5 h-3.5 ml-1" />
-          </Button>
+          </AppButton>
         </DropdownMenuTrigger>
         <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-for="h in openHolders" :key="h.id" @click="startHandOver(h)">
@@ -122,19 +122,19 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
           </DropdownMenuItem>
         </AppDropdownMenuContent>
       </DropdownMenu>
-      <Button v-else-if="openHolders.length === 1" size="sm" class="rounded-full" @click="startHandOver(openHolders[0]!)">
+      <AppButton v-else-if="openHolders.length === 1" size="sm" class="rounded-full" @click="startHandOver(openHolders[0]!)">
         <Icon name="lucide:repeat" class="w-4 h-4 mr-1.5" />
         Hand Over
-      </Button>
-      <Button v-else size="sm" class="rounded-full" @click="startAssign">
+      </AppButton>
+      <AppButton v-else size="sm" class="rounded-full" @click="startAssign">
         <Icon name="lucide:user-plus" class="w-4 h-4 mr-1.5" />
         Assign
-      </Button>
+      </AppButton>
       <DropdownMenu>
         <DropdownMenuTrigger as-child>
-          <Button variant="ghost" size="icon-sm" aria-label="More actions">
+          <AppButton variant="ghost" size="icon-sm" aria-label="More actions">
             <Icon name="lucide:more-horizontal" />
-          </Button>
+          </AppButton>
         </DropdownMenuTrigger>
         <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-if="openHolders.length" @click="startAssign">
@@ -157,7 +157,7 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
       </DropdownMenu>
     </template>
     <template v-else-if="viewer.canEdit && job && retired" #actions>
-      <Button size="sm" variant="outline" class="rounded-full" @click="editing = true">Edit Job</Button>
+      <AppButton size="sm" variant="outline" class="rounded-full" @click="editing = true">Edit Job</AppButton>
     </template>
 
     <div v-if="!job && resource.pending" class="py-16 flex justify-center">
@@ -230,7 +230,7 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
               <p v-else-if="a.kind === 'office' && !a.end_date && a.vacant" class="type-meta text-warning">The office is vacant</p>
               <p v-if="a.notes" class="type-meta t-text-secondary">{{ a.notes }}</p>
             </div>
-            <Button v-if="viewer.canEdit" variant="ghost" size="sm" class="shrink-0" @click="correcting = a">Correct</Button>
+            <AppButton v-if="viewer.canEdit" variant="ghost" size="sm" class="shrink-0" @click="correcting = a">Correct</AppButton>
           </li>
           <li class="responsibility-panel__event">
             <span class="responsibility-panel__dot" aria-hidden="true"><Icon name="lucide:file-plus" class="w-3.5 h-3.5" /></span>

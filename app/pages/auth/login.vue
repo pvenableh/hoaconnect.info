@@ -171,7 +171,7 @@ const handleRegister = () => {
 
     <!-- One-click sandbox: no signup, no credentials -->
     <div class="mt-6 pt-5 border-t t-border">
-      <Button
+      <AppButton
         variant="outline"
         size="lg"
         class="w-full"
@@ -183,7 +183,7 @@ const handleRegister = () => {
           :class="{ 'animate-spin': demoLoading }"
         />
         {{ demoLoading ? "Loading demo…" : "Try the live demo" }}
-      </Button>
+      </AppButton>
       <p class="mt-2 text-center type-meta">Explore a sample community — no account needed.</p>
     </div>
   </AuthShell>

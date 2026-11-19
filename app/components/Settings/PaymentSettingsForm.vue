@@ -200,14 +200,14 @@
 
     <!-- Save Button -->
     <div class="flex justify-end">
-      <Button @click="saveChanges" :disabled="isSaving || !hasChanges">
+      <AppButton @click="saveChanges" :disabled="isSaving || !hasChanges">
         <Icon
           v-if="isSaving"
           name="lucide:loader-2"
           class="mr-2 h-4 w-4 animate-spin"
         />
         {{ isSaving ? "Saving..." : "Save Payment Settings" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

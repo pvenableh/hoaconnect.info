@@ -41,7 +41,7 @@
 
         <!-- CTA -->
         <div class="flex justify-end">
-          <Button
+          <AppButton
             v-if="status !== 'active'"
             @click="startOnboarding"
             :disabled="isWorking"
@@ -52,8 +52,8 @@
               class="mr-2 h-4 w-4 animate-spin"
             />
             {{ ctaLabel }}
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-else
             variant="outline"
             @click="startOnboarding"
@@ -65,7 +65,7 @@
               class="mr-2 h-4 w-4 animate-spin"
             />
             Manage account
-          </Button>
+          </AppButton>
         </div>
       </div>
     </CardContent>

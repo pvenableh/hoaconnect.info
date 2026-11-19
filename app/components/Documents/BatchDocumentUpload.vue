@@ -544,7 +544,7 @@ const allComplete = computed(
           Files to Upload
           <span class="t-text-muted font-normal">({{ fileQueue.length }})</span>
         </h3>
-        <Button
+        <AppButton
           v-if="!isUploading && pendingCount > 0"
           variant="ghost"
           size="sm"
@@ -552,7 +552,7 @@ const allComplete = computed(
           class="t-text-muted hover:text-red-600"
         >
           Clear All
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Progress Bar (when uploading) -->
@@ -669,21 +669,21 @@ const allComplete = computed(
 
     <!-- Action Buttons -->
     <div class="flex items-center justify-between pt-4 border-t">
-      <Button variant="outline" @click="emit('close')" :disabled="isUploading">
+      <AppButton variant="outline" @click="emit('close')" :disabled="isUploading">
         {{ allComplete && !hasErrors ? "Done" : "Cancel" }}
-      </Button>
+      </AppButton>
 
       <div class="flex gap-2">
-        <Button
+        <AppButton
           v-if="hasErrors && !isUploading"
           variant="outline"
           @click="retryFailed"
         >
           <Icon name="heroicons:arrow-path" class="h-4 w-4 mr-2" />
           Retry Failed
-        </Button>
+        </AppButton>
 
-        <Button
+        <AppButton
           @click="uploadAll"
           :disabled="fileQueue.length === 0 || isUploading || (allComplete && !hasErrors)"
         >
@@ -698,7 +698,7 @@ const allComplete = computed(
               ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...`
               : `Upload ${pendingCount} File${pendingCount !== 1 ? "s" : ""}`
           }}
-        </Button>
+        </AppButton>
       </div>
     </div>
   </div>

@@ -248,7 +248,7 @@ function onPileClick(e: MouseEvent) {
     </div>
 
     <div v-if="open && walkable && items.length >= 2" ref="footEl" class="mt-2 flex justify-end">
-      <Button
+      <AppButton
         variant="outline"
         size="sm"
         class="rounded-full"
@@ -257,7 +257,7 @@ function onPileClick(e: MouseEvent) {
       >
         <Icon name="i-lucide-fast-forward" class="w-3.5 h-3.5 mr-1.5" />
         Walk me through
-      </Button>
+      </AppButton>
     </div>
   </section>
 </template>

@@ -170,6 +170,7 @@ html[data-tint='off'] {
 [data-slot='toggle-group-item'][data-state='on'],
 [data-sonner-toast],
 .glass-btn-soft,
+.app-btn-soft,
 .header-pill,
 .field-underline,
 select,
@@ -348,6 +349,43 @@ select,
 }
 .dark [data-slot='toggle-group-item'][data-state='on'] {
 	background: color-mix(in srgb, var(--theme-bg-tertiary) 88%, transparent);
+}
+
+/* AppButton's outline / secondary pane (App/button-variants.ts). ui/button is
+   stock shadcn-vue, whose outline `border bg-background shadow-xs
+   hover:bg-accent dark:bg-input/30 …` and secondary `bg-secondary
+   hover:bg-secondary/80` are utilities and would beat `.glass-btn-soft` in
+   @layer components; so the pane is restated here, unlayered, mirroring the
+   layered rules above selector for selector (same cascade between rest,
+   hover, dark and tinted). Focus hands box-shadow back to the layers, where
+   the stock `focus-visible:ring-3` wins over the pane exactly as it always
+   has. A wrapper class rather than a data-slot rule, because the stock parts
+   that call buttonVariants() themselves (AlertDialogCancel, pagination
+   items) are dressed with it too. (docs/shadcn-census.md, step 5.) */
+.app-btn-soft {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 62%, transparent);
+	border: 0;
+	box-shadow: var(--glass-edge-shadow);
+}
+.app-btn-soft:hover {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 85%, transparent);
+}
+.dark .app-btn-soft {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 55%, transparent);
+}
+.dark .app-btn-soft:hover {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 80%, transparent);
+}
+.app-btn-soft--tinted {
+	background: linear-gradient(
+			to bottom,
+			hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 55% / 0.1),
+			hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 50% / 0.04)
+		),
+		color-mix(in srgb, var(--theme-bg-elevated) 62%, transparent);
+}
+.app-btn-soft:focus-visible {
+	box-shadow: revert-layer;
 }
 
 /* Focus keeps the rim and ADDS the accent ring. Deliberately OUTSIDE @layer so it

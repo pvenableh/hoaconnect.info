@@ -197,18 +197,18 @@ useSeoMeta({
           description="Alerts, newsletters, reminders, and notices for your members."
         >
           <template #actions>
-            <Button variant="outline" @click="goToTemplates">
+            <AppButton variant="outline" @click="goToTemplates">
               <Icon name="lucide:layout-template" />
               Templates
-            </Button>
-            <Button variant="outline" @click="goToActivity">
+            </AppButton>
+            <AppButton variant="outline" @click="goToActivity">
               <Icon name="lucide:activity" />
               Activity
-            </Button>
-            <Button @click="goToCompose">
+            </AppButton>
+            <AppButton @click="goToCompose">
               <Icon name="lucide:plus" />
               Compose
-            </Button>
+            </AppButton>
           </template>
         </AppPageHeader>
 
@@ -352,15 +352,15 @@ useSeoMeta({
                 </template>
                 <template #cell-actions="{ row }">
                   <div class="flex justify-end gap-2" @click.stop>
-                    <Button
+                    <AppButton
                       variant="outline"
                       size="icon-sm"
                       aria-label="View email"
                       @click="goToEmail(row.id)"
                     >
                       <Icon name="lucide:eye" />
-                    </Button>
-                    <Button
+                    </AppButton>
+                    <AppButton
                       v-if="row.status === 'draft' || row.status === 'failed'"
                       variant="destructive"
                       size="icon-sm"
@@ -368,7 +368,7 @@ useSeoMeta({
                       @click="confirmDelete(row.id)"
                     >
                       <Icon name="lucide:trash-2" />
-                    </Button>
+                    </AppButton>
                   </div>
                 </template>
               </AppDataTable>
@@ -388,10 +388,10 @@ useSeoMeta({
                 size="sm"
               >
                 <template #actions>
-                  <Button @click="goToCompose">
+                  <AppButton @click="goToCompose">
                     <Icon name="lucide:plus" />
                     Compose Email
-                  </Button>
+                  </AppButton>
                 </template>
               </AppEmptyState>
               <AppEmptyState
@@ -400,10 +400,10 @@ useSeoMeta({
                 :title="`Nothing in ${activeTab}`"
                 description="Emails appear here once they reach this state."
               >
-                <Button @click="goToCompose">
+                <AppButton @click="goToCompose">
                   <Icon name="lucide:plus" />
                   Compose an email
-                </Button>
+                </AppButton>
               </AppEmptyState>
 
               <!-- Pagination -->
@@ -417,22 +417,22 @@ useSeoMeta({
                   {{ pagination.total }} emails
                 </p>
                 <div class="flex gap-2">
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
                     :disabled="pagination.page <= 1"
                     @click="goToPage(pagination.page - 1)"
                   >
                     Previous
-                  </Button>
-                  <Button
+                  </AppButton>
+                  <AppButton
                     variant="outline"
                     size="sm"
                     :disabled="pagination.page >= pagination.totalPages"
                     @click="goToPage(pagination.page + 1)"
                   >
                     Next
-                  </Button>
+                  </AppButton>
                 </div>
               </div>
             </CardContent>
@@ -454,12 +454,12 @@ useSeoMeta({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" @click="showDeleteDialog = false">
+              <AppButton variant="outline" @click="showDeleteDialog = false">
                 Cancel
-              </Button>
-              <Button variant="destructive" @click="handleDelete">
+              </AppButton>
+              <AppButton variant="destructive" @click="handleDelete">
                 {{ deletingFailed ? 'Remove' : 'Delete' }}
-              </Button>
+              </AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>

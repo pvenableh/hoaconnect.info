@@ -117,13 +117,13 @@ const submit = async () => {
           <span v-if="saving && progress" class="type-meta t-text-secondary" role="status">
             Uploading part {{ progress.sent }} of {{ progress.total }}
           </span>
-          <Button as-child type="button" variant="ghost">
+          <AppButton as-child type="button" variant="ghost">
             <NuxtLink :to="buildOrgPath('/governing')">Cancel</NuxtLink>
-          </Button>
-          <Button type="submit" :disabled="!file || !title.trim() || tooLarge || saving">
+          </AppButton>
+          <AppButton type="submit" :disabled="!file || !title.trim() || tooLarge || saving">
             <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
             Upload as Draft
-          </Button>
+          </AppButton>
         </div>
       </form>
     </PageContainer>

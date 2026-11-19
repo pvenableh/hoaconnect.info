@@ -182,10 +182,10 @@ const AGING_COLS = [
 <template>
   <div class="space-y-6">
     <div class="flex justify-end">
-      <Button variant="outline" size="sm" class="rounded-full" :disabled="pdfBusy" data-testid="reports-export-pdf" @click="exportPdf">
+      <AppButton variant="outline" size="sm" class="rounded-full" :disabled="pdfBusy" data-testid="reports-export-pdf" @click="exportPdf">
         <Icon :name="pdfBusy ? 'lucide:loader-2' : 'lucide:file-down'" class="w-3.5 h-3.5 mr-1" :class="pdfBusy && 'animate-spin'" />
         PDF
-      </Button>
+      </AppButton>
     </div>
     <!-- Summary -->
     <div class="grid grid-cols-2 gap-4" :class="hasOpening ? 'md:grid-cols-5' : 'md:grid-cols-4'">
@@ -230,9 +230,9 @@ const AGING_COLS = [
               :class="{ 'filter-pill--active': range === opt.key }"
             >{{ opt.label }}</button>
           </div>
-          <Button variant="outline" size="sm" class="rounded-full" :disabled="!series.length" @click="exportMonthly">
+          <AppButton variant="outline" size="sm" class="rounded-full" :disabled="!series.length" @click="exportMonthly">
             <Icon name="lucide:download" class="w-3.5 h-3.5 mr-1" /> CSV
-          </Button>
+          </AppButton>
         </div>
       </div>
       <table class="w-full text-sm">
@@ -307,9 +307,9 @@ const AGING_COLS = [
           <h3 class="font-semibold t-text">Delinquency aging</h3>
           <p class="text-xs t-text-muted">Unpaid charges by days past due, as of {{ fdate(asOf) }}.</p>
         </div>
-        <Button variant="outline" size="sm" class="rounded-full" :disabled="!aging.rows.length" @click="exportDelinquency">
+        <AppButton variant="outline" size="sm" class="rounded-full" :disabled="!aging.rows.length" @click="exportDelinquency">
           <Icon name="lucide:download" class="w-3.5 h-3.5 mr-1" /> CSV
-        </Button>
+        </AppButton>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full text-sm">

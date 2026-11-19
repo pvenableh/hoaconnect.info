@@ -22,7 +22,7 @@
  *     footnote="You can rename units later."
  *   >
  *     <template #actions>
- *       <Button @click="add">Add Unit</Button>
+ *       <AppButton @click="add">Add Unit</AppButton>
  *     </template>
  *   </AppEmptyState>
  *

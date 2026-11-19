@@ -536,10 +536,10 @@ useSeoMeta({
                     class="pl-10 w-64"
                   />
                 </div>
-                <Button @click="navigateToOrg('/admin/members')" variant="outline">
+                <AppButton @click="navigateToOrg('/admin/members')" variant="outline">
                   <Icon name="lucide:users" class="w-4 h-4 mr-2" />
                   Manage Members
-                </Button>
+                </AppButton>
               </div>
 
               <!-- Users Table -->
@@ -581,9 +581,9 @@ useSeoMeta({
                     <template #cell-actions="{ row }">
                       <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                          <Button variant="ghost" size="icon-sm" aria-label="Account actions">
+                          <AppButton variant="ghost" size="icon-sm" aria-label="Account actions">
                             <Icon name="lucide:more-horizontal" />
-                          </Button>
+                          </AppButton>
                         </DropdownMenuTrigger>
                         <AppDropdownMenuContent align="end">
                           <DropdownMenuItem v-if="row.status !== 'active'" @click="handleUpdateStatus(row, 'active')">
@@ -615,9 +615,9 @@ useSeoMeta({
                         "
                         compact
                       >
-                        <Button v-if="searchQuery" variant="outline" @click="searchQuery = ''">
+                        <AppButton v-if="searchQuery" variant="outline" @click="searchQuery = ''">
                           Clear search
-                        </Button>
+                        </AppButton>
                       </AppEmptyState>
                     </template>
                   </AppDataTable>
@@ -686,15 +686,15 @@ useSeoMeta({
                         </p>
                       </div>
                       <div class="flex gap-2 ml-4">
-                        <Button
+                        <AppButton
                           @click="openApproveModal(request)"
                           size="sm"
                           variant="default"
                         >
                           <Icon name="lucide:check" class="w-4 h-4 mr-1" />
                           Approve
-                        </Button>
-                        <Button
+                        </AppButton>
+                        <AppButton
                           @click="handleRejectRequest(request)"
                           size="sm"
                           variant="destructive"
@@ -707,7 +707,7 @@ useSeoMeta({
                           />
                           <Icon v-else name="lucide:x" class="w-4 h-4 mr-1" />
                           Reject
-                        </Button>
+                        </AppButton>
                       </div>
                     </div>
                   </div>
@@ -770,10 +770,10 @@ useSeoMeta({
                         >
                           {{ member.status }}
                         </span>
-                        <Button @click="openConnectModal(member)" size="sm" variant="outline">
+                        <AppButton @click="openConnectModal(member)" size="sm" variant="outline">
                           <Icon name="lucide:link" class="w-4 h-4 mr-1" />
                           Connect Account
-                        </Button>
+                        </AppButton>
                       </div>
                     </div>
                   </div>
@@ -867,21 +867,21 @@ useSeoMeta({
                 </div>
               </div>
               <DialogFooter>
-                <Button
+                <AppButton
                   @click="showApproveModal = false"
                   variant="outline"
                   :disabled="isApproving"
                 >
                   Cancel
-                </Button>
-                <Button @click="handleApproveRequest" :disabled="isApproving">
+                </AppButton>
+                <AppButton @click="handleApproveRequest" :disabled="isApproving">
                   <Icon
                     v-if="isApproving"
                     name="lucide:loader-2"
                     class="w-4 h-4 mr-2 animate-spin"
                   />
                   Approve & Create Member
-                </Button>
+                </AppButton>
               </DialogFooter>
             </AppDialogContent>
           </Dialog>
@@ -922,14 +922,14 @@ useSeoMeta({
                       class="flex-1"
                       @keyup.enter="searchUsers"
                     />
-                    <Button @click="searchUsers" :disabled="searchingUsers" variant="outline">
+                    <AppButton @click="searchUsers" :disabled="searchingUsers" variant="outline">
                       <Icon
                         v-if="searchingUsers"
                         name="lucide:loader-2"
                         class="w-4 h-4 animate-spin"
                       />
                       <Icon v-else name="lucide:search" class="w-4 h-4" />
-                    </Button>
+                    </AppButton>
                   </div>
                 </div>
 
@@ -947,14 +947,14 @@ useSeoMeta({
                         <p class="font-medium">{{ user.first_name }} {{ user.last_name }}</p>
                         <p class="text-sm t-text-secondary">{{ user.email }}</p>
                       </div>
-                      <Button size="sm" variant="ghost" :disabled="isConnecting">
+                      <AppButton size="sm" variant="ghost" :disabled="isConnecting">
                         <Icon
                           v-if="isConnecting"
                           name="lucide:loader-2"
                           class="w-4 h-4 animate-spin"
                         />
                         <Icon v-else name="lucide:link" class="w-4 h-4" />
-                      </Button>
+                      </AppButton>
                     </div>
                   </div>
                 </div>
@@ -967,9 +967,9 @@ useSeoMeta({
                 </div>
               </div>
               <DialogFooter>
-                <Button @click="showConnectModal = false" variant="outline">
+                <AppButton @click="showConnectModal = false" variant="outline">
                   Cancel
-                </Button>
+                </AppButton>
               </DialogFooter>
             </AppDialogContent>
           </Dialog>

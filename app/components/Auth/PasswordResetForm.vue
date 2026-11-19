@@ -8,7 +8,6 @@ import { refDebounced } from "@vueuse/core";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
 import { Loader2, Check, X, CheckCircle2 } from "lucide-vue-next";
 
@@ -174,10 +173,10 @@ const onSubmit = handleSubmit(async (values) => {
           </VeeField>
 
           <div class="flex flex-col gap-3 pt-3">
-            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
+            <AppButton type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Resetting password..." : "Reset password" }}
-            </Button>
+            </AppButton>
           </div>
         </form>
 
@@ -193,9 +192,9 @@ const onSubmit = handleSubmit(async (values) => {
               with your new password.
             </p>
           </div>
-          <Button type="button" size="lg" class="w-full rounded-full mt-4" @click="emit('login')">
+          <AppButton type="button" size="lg" class="w-full rounded-full mt-4" @click="emit('login')">
             Continue to login
-          </Button>
+          </AppButton>
         </div>
     </div>
   </div>

@@ -23,7 +23,7 @@ const { buildOrgPath } = useOrgNavigation();
           <p class="text-xs t-text-muted">You can still read everything, pay dues, and send requests to the board.</p>
         </div>
       </div>
-      <Button as="a" :href="buildOrgPath('/requests?ask=1')" variant="outline" size="sm">Contact the board</Button>
+      <AppButton as="a" :href="buildOrgPath('/requests?ask=1')" variant="outline" size="sm">Contact the board</AppButton>
     </div>
   </div>
 </template>

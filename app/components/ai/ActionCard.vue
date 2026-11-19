@@ -129,25 +129,25 @@ const showBody = ref(false);
     <!-- Controls -->
     <div v-if="action.status === 'pending'" class="flex items-center gap-2 px-3 py-2 border-t t-border t-bg-subtle/40">
       <template v-if="!editing">
-        <Button type="button" size="sm" :disabled="busy" @click="emit('approve', action.id)">
+        <AppButton type="button" size="sm" :disabled="busy" @click="emit('approve', action.id)">
           <Icon name="lucide:check" class="w-3.5 h-3.5 mr-1" /> Approve
-        </Button>
-        <Button type="button" size="sm" variant="ghost" :disabled="busy" @click="emit('reject', action.id)">
+        </AppButton>
+        <AppButton type="button" size="sm" variant="ghost" :disabled="busy" @click="emit('reject', action.id)">
           Reject
-        </Button>
-        <Button v-if="editableFields.length" type="button" size="sm" variant="ghost" class="ml-auto" :disabled="busy" @click="startEdit">
+        </AppButton>
+        <AppButton v-if="editableFields.length" type="button" size="sm" variant="ghost" class="ml-auto" :disabled="busy" @click="startEdit">
           <Icon name="lucide:pencil" class="w-3.5 h-3.5 mr-1" /> Edit
-        </Button>
+        </AppButton>
       </template>
       <template v-else>
-        <Button type="button" size="sm" :disabled="busy" @click="saveEdit">Save changes</Button>
-        <Button type="button" size="sm" variant="ghost" @click="editing = false">Cancel</Button>
+        <AppButton type="button" size="sm" :disabled="busy" @click="saveEdit">Save changes</AppButton>
+        <AppButton type="button" size="sm" variant="ghost" @click="editing = false">Cancel</AppButton>
       </template>
     </div>
     <div v-else-if="isUndoable" class="flex items-center px-3 py-2 border-t t-border t-bg-subtle/40">
-      <Button type="button" size="sm" variant="ghost" :disabled="busy" @click="emit('undo', action.id)">
+      <AppButton type="button" size="sm" variant="ghost" :disabled="busy" @click="emit('undo', action.id)">
         <Icon name="lucide:undo-2" class="w-3.5 h-3.5 mr-1" /> Undo
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

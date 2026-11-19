@@ -235,10 +235,10 @@ async function save() {
       </template>
     </div>
     <template #footer>
-      <Button variant="outline" @click="open = false">Cancel</Button>
-      <Button :disabled="!canSave" @click="save">
+      <AppButton variant="outline" @click="open = false">Cancel</AppButton>
+      <AppButton :disabled="!canSave" @click="save">
         {{ action === "end" ? "End term" : action === "change-office" ? "Change office" : "Save correction" }}
-      </Button>
+      </AppButton>
     </template>
   </AppBottomSheet>
 </template>

@@ -171,22 +171,22 @@ watch(isOpen, (open) => {
   </form>
 
     <template #footer>
-      <Button
+      <AppButton
         type="button"
         variant="outline"
         @click="isOpen = false"
         :disabled="isSubmitting"
       >
         Cancel
-      </Button>
-      <Button type="submit" form="create-channel-form" :disabled="isSubmitting">
+      </AppButton>
+      <AppButton type="submit" form="create-channel-form" :disabled="isSubmitting">
         <Icon
           v-if="isSubmitting"
           name="lucide:loader-2"
           class="w-4 h-4 mr-1 animate-spin"
         />
         Create Channel
-      </Button>
+      </AppButton>
     </template>
   </AppBottomSheet>
 </template>

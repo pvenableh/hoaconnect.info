@@ -279,19 +279,19 @@ async function onDone(res: any) {
         <span v-if="c.inGrace" class="type-meta text-info">Transition grace until {{ shortDate(c.graceEndsAt) }}</span>
         <span v-if="c.billingAccount" class="type-meta t-text-muted">Billed through {{ c.billingAccount.name }}</span>
         <span class="type-meta t-text-muted">Signed up {{ shortDate(c.signupAt) }}</span>
-        <Button v-if="canSupport" variant="ghost" size="sm" class="ml-auto" @click="start('viewas')">View as…</Button>
+        <AppButton v-if="canSupport" variant="ghost" size="sm" class="ml-auto" @click="start('viewas')">View as…</AppButton>
         <span v-if="canAct && !c.billingAccount" class="flex flex-wrap gap-2">
-          <Button v-if="canTrial" variant="outline" size="sm" @click="start('trial')">Extend trial</Button>
-          <Button variant="outline" size="sm" @click="start('comp')">{{ isFree ? "Remove free" : "Mark free" }}</Button>
+          <AppButton v-if="canTrial" variant="outline" size="sm" @click="start('trial')">Extend trial</AppButton>
+          <AppButton variant="outline" size="sm" @click="start('comp')">{{ isFree ? "Remove free" : "Mark free" }}</AppButton>
         </span>
       </div>
 
       <!-- Links -->
       <div class="mt-3 flex flex-wrap gap-2">
-        <Button v-if="links?.stripeCustomer" as="a" :href="links.stripeCustomer" target="_blank" rel="noopener" variant="outline" size="sm">Stripe customer</Button>
-        <Button v-if="links?.stripeSubscription" as="a" :href="links.stripeSubscription" target="_blank" rel="noopener" variant="outline" size="sm">Stripe subscription</Button>
-        <Button v-if="links?.directus" as="a" :href="links.directus" target="_blank" rel="noopener" variant="outline" size="sm">Directus item</Button>
-        <Button v-if="links?.app" as="a" :href="links.app" variant="ghost" size="sm">Open community</Button>
+        <AppButton v-if="links?.stripeCustomer" as="a" :href="links.stripeCustomer" target="_blank" rel="noopener" variant="outline" size="sm">Stripe customer</AppButton>
+        <AppButton v-if="links?.stripeSubscription" as="a" :href="links.stripeSubscription" target="_blank" rel="noopener" variant="outline" size="sm">Stripe subscription</AppButton>
+        <AppButton v-if="links?.directus" as="a" :href="links.directus" target="_blank" rel="noopener" variant="outline" size="sm">Directus item</AppButton>
+        <AppButton v-if="links?.app" as="a" :href="links.app" variant="ghost" size="sm">Open community</AppButton>
       </div>
 
       <div class="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -317,7 +317,7 @@ async function onDone(res: any) {
               </span>
               <span class="flex shrink-0 items-center gap-2">
                 <span class="type-micro t-text-muted">signed in {{ relativeDays(p.lastSignInAt) }}</span>
-                <Button v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="startWelcome(p)">Re-send welcome</Button>
+                <AppButton v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="startWelcome(p)">Re-send welcome</AppButton>
               </span>
             </li>
             <li v-if="!people.hoaAdmins.length" class="py-2 type-meta text-warning">This community has no HOA Admin.</li>
@@ -420,11 +420,11 @@ async function onDone(res: any) {
             Its units now fall into a different band than the one it pays for.
           </p>
           <div v-if="canAct && (sub || links?.stripeCustomer)" class="mt-3 flex flex-wrap gap-2">
-            <Button v-if="sub && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('cancel')">Cancel…</Button>
-            <Button v-if="sub?.cancelAtPeriodEnd && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('resume')">Resume</Button>
-            <Button v-if="sub && sub.status !== 'canceled' && !c.billingAccount && bandChoices.length" variant="outline" size="sm" @click="start('reband')">Change band…</Button>
-            <Button v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('portal')">Billing portal</Button>
-            <Button v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('contact')">Billing contact…</Button>
+            <AppButton v-if="sub && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('cancel')">Cancel…</AppButton>
+            <AppButton v-if="sub?.cancelAtPeriodEnd && sub.status !== 'canceled'" variant="outline" size="sm" @click="start('resume')">Resume</AppButton>
+            <AppButton v-if="sub && sub.status !== 'canceled' && !c.billingAccount && bandChoices.length" variant="outline" size="sm" @click="start('reband')">Change band…</AppButton>
+            <AppButton v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('portal')">Billing portal</AppButton>
+            <AppButton v-if="links?.stripeCustomer" variant="ghost" size="sm" @click="start('contact')">Billing contact…</AppButton>
           </div>
           <p v-else-if="canWrite && billing.otherMode" class="mt-2 type-micro t-text-muted">Actions are off for objects in the other Stripe mode.</p>
 
@@ -446,8 +446,8 @@ async function onDone(res: any) {
                 <span class="t-text">{{ shortDate(ch.created) }}<span v-if="ch.last4" class="ml-1 type-micro t-text-muted">•••• {{ ch.last4 }}</span></span>
                 <span class="tabular-nums t-text-secondary">{{ money(ch.amount, ch.currency) }}</span>
                 <OpsStatusPill :status="ch.refunded ? 'refunded' : ch.amountRefunded ? 'partially_refunded' : ch.status" />
-                <Button v-if="canAct && ch.refundable" variant="ghost" size="sm" class="h-7 px-2" @click="startRefund(ch)">Refund</Button>
-                <Button v-if="canAct && ch.status === 'succeeded'" variant="ghost" size="sm" class="h-7 px-2" @click="startReceipt(ch)">Receipt</Button>
+                <AppButton v-if="canAct && ch.refundable" variant="ghost" size="sm" class="h-7 px-2" @click="startRefund(ch)">Refund</AppButton>
+                <AppButton v-if="canAct && ch.status === 'succeeded'" variant="ghost" size="sm" class="h-7 px-2" @click="startReceipt(ch)">Receipt</AppButton>
               </span>
               <span v-if="ch.amountRefunded" class="block type-micro text-warning">{{ money(ch.amountRefunded, ch.currency) }} refunded</span>
               <span v-if="ch.failureMessage" class="block type-micro text-destructive">{{ ch.failureMessage }}</span>
@@ -488,7 +488,7 @@ async function onDone(res: any) {
               <template v-if="preview.holders != null"> {{ preview.holders }} {{ preview.holders === 1 ? "person holds" : "people hold" }} it here.</template>
             </p>
           </div>
-          <Button variant="ghost" size="sm" @click="preview = null">Close</Button>
+          <AppButton variant="ghost" size="sm" @click="preview = null">Close</AppButton>
         </div>
         <div class="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
           <ul class="space-y-1">

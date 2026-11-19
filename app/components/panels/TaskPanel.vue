@@ -109,9 +109,9 @@ async function onToggle() {
 
     <template v-if="task" #footer>
       <div class="flex justify-end">
-        <Button variant="outline" size="sm" class="rounded-full text-red-600" @click="remove(id).then(() => $emit('close'))">
+        <AppButton variant="outline" size="sm" class="rounded-full text-red-600" @click="remove(id).then(() => $emit('close'))">
           <Icon name="lucide:trash-2" class="w-4 h-4 mr-1.5" />Delete task
-        </Button>
+        </AppButton>
       </div>
     </template>
   </AppSlideOverShell>

@@ -248,8 +248,8 @@ const saveEdit = async () => {
         <AppTextarea :id="`flag-note-${flag.id}`" v-model="form.note" rows="2" />
       </div>
       <div class="flex flex-wrap items-center justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="editing = false">Cancel</Button>
-        <Button type="submit" size="sm" :disabled="saving">Save Suggestion</Button>
+        <AppButton type="button" variant="ghost" size="sm" :disabled="saving" @click="editing = false">Cancel</AppButton>
+        <AppButton type="submit" size="sm" :disabled="saving">Save Suggestion</AppButton>
       </div>
     </form>
 
@@ -258,14 +258,14 @@ const saveEdit = async () => {
       <AppInput :id="`flag-counsel-${flag.id}`" v-model="counselNote" placeholder="Name of the lawyer or firm, and the date" />
       <p class="type-meta t-text-muted">Mark it only after a lawyer has reviewed this comparison. This is recorded with your name.</p>
       <div class="flex flex-wrap items-center justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="counselOpen = false">Cancel</Button>
-        <Button type="submit" size="sm" :disabled="saving || !counselNote.trim()">Mark Confirmed by Counsel</Button>
+        <AppButton type="button" variant="ghost" size="sm" :disabled="saving" @click="counselOpen = false">Cancel</AppButton>
+        <AppButton type="submit" size="sm" :disabled="saving || !counselNote.trim()">Mark Confirmed by Counsel</AppButton>
       </div>
     </form>
 
     <div v-else-if="manages && (actions.length || canEdit)" class="flex flex-wrap items-center justify-end gap-2 border-t t-border pt-3">
-      <Button v-if="canEdit" variant="ghost" size="sm" :disabled="saving" @click="startEdit">Edit</Button>
-      <Button
+      <AppButton v-if="canEdit" variant="ghost" size="sm" :disabled="saving" @click="startEdit">Edit</AppButton>
+      <AppButton
         v-for="action in actions"
         :key="action.status"
         :variant="action.status === 'dismissed' ? 'ghost' : 'outline'"
@@ -274,7 +274,7 @@ const saveEdit = async () => {
         @click="setStatus(action.status)"
       >
         {{ action.label }}
-      </Button>
+      </AppButton>
     </div>
   </article>
 </template>

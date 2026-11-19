@@ -138,9 +138,9 @@ useSeoMeta({
           <p class="t-text-secondary mb-6">
             The organization you're looking for doesn't exist.
           </p>
-          <Button @click="router.push('/')" variant="outline">
+          <AppButton @click="router.push('/')" variant="outline">
             Go Home
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Not signed in — need an account to request access -->
@@ -161,13 +161,13 @@ useSeoMeta({
               </CardDescription>
             </CardHeader>
             <CardContent class="space-y-3">
-              <Button class="w-full" @click="router.push(`/${slug}/signup`)">
+              <AppButton class="w-full" @click="router.push(`/${slug}/signup`)">
                 <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
                 Create account
-              </Button>
-              <Button variant="outline" class="w-full" @click="router.push('/auth/login')">
+              </AppButton>
+              <AppButton variant="outline" class="w-full" @click="router.push('/auth/login')">
                 I already have an account
-              </Button>
+              </AppButton>
             </CardContent>
           </AppCard>
         </div>
@@ -182,9 +182,9 @@ useSeoMeta({
           <p class="t-text-secondary mb-6">
             You are already a member of {{ organization.name }}.
           </p>
-          <Button @click="router.push(`/${slug}/documents`)">
+          <AppButton @click="router.push(`/${slug}/documents`)">
             Go to Dashboard
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Already has pending request -->
@@ -198,9 +198,9 @@ useSeoMeta({
             You already have a pending request to join {{ organization.name }}.
             An administrator will review your request.
           </p>
-          <Button @click="router.push('/')" variant="outline">
+          <AppButton @click="router.push('/')" variant="outline">
             Go Home
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Success State -->
@@ -215,9 +215,9 @@ useSeoMeta({
             An administrator will review your request and you'll be notified
             once it's approved.
           </p>
-          <Button @click="router.push('/')" variant="outline">
+          <AppButton @click="router.push('/')" variant="outline">
             Go Home
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Request Form -->
@@ -300,7 +300,7 @@ useSeoMeta({
                 </div>
 
                 <!-- Submit -->
-                <Button
+                <AppButton
                   type="submit"
                   class="w-full"
                   :disabled="isSubmitting"
@@ -311,7 +311,7 @@ useSeoMeta({
                     class="w-4 h-4 mr-2 animate-spin"
                   />
                   {{ isSubmitting ? "Submitting..." : "Submit Request" }}
-                </Button>
+                </AppButton>
               </form>
             </CardContent>
           </AppCard>

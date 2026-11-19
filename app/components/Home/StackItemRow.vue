@@ -101,7 +101,7 @@ function openRoute() {
         @click.stop
       >
         <template v-if="item.kind === 'notice'">
-          <Button
+          <AppButton
             v-if="item.notice?.proposedAction"
             size="sm"
             class="rounded-full"
@@ -115,11 +115,11 @@ function openRoute() {
               :class="proposingId === item.notice.id ? 'animate-spin' : ''"
             />
             Propose
-          </Button>
+          </AppButton>
           <NuxtLink v-else-if="item.route" :to="buildOrgPath(item.route)">
-            <Button variant="outline" size="sm" class="rounded-full">
+            <AppButton variant="outline" size="sm" class="rounded-full">
               {{ item.routeLabel || "Open" }}
-            </Button>
+            </AppButton>
           </NuxtLink>
           <button
             type="button"
@@ -133,9 +133,9 @@ function openRoute() {
         </template>
 
         <template v-else-if="item.kind === 'channel'">
-          <Button variant="outline" size="sm" class="rounded-full" @click="openRoute">
+          <AppButton variant="outline" size="sm" class="rounded-full" @click="openRoute">
             {{ item.routeLabel || "Open" }}
-          </Button>
+          </AppButton>
         </template>
 
         <!-- Know rows ask nothing: a quiet open, and that is all. -->

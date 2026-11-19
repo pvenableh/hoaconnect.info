@@ -202,10 +202,10 @@ const handleDelete = async (id: string) => {
             :description="`${units?.length ?? 0} unit${units?.length === 1 ? '' : 's'} in this community`"
           >
             <template #actions>
-              <Button @click="handleAdd">
+              <AppButton @click="handleAdd">
                 <Icon name="lucide:plus" />
                 Add Unit
-              </Button>
+              </AppButton>
             </template>
           </AppPageHeader>
 
@@ -223,28 +223,28 @@ const handleDelete = async (id: string) => {
                 </CardHeader>
               </NuxtLink>
               <CardFooter class="flex flex-col gap-2">
-                <Button as-child variant="secondary" size="sm" class="w-full">
+                <AppButton as-child variant="secondary" size="sm" class="w-full">
                   <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)">
                     <Icon name="lucide:folder-open" class="w-4 h-4 mr-1.5" /> Records
                   </NuxtLink>
-                </Button>
+                </AppButton>
                 <div class="flex gap-2 w-full">
-                  <Button
+                  <AppButton
                     @click="handleEdit(unit)"
                     variant="outline"
                     size="sm"
                     class="flex-1"
                   >
                     Edit
-                  </Button>
-                  <Button
+                  </AppButton>
+                  <AppButton
                     @click="handleDelete(unit.id)"
                     variant="destructive"
                     size="sm"
                     class="flex-1"
                   >
                     Delete
-                  </Button>
+                  </AppButton>
                 </div>
               </CardFooter>
             </AppCard>
@@ -264,10 +264,10 @@ const handleDelete = async (id: string) => {
               size="sm"
             >
               <template #actions>
-                <Button @click="handleAdd">
+                <AppButton @click="handleAdd">
                   <Icon name="lucide:plus" />
                   Add Unit
-                </Button>
+                </AppButton>
               </template>
             </AppEmptyState>
           </div>
@@ -297,7 +297,7 @@ const handleDelete = async (id: string) => {
               </div>
             </div>
             <template #footer>
-              <Button
+              <AppButton
                 @click="
                   showModal = false;
                   resetForm();
@@ -305,8 +305,8 @@ const handleDelete = async (id: string) => {
                 variant="outline"
               >
                 Cancel
-              </Button>
-              <Button @click="handleSubmit">Save</Button>
+              </AppButton>
+              <AppButton @click="handleSubmit">Save</AppButton>
             </template>
           </AppBottomSheet>
         </template>

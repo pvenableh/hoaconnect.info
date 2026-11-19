@@ -97,15 +97,15 @@ async function generate() {
         <span v-if="summary" class="mr-auto text-xs t-text-muted self-center">
           {{ formatCredits(summary.balanceCredits) }} credits available
         </span>
-        <Button type="button" variant="ghost" :disabled="generating" @click="open = false">Cancel</Button>
-        <Button type="button" :disabled="generating" @click="generate">
+        <AppButton type="button" variant="ghost" :disabled="generating" @click="open = false">Cancel</AppButton>
+        <AppButton type="button" :disabled="generating" @click="generate">
           <Icon
             :name="generating ? 'lucide:loader-circle' : 'lucide:sparkles'"
             class="w-4 h-4 mr-1.5"
             :class="{ 'animate-spin': generating }"
           />
           {{ generating ? "Generating…" : hasContent ? "Replace with AI draft" : "Generate" }}
-        </Button>
+        </AppButton>
       </DialogFooter>
     </AppDialogContent>
   </Dialog>

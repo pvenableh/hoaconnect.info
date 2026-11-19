@@ -58,13 +58,13 @@ async function toggle(which: "published" | "showUnassigned", on: boolean) {
 <template>
   <Popover>
     <PopoverTrigger as-child>
-      <Button variant="outline" class="rounded-full">
+      <AppButton variant="outline" class="rounded-full">
         <Icon name="lucide:eye" class="w-4 h-4 mr-1.5" />
         Visibility
         <span class="ml-1.5 type-meta" :class="visibility.published ? 'text-success' : 't-text-muted'">
           {{ visibility.published ? "Published" : "Private" }}
         </span>
-      </Button>
+      </AppButton>
     </PopoverTrigger>
     <AppPopoverContent align="end" class="w-80 space-y-4">
       <label class="flex items-start justify-between gap-4">

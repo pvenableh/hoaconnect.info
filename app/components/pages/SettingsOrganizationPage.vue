@@ -17,10 +17,10 @@
           description="Identity, branding, features, and billing for your community."
         >
           <template #actions>
-            <Button variant="outline" @click="navigateToOrg('/admin/settings/domains')">
+            <AppButton variant="outline" @click="navigateToOrg('/admin/settings/domains')">
               <Icon name="lucide:globe" />
               Edit public site
-            </Button>
+            </AppButton>
           </template>
         </AppPageHeader>
 
@@ -102,9 +102,9 @@
         <p class="text-muted-foreground mt-2">
           Please select an organization to manage its settings.
         </p>
-        <Button @click="navigateToOrg('/')" class="mt-4">
+        <AppButton @click="navigateToOrg('/')" class="mt-4">
           Go to Dashboard
-        </Button>
+        </AppButton>
       </div>
       </PageContainer>
   </div>

@@ -100,9 +100,9 @@ function remove(id: string) {
         <Icon name="lucide:paperclip" class="size-3.5 t-text-muted" />
         <span class="max-w-[12rem] truncate">{{ f.name }}</span>
         <span class="t-text-muted">{{ formatBytes(f.size) }}</span>
-        <Button type="button" variant="ghost" size="icon-sm" :aria-label="`Remove ${f.name}`" :disabled="props.disabled" @click="remove(f.id)">
+        <AppButton type="button" variant="ghost" size="icon-sm" :aria-label="`Remove ${f.name}`" :disabled="props.disabled" @click="remove(f.id)">
           <Icon name="lucide:x" class="size-3.5" />
-        </Button>
+        </AppButton>
       </li>
       <li v-for="(name, i) in pending" :key="`p-${i}`" class="flex items-center gap-1.5 rounded-full border border-dashed border-[var(--theme-border-primary)] px-3 py-1 type-micro t-text-muted">
         <Icon name="lucide:loader-circle" class="size-3.5 animate-spin" />
@@ -110,10 +110,10 @@ function remove(id: string) {
       </li>
     </ul>
     <input ref="input" type="file" multiple :accept="ATTACHMENT_ACCEPT" class="sr-only" tabindex="-1" @change="add(($event.target as HTMLInputElement).files)" />
-    <Button type="button" variant="ghost" size="sm" :disabled="props.disabled || room <= 0" @click="input?.click()">
+    <AppButton type="button" variant="ghost" size="sm" :disabled="props.disabled || room <= 0" @click="input?.click()">
       <Icon name="lucide:paperclip" class="size-4" />
       Attach files
-    </Button>
+    </AppButton>
     <p class="type-micro t-text-muted">Images, PDFs, text, Word or Excel · up to {{ ATTACHMENTS_PER_MESSAGE }}, 4 MB each</p>
   </div>
 </template>

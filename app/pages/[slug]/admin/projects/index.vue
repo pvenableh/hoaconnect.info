@@ -76,10 +76,10 @@ useHead({ bodyAttrs: { class: "" } });
           <p class="text-xs uppercase tracking-widest t-text-tertiary mb-1">Project Management</p>
           <h1 class="text-3xl font-semibold tracking-tight t-text">Projects</h1>
         </div>
-        <Button class="rounded-full" @click="showNew = !showNew">
+        <AppButton class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           New project
-        </Button>
+        </AppButton>
       </div>
 
       <!-- The assistant's advisory strip: what needs looking at here, and
@@ -137,10 +137,10 @@ useHead({ bodyAttrs: { class: "" } });
             size="sm"
           >
             <template #actions>
-              <Button @click="showNew = true">
+              <AppButton @click="showNew = true">
                 <Icon name="lucide:plus" />
                 New Project
-              </Button>
+              </AppButton>
             </template>
           </AppEmptyState>
         </div>

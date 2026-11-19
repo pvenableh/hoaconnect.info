@@ -61,21 +61,21 @@ watch(
         </div>
         <div class="flex items-center gap-2">
           <NuxtLink :to="buildOrgPath('/admin/leads')">
-            <Button variant="outline" class="rounded-full">
+            <AppButton variant="outline" class="rounded-full">
               <Icon name="lucide:globe" class="w-4 h-4 mr-1.5" />
               Website leads
-            </Button>
+            </AppButton>
           </NuxtLink>
           <NuxtLink :to="buildOrgPath('/admin/teams')">
-            <Button variant="outline" class="rounded-full">
+            <AppButton variant="outline" class="rounded-full">
               <Icon name="lucide:users" class="w-4 h-4 mr-1.5" />
               Teams
-            </Button>
+            </AppButton>
           </NuxtLink>
-          <Button class="rounded-full" @click="showNew = !showNew">
+          <AppButton class="rounded-full" @click="showNew = !showNew">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             New request
-          </Button>
+          </AppButton>
         </div>
       </div>
 
@@ -133,7 +133,7 @@ watch(
           panel-mode="board"
         >
           <template #empty-actions>
-            <Button class="rounded-full" @click="showNew = true">New Request</Button>
+            <AppButton class="rounded-full" @click="showNew = true">New Request</AppButton>
           </template>
         </RequestsRequestList>
       </div>

@@ -18,10 +18,10 @@
               :placeholder="orgName || 'Your HOA'"
               :disabled="savingName"
             />
-            <Button @click="saveName" :disabled="savingName">
+            <AppButton @click="saveName" :disabled="savingName">
               <Icon v-if="savingName" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               Save
-            </Button>
+            </AppButton>
           </div>
           <p class="text-xs text-muted-foreground">
             Defaults to your organization name. Shown as
@@ -51,10 +51,10 @@
               placeholder="yourbuilding.com"
               :disabled="authenticating"
             />
-            <Button @click="authenticate" :disabled="authenticating">
+            <AppButton @click="authenticate" :disabled="authenticating">
               <Icon v-if="authenticating" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               Authenticate
-            </Button>
+            </AppButton>
           </div>
           <p class="text-xs text-muted-foreground">
             We'll generate DNS records for you to add at your domain registrar.
@@ -114,10 +114,10 @@
             <div class="flex items-center gap-2">
               <AppInput id="from_local" v-model="fromLocal" placeholder="board" class="max-w-[180px]" :disabled="savingFrom" />
               <span class="text-sm t-text-muted">@{{ domain }}</span>
-              <Button @click="saveFromEmail" :disabled="savingFrom">
+              <AppButton @click="saveFromEmail" :disabled="savingFrom">
                 <Icon v-if="savingFrom" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
                 Save
-              </Button>
+              </AppButton>
             </div>
             <p class="text-xs text-muted-foreground">
               Emails will be sent from <span class="font-medium">{{ (fromLocal || "noreply") }}@{{ domain }}</span>.
@@ -125,14 +125,14 @@
           </div>
 
           <div class="flex gap-2 pt-2">
-            <Button v-if="!verified" variant="outline" @click="verify" :disabled="verifying">
+            <AppButton v-if="!verified" variant="outline" @click="verify" :disabled="verifying">
               <Icon v-if="verifying" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               Verify DNS
-            </Button>
-            <Button variant="ghost" class="text-destructive" @click="disconnect" :disabled="disconnecting">
+            </AppButton>
+            <AppButton variant="ghost" class="text-destructive" @click="disconnect" :disabled="disconnecting">
               <Icon v-if="disconnecting" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               Remove domain
-            </Button>
+            </AppButton>
           </div>
         </div>
       </CardContent>

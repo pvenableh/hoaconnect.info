@@ -194,17 +194,17 @@ watch(
           </div>
           <div class="flex items-center justify-between">
             <p class="font-medium t-text text-sm">Nearby places</p>
-            <Button variant="outline" size="sm" @click="addPlace">
+            <AppButton variant="outline" size="sm" @click="addPlace">
               <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add place
-            </Button>
+            </AppButton>
           </div>
           <div v-for="(p, i) in landing.places.items" :key="i" class="flex items-center gap-2">
             <AppInput v-model="p.name" placeholder="The Beach" class="flex-1" />
             <AppInput v-model="p.walk_time" placeholder="6 min" class="w-24" />
             <AppInput v-model="p.distance" placeholder="0.5 mi" class="w-24" />
-            <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removePlace(i)">
+            <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removePlace(i)">
               <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-            </Button>
+            </AppButton>
           </div>
         </section>
 

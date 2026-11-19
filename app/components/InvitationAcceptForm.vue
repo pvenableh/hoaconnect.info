@@ -133,7 +133,7 @@ const signOut = async () => {
         <p class="text-sm">
           You're signed in as {{ sessionEmail || "another account" }}. This invitation is for {{ details.email }}. Sign out to accept it.
         </p>
-        <Button class="w-full" :disabled="loading" @click="signOut">Sign out</Button>
+        <AppButton class="w-full" :disabled="loading" @click="signOut">Sign out</AppButton>
       </div>
 
       <form v-else class="space-y-4" @submit.prevent="submit">
@@ -175,10 +175,10 @@ const signOut = async () => {
 
         <p v-if="error" class="text-sm text-destructive" role="alert">{{ error }}</p>
 
-        <Button type="submit" class="w-full" :disabled="!canSubmit">
+        <AppButton type="submit" class="w-full" :disabled="!canSubmit">
           <Icon v-if="loading" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
           {{ mode === "new" ? "Create account and join" : `Join ${community}` }}
-        </Button>
+        </AppButton>
       </form>
     </CardContent>
   </AppCard>

@@ -340,7 +340,7 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
               </p>
               <div class="flex items-center gap-2">
                 <ClientOnly>
-                  <Button
+                  <AppButton
                     variant="ghost"
                     size="sm"
                     class="rounded-full"
@@ -349,12 +349,12 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                   >
                     <Icon :name="ambient.icon.value" class="w-4 h-4 mr-1.5" />
                     {{ ambient.label.value }}
-                  </Button>
+                  </AppButton>
                 </ClientOnly>
-                <Button variant="outline" size="sm" class="rounded-full" @click="toggleEdit">
+                <AppButton variant="outline" size="sm" class="rounded-full" @click="toggleEdit">
                   <Icon :name="isEditing ? 'lucide:check' : 'lucide:layout-grid'" class="w-4 h-4 mr-1.5" />
                   {{ isEditing ? "Done" : "Customize" }}
-                </Button>
+                </AppButton>
               </div>
             </div>
 
@@ -382,26 +382,26 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                   <div v-if="w.key === 'quick-actions'" class="ios-card p-5">
                     <h3 class="font-semibold t-text mb-3">Quick Actions</h3>
                     <div class="flex flex-wrap gap-2">
-                      <Button @click="navigateToOrg('/admin/documents/upload')" class="rounded-full">
+                      <AppButton @click="navigateToOrg('/admin/documents/upload')" class="rounded-full">
                         <Icon name="heroicons:arrow-up-tray" class="h-4 w-4 mr-2" />
                         Upload Document
-                      </Button>
-                      <Button @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
+                      </AppButton>
+                      <AppButton @click="navigateToOrg('/admin/members')" variant="outline" class="rounded-full">
                         <Icon name="heroicons:user-plus" class="h-4 w-4 mr-2" />
                         Invite Member
-                      </Button>
-                      <Button @click="navigateToOrg('/admin/communications/compose')" variant="outline" class="rounded-full">
+                      </AppButton>
+                      <AppButton @click="navigateToOrg('/admin/communications/compose')" variant="outline" class="rounded-full">
                         <Icon name="heroicons:envelope" class="h-4 w-4 mr-2" />
                         Send Email
-                      </Button>
-                      <Button @click="navigateToOrg('/admin/units')" variant="outline" class="rounded-full">
+                      </AppButton>
+                      <AppButton @click="navigateToOrg('/admin/units')" variant="outline" class="rounded-full">
                         <Icon name="heroicons:building-office" class="h-4 w-4 mr-2" />
                         Manage Units
-                      </Button>
-                      <Button @click="navigateToOrg('/admin/settings')" variant="outline" class="rounded-full">
+                      </AppButton>
+                      <AppButton @click="navigateToOrg('/admin/settings')" variant="outline" class="rounded-full">
                         <Icon name="heroicons:cog-6-tooth" class="h-4 w-4 mr-2" />
                         Settings
-                      </Button>
+                      </AppButton>
                     </div>
                   </div>
 
@@ -504,9 +504,9 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                       </NuxtLink>
                     </div>
                     <p v-else class="t-text-muted py-4 text-center flex-1">No documents yet</p>
-                    <Button @click="navigateToOrg('/documents')" variant="outline" class="w-full mt-3 rounded-full">
+                    <AppButton @click="navigateToOrg('/documents')" variant="outline" class="w-full mt-3 rounded-full">
                       View All Documents
-                    </Button>
+                    </AppButton>
                   </div>
 
                   <!-- Recent Emails -->
@@ -516,10 +516,10 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                   <div v-else-if="w.key === 'channels'" class="ios-card p-5 flex flex-col">
                     <div class="flex items-center justify-between mb-3">
                       <h3 class="font-semibold t-text">Channels</h3>
-                      <Button variant="ghost" size="sm" class="rounded-full" @click="channelsPanel.open()">
+                      <AppButton variant="ghost" size="sm" class="rounded-full" @click="channelsPanel.open()">
                         <Icon name="lucide:messages-square" class="w-4 h-4 mr-1.5" />
                         Open chat
-                      </Button>
+                      </AppButton>
                     </div>
                     <div v-if="topChannels.length" class="space-y-1 flex-1">
                       <NuxtLink
@@ -558,10 +558,10 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                 </p>
               </div>
               <NuxtLink :to="buildOrgPath('/polls')">
-                <Button variant="outline" class="rounded-full">
+                <AppButton variant="outline" class="rounded-full">
                   <Icon name="lucide:bar-chart-3" class="w-4 h-4 mr-1.5" />
                   Polls
-                </Button>
+                </AppButton>
               </NuxtLink>
             </div>
             <FeedActivityFeed

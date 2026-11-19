@@ -163,7 +163,7 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
         title="The ledger couldn't be loaded"
         description="Nothing is lost — the record is intact, we just couldn't reach it."
       >
-        <Button variant="outline" @click="load()">Try again</Button>
+        <AppButton variant="outline" @click="load()">Try again</AppButton>
       </AppEmptyState>
     </div>
 

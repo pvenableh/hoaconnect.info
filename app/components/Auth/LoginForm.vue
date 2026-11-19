@@ -6,7 +6,6 @@ import { toTypedSchema } from "@vee-validate/zod";
 import { z } from "zod";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
 import { Loader2, AlertCircle } from "lucide-vue-next";
 
@@ -181,7 +180,7 @@ const onSubmit = handleSubmit(async (values) => {
         </VeeField>
 
         <div class="flex flex-col gap-4 pt-3">
-          <Button
+          <AppButton
             type="submit"
             size="lg"
             class="w-full rounded-full"
@@ -189,7 +188,7 @@ const onSubmit = handleSubmit(async (values) => {
           >
             <Loader2 v-if="isProcessing" class="mr-2 h-4 w-4 animate-spin" />
             {{ isProcessing ? "Verifying credentials..." : "Sign in" }}
-          </Button>
+          </AppButton>
 
           <p class="text-center type-meta">
             Don't have an account?

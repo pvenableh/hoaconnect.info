@@ -344,9 +344,9 @@ const handleSubmit = async () => {
               </div>
             </div>
 
-            <Button @click="handleSubmit" :disabled="loading" class="w-full">
+            <AppButton @click="handleSubmit" :disabled="loading" class="w-full">
               {{ loading ? "Uploading..." : "Upload Document" }}
-            </Button>
+            </AppButton>
           </CardContent>
         </AppCard>
       </PageContainer>

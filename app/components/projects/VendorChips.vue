@@ -136,8 +136,8 @@ async function removeVendor(v: ProjectVendor) {
         <option v-for="d in available" :key="d.id" :value="d.id">{{ d.name }}</option>
       </select>
       <input v-model="pickRole" type="text" placeholder="Role (optional)" class="t-input rounded-lg px-2.5 py-1.5 text-sm" />
-      <Button size="sm" class="rounded-full" :disabled="!pickVendor || saving" @click="addVendor">Add</Button>
-      <Button size="sm" variant="ghost" class="rounded-full" @click="adding = false">Cancel</Button>
+      <AppButton size="sm" class="rounded-full" :disabled="!pickVendor || saving" @click="addVendor">Add</AppButton>
+      <AppButton size="sm" variant="ghost" class="rounded-full" @click="adding = false">Cancel</AppButton>
       <NuxtLink
         v-if="!available.length && directory.length === 0"
         :to="buildOrgPath('/vendors')"

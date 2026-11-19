@@ -322,9 +322,9 @@ useSeoMeta({ title: "Design your site" });
       <!-- Header -->
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Button variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/settings/organization')">
+          <AppButton variant="ghost" size="sm" class="mb-2 -ml-2" @click="navigateToOrg('/admin/settings/organization')">
             <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" /> Settings
-          </Button>
+          </AppButton>
           <h1 class="text-2xl font-semibold t-text flex items-center gap-2">
             Design your site
             <span v-if="dirty" class="w-2 h-2 rounded-full bg-warning" title="Unsaved changes" />
@@ -335,20 +335,20 @@ useSeoMeta({ title: "Design your site" });
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" @click="showWizard = true">
+          <AppButton variant="outline" size="sm" @click="showWizard = true">
             <Icon name="lucide:sparkles" class="w-4 h-4 mr-1.5" /> Generate with AI
-          </Button>
-          <Button variant="outline" size="sm" @click="showSettings = true">
+          </AppButton>
+          <AppButton variant="outline" size="sm" @click="showSettings = true">
             <Icon name="lucide:settings-2" class="w-4 h-4 mr-1.5" /> Site settings
-          </Button>
-          <Button as="a" :href="`/${slug}`" target="_blank" rel="noopener" variant="ghost" size="sm">
+          </AppButton>
+          <AppButton as="a" :href="`/${slug}`" target="_blank" rel="noopener" variant="ghost" size="sm">
             <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" /> View
-          </Button>
-          <Button size="sm" class="rounded-full" :disabled="saving || !dirty" @click="save">
+          </AppButton>
+          <AppButton size="sm" class="rounded-full" :disabled="saving || !dirty" @click="save">
             <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
             <Icon v-else name="lucide:check" class="w-4 h-4 mr-1.5" />
             Save
-          </Button>
+          </AppButton>
         </div>
       </div>
 
@@ -360,7 +360,7 @@ useSeoMeta({ title: "Design your site" });
           <div class="flex items-center justify-between">
             <h2 class="font-semibold t-text">Sections</h2>
             <div class="flex items-center gap-2">
-              <Button
+              <AppButton
                 v-if="!builder.isEmpty.value"
                 variant="ghost"
                 size="sm"
@@ -369,10 +369,10 @@ useSeoMeta({ title: "Design your site" });
                 @click="onReset"
               >
                 <Icon name="lucide:rotate-ccw" class="w-4 h-4 mr-1.5" /> Reset
-              </Button>
-              <Button variant="outline" size="sm" @click="showPalette = true">
+              </AppButton>
+              <AppButton variant="outline" size="sm" @click="showPalette = true">
                 <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add section
-              </Button>
+              </AppButton>
             </div>
           </div>
           <LandingBuilderHeroCard />

@@ -166,10 +166,10 @@ const onDelete = async () => {
             @submit="saveEdit"
           />
           <div class="flex gap-2">
-            <Button size="sm" class="rounded-full" @click="saveEdit">Save</Button>
-            <Button size="sm" variant="ghost" class="rounded-full" @click="isEditing = false">
+            <AppButton size="sm" class="rounded-full" @click="saveEdit">Save</AppButton>
+            <AppButton size="sm" variant="ghost" class="rounded-full" @click="isEditing = false">
               Cancel
-            </Button>
+            </AppButton>
           </div>
         </div>
 

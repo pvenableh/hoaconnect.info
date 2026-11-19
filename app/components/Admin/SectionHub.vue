@@ -55,11 +55,11 @@ const visibleGroups = computed(() =>
           title="Nothing here yet"
           description="The features for this section aren't enabled yet."
         >
-          <Button variant="outline" size="sm" as-child>
+          <AppButton variant="outline" size="sm" as-child>
             <NuxtLink :to="buildOrgPath('/admin/settings/organization?tab=modules')">
               Turn features on
             </NuxtLink>
-          </Button>
+          </AppButton>
         </AppEmptyState>
       </div>
 

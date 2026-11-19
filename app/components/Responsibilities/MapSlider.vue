@@ -72,7 +72,7 @@ const short = (d: string) => {
       <div class="rmap-slider__date">
         <Label for="rmap-slider-date" class="sr-only">As of date</Label>
         <DateInput id="rmap-slider-date" :model-value="modelValue" class="w-40" @update:model-value="onType" />
-        <Button v-if="!isToday" variant="ghost" size="sm" class="min-h-11" @click="emit('type', today)">Today</Button>
+        <AppButton v-if="!isToday" variant="ghost" size="sm" class="min-h-11" @click="emit('type', today)">Today</AppButton>
       </div>
     </div>
   </div>

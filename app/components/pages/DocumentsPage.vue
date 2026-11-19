@@ -538,14 +538,14 @@ const handleBatchUploadComplete = async () => {
         description="Community documents, bylaws, and records."
       >
         <template #actions>
-          <Button
+          <AppButton
             variant="outline"
             :class="showCategoryManager ? 't-bg-subtle' : ''"
             @click="showCategoryManager = !showCategoryManager"
           >
             <Icon name="lucide:tag" />
             Manage categories
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -574,16 +574,16 @@ const handleBatchUploadComplete = async () => {
           <!-- File Library Header Actions -->
           <div class="flex justify-end gap-3 mb-6">
             <!-- Edit Selected button (shown when documents are selected) -->
-            <Button
+            <AppButton
               v-if="selectedDocuments.size > 0"
               @click="openBatchEdit"
               variant="default"
             >
               <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-2" />
               Edit {{ selectedDocuments.size }} Selected
-            </Button>
+            </AppButton>
             <!-- Selection mode toggle -->
-            <Button
+            <AppButton
               @click="toggleSelectionMode"
               variant="outline"
               class="t-border hover:t-bg-subtle"
@@ -591,21 +591,21 @@ const handleBatchUploadComplete = async () => {
             >
               <Icon name="heroicons:check-circle" class="h-4 w-4 mr-2" />
               {{ selectionMode ? 'Cancel Select' : 'Select' }}
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               @click="openCreateFolderDialog(orgFolder!)"
               variant="outline"
               class="t-border hover:t-bg-subtle"
             >
               <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
               New Folder
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               @click="batchUploadTargetFolder = null; showBatchUploadDialog = true"
             >
               <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
               Upload Documents
-            </Button>
+            </AppButton>
           </div>
 
           <!-- Filters -->
@@ -821,14 +821,14 @@ const handleBatchUploadComplete = async () => {
                 size="sm"
               >
                 <template #actions>
-                  <Button @click="batchUploadTargetFolder = null; showBatchUploadDialog = true">
+                  <AppButton @click="batchUploadTargetFolder = null; showBatchUploadDialog = true">
                     <Icon name="heroicons:cloud-arrow-up" />
                     Upload Documents
-                  </Button>
-                  <Button variant="outline" @click="openCreateFolderDialog(orgFolder!)">
+                  </AppButton>
+                  <AppButton variant="outline" @click="openCreateFolderDialog(orgFolder!)">
                     <Icon name="heroicons:plus" />
                     New Folder
-                  </Button>
+                  </AppButton>
                 </template>
               </AppEmptyState>
             </div>
@@ -858,16 +858,16 @@ const handleBatchUploadComplete = async () => {
           </div>
         </div>
         <DialogFooter>
-          <Button
+          <AppButton
             @click="showCreateFolderDialog = false"
             variant="outline"
             :disabled="creatingFolder"
           >
             Cancel
-          </Button>
-          <Button @click="createFolder" :disabled="creatingFolder">
+          </AppButton>
+          <AppButton @click="createFolder" :disabled="creatingFolder">
             {{ creatingFolder ? "Creating..." : "Create Folder" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

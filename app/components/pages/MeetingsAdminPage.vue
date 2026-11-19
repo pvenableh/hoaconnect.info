@@ -416,10 +416,10 @@ const handleDelete = async (id: string) => {
           description="Post notices, agendas, minutes & recordings for your community."
         >
           <template #actions>
-            <Button @click="handleAdd">
+            <AppButton @click="handleAdd">
               <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
               New meeting
-            </Button>
+            </AppButton>
           </template>
         </AppPageHeader>
 
@@ -464,12 +464,12 @@ const handleDelete = async (id: string) => {
                   </p>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" @click="handleEdit(m)">
+                  <AppButton variant="ghost" size="sm" @click="handleEdit(m)">
                     <Icon name="i-lucide-pencil" class="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" @click="handleDelete(m.id)">
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" @click="handleDelete(m.id)">
                     <Icon name="i-lucide-trash-2" class="size-4 text-destructive" />
-                  </Button>
+                  </AppButton>
                 </div>
               </div>
             </div>
@@ -506,12 +506,12 @@ const handleDelete = async (id: string) => {
                   </div>
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
-                  <Button variant="ghost" size="sm" @click="handleEdit(m)">
+                  <AppButton variant="ghost" size="sm" @click="handleEdit(m)">
                     <Icon name="i-lucide-pencil" class="size-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" @click="handleDelete(m.id)">
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" @click="handleDelete(m.id)">
                     <Icon name="i-lucide-trash-2" class="size-4 text-destructive" />
-                  </Button>
+                  </AppButton>
                 </div>
               </div>
             </div>
@@ -535,10 +535,10 @@ const handleDelete = async (id: string) => {
             size="sm"
           >
             <template #actions>
-              <Button @click="handleAdd">
+              <AppButton @click="handleAdd">
                 <Icon name="i-lucide-plus" class="size-4 mr-1.5" />
                 New Meeting
-              </Button>
+              </AppButton>
             </template>
           </AppEmptyState>
         </div>
@@ -635,7 +635,7 @@ const handleDelete = async (id: string) => {
                 {{ mem.first_name }} {{ mem.last_name }}
               </option>
             </select>
-            <Button type="button" variant="outline" size="sm" @click="addAttendee">Add</Button>
+            <AppButton type="button" variant="outline" size="sm" @click="addAttendee">Add</AppButton>
           </div>
           <ul v-if="formAttendees.length" class="mt-3 space-y-2">
             <li v-for="(a, idx) in formAttendees" :key="a.hoa_member" class="flex items-center justify-between gap-2 text-sm">
@@ -664,11 +664,11 @@ const handleDelete = async (id: string) => {
         </label>
       </div>
       <template #footer>
-        <Button variant="outline" @click="showModal = false">Cancel</Button>
-        <Button :disabled="saving" @click="handleSubmit">
+        <AppButton variant="outline" @click="showModal = false">Cancel</AppButton>
+        <AppButton :disabled="saving" @click="handleSubmit">
           <span v-if="saving" class="spinner-ios spinner-ios--sm mr-1.5" />
           {{ editingId ? "Save changes" : "Create meeting" }}
-        </Button>
+        </AppButton>
       </template>
     </AppBottomSheet>
   </div>

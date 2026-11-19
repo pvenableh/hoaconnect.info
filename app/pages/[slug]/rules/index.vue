@@ -175,9 +175,9 @@ const fmtDate = (v?: string | null) =>
           <h1 class="text-2xl font-semibold t-text">Rules & Governance</h1>
           <p class="text-sm t-text-muted mt-0.5">Search by-laws, CC&Rs, rules and policies.</p>
         </div>
-        <Button v-if="canManage" class="rounded-full" @click="openCreate">
+        <AppButton v-if="canManage" class="rounded-full" @click="openCreate">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> New
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Search -->
@@ -321,11 +321,11 @@ const fmtDate = (v?: string | null) =>
           </div>
 
           <div class="flex justify-end gap-2 pt-1">
-            <Button variant="ghost" class="rounded-full" @click="showEditor = false">Cancel</Button>
-            <Button class="rounded-full" :disabled="saving" @click="save">
+            <AppButton variant="ghost" class="rounded-full" @click="showEditor = false">Cancel</AppButton>
+            <AppButton class="rounded-full" :disabled="saving" @click="save">
               <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
               {{ form.id ? "Save" : "Publish" }}
-            </Button>
+            </AppButton>
           </div>
         </div>
       </AppDialogContent>

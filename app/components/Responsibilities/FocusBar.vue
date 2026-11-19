@@ -33,7 +33,7 @@ const countText = computed(() => (unassigned.value ? jobs(props.unassignedCount)
     <p v-if="holderLabel" class="type-meta t-text-secondary flex items-center gap-1" aria-live="polite">
       <span>Showing {{ holderLabel }}</span>
       <span aria-hidden="true">·</span>
-      <Button variant="link" size="sm" class="h-auto px-1 py-0" data-register-focus-clear @click="emit('clear')">Show all</Button>
+      <AppButton variant="link" size="sm" class="h-auto px-1 py-0" data-register-focus-clear @click="emit('clear')">Show all</AppButton>
     </p>
     <span v-else aria-hidden="true" />
 

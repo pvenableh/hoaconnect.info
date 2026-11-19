@@ -67,7 +67,7 @@ function onOpenChange(next: boolean) {
     <p class="whats-new__footnote">You're running {{ fullVersion }}.</p>
 
     <template #footer>
-      <Button class="w-full" @click="closeWhatsNew()">Got it</Button>
+      <AppButton class="w-full" @click="closeWhatsNew()">Got it</AppButton>
     </template>
   </AppBottomSheet>
 </template>

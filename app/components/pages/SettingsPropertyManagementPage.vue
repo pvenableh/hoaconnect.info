@@ -456,13 +456,13 @@ watch(orgId, () => {
                 <CardDescription>Attorney, accountant, management, elevator, landscaping, and more.</CardDescription>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <Button variant="outline" class="rounded-full" @click="showArchived = !showArchived">
+                <AppButton variant="outline" class="rounded-full" @click="showArchived = !showArchived">
                   <Icon :name="showArchived ? 'lucide:list' : 'lucide:archive'" class="h-4 w-4 mr-1.5" />
                   {{ showArchived ? "Active" : "Archive" }}
-                </Button>
-                <Button class="rounded-full" @click="openNew">
+                </AppButton>
+                <AppButton class="rounded-full" @click="openNew">
                   <Icon name="lucide:plus" class="h-4 w-4 mr-1.5" />Add vendor
-                </Button>
+                </AppButton>
               </div>
             </CardHeader>
             <CardContent>
@@ -485,15 +485,15 @@ watch(orgId, () => {
                       <span v-if="v.company && v.name">{{ v.name }} · </span>{{ v.email || "no email" }}<span v-if="v.phone"> · {{ v.phone }}</span>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" class="rounded-full" @click="openEdit(v)" title="Edit">
+                  <AppButton variant="ghost" size="sm" class="rounded-full" @click="openEdit(v)" title="Edit">
                     <Icon name="lucide:pencil" class="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" class="rounded-full" @click="archiveVendor(v)" :title="v.status === 'archived' ? 'Restore' : 'Archive'">
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" class="rounded-full" @click="archiveVendor(v)" :title="v.status === 'archived' ? 'Restore' : 'Archive'">
                     <Icon :name="v.status === 'archived' ? 'lucide:archive-restore' : 'lucide:archive'" class="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" class="rounded-full text-destructive" @click="deleteVendor(v)" title="Delete">
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" class="rounded-full text-destructive" @click="deleteVendor(v)" title="Delete">
                     <Icon name="lucide:trash-2" class="h-4 w-4" />
-                  </Button>
+                  </AppButton>
                 </div>
               </div>
             </CardContent>
@@ -508,9 +508,9 @@ watch(orgId, () => {
                 <CardTitle>Property managers</CardTitle>
                 <CardDescription>Management staff who can log in. Grant only the actions each manager needs.</CardDescription>
               </div>
-              <Button class="rounded-full shrink-0" @click="inviteOpen = true">
+              <AppButton class="rounded-full shrink-0" @click="inviteOpen = true">
                 <Icon name="lucide:user-plus" class="h-4 w-4 mr-1.5" />Invite manager
-              </Button>
+              </AppButton>
             </CardHeader>
             <CardContent>
               <div v-if="loadingManagers" class="py-10 text-center t-text-muted">Loading…</div>
@@ -534,7 +534,7 @@ watch(orgId, () => {
 
                   <div class="flex items-center gap-2 flex-wrap mb-3">
                     <span class="text-xs t-text-muted mr-1">Set all at once:</span>
-                    <Button
+                    <AppButton
                       v-for="p in GRANT_PRESETS"
                       :key="p.key"
                       variant="outline"
@@ -545,7 +545,7 @@ watch(orgId, () => {
                       @click="applyPreset(m, p.key)"
                     >
                       {{ p.label }}
-                    </Button>
+                    </AppButton>
                   </div>
 
                   <div class="divide-y">
@@ -607,9 +607,9 @@ watch(orgId, () => {
                 <p class="text-xs t-text-muted mt-3">Routes to active vendors in the <strong>Management</strong> category whose role matches.</p>
 
                 <div class="flex justify-end pt-4">
-                  <Button class="rounded-full" :disabled="savingRouting" @click="saveRouting">
+                  <AppButton class="rounded-full" :disabled="savingRouting" @click="saveRouting">
                     {{ savingRouting ? "Saving…" : "Save routing" }}
-                  </Button>
+                  </AppButton>
                 </div>
               </template>
             </CardContent>
@@ -725,10 +725,10 @@ watch(orgId, () => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" class="rounded-full" @click="dialogOpen = false">Cancel</Button>
-          <Button class="rounded-full" :disabled="savingVendor" @click="saveVendor">
+          <AppButton variant="outline" class="rounded-full" @click="dialogOpen = false">Cancel</AppButton>
+          <AppButton class="rounded-full" :disabled="savingVendor" @click="saveVendor">
             {{ savingVendor ? "Saving…" : "Save vendor" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -782,10 +782,10 @@ watch(orgId, () => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" class="rounded-full" @click="inviteOpen = false">Cancel</Button>
-          <Button class="rounded-full" :disabled="inviting" @click="sendInvite">
+          <AppButton variant="outline" class="rounded-full" @click="inviteOpen = false">Cancel</AppButton>
+          <AppButton class="rounded-full" :disabled="inviting" @click="sendInvite">
             {{ inviting ? "Sending…" : "Send invitation" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

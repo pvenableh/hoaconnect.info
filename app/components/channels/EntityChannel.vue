@@ -100,13 +100,13 @@ const start = async () => {
         size="sm"
       >
         <template v-if="canManage" #actions>
-          <Button :disabled="starting" data-testid="start-channel" @click="start">
+          <AppButton :disabled="starting" data-testid="start-channel" @click="start">
             <Icon
               :name="starting ? 'lucide:loader-2' : 'lucide:message-square-plus'"
               :class="['w-4 h-4 mr-1', starting ? 'animate-spin' : '']"
             />
             Start a channel
-          </Button>
+          </AppButton>
         </template>
       </AppEmptyState>
     </div>

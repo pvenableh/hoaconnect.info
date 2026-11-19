@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { Button } from "@/components/ui/button";
 /**
  * What this session is about.
  *
@@ -78,14 +77,14 @@ const topicModel = computed({
         class="flex-1 rounded-full glass-field px-4 py-2 text-sm focus:outline-none t-focus-ring"
         @keydown.enter="!busy && emit('draft')"
       />
-      <Button class="shrink-0" :disabled="busy" @click="emit('draft')">
+      <AppButton class="shrink-0" :disabled="busy" @click="emit('draft')">
         <Icon
           :name="busy ? 'i-lucide-loader-2' : 'i-lucide-list-checks'"
           class="w-4 h-4"
           :class="busy ? 'animate-spin' : ''"
         />
         {{ busy ? "Drafting…" : hasPlan ? "Open the briefing" : "Draft a plan" }}
-      </Button>
+      </AppButton>
     </div>
 
     <p v-if="hasPlan" class="mt-2 text-[11px] t-text-muted flex items-center gap-2 flex-wrap">

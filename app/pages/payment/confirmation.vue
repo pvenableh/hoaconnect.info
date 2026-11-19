@@ -51,13 +51,13 @@
 				</div>
 
 				<div class="space-y-3">
-					<Button @click="goToDashboard" class="w-full">
+					<AppButton @click="goToDashboard" class="w-full">
 						<Icon name="heroicons:home" class="mr-2 h-4 w-4" />
 						Go to Dashboard
-					</Button>
-					<Button @click="goBack" variant="outline" class="w-full">
+					</AppButton>
+					<AppButton @click="goBack" variant="outline" class="w-full">
 						Back
-					</Button>
+					</AppButton>
 				</div>
 
 				<p class="mt-6 text-xs t-text-muted text-center">
@@ -74,10 +74,10 @@
 				<p class="t-text-secondary mb-6">
 					Your payment is being processed. This may take a few moments.
 				</p>
-				<Button @click="checkPaymentStatus" variant="outline">
+				<AppButton @click="checkPaymentStatus" variant="outline">
 					<Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
 					Check Status
-				</Button>
+				</AppButton>
 			</div>
 
 			<!-- Failed State -->
@@ -91,13 +91,13 @@
 				</p>
 
 				<div class="space-y-3">
-					<Button @click="tryAgain" class="w-full">
+					<AppButton @click="tryAgain" class="w-full">
 						<Icon name="heroicons:arrow-path" class="mr-2 h-4 w-4" />
 						Try Again
-					</Button>
-					<Button @click="goBack" variant="outline" class="w-full">
+					</AppButton>
+					<AppButton @click="goBack" variant="outline" class="w-full">
 						Back
-					</Button>
+					</AppButton>
 				</div>
 			</div>
 
@@ -112,12 +112,12 @@
 				</p>
 
 				<div class="space-y-3">
-					<Button @click="tryAgain" class="w-full">
+					<AppButton @click="tryAgain" class="w-full">
 						Try Again
-					</Button>
-					<Button @click="goBack" variant="outline" class="w-full">
+					</AppButton>
+					<AppButton @click="goBack" variant="outline" class="w-full">
 						Back
-					</Button>
+					</AppButton>
 				</div>
 			</div>
 		</div>

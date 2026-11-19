@@ -150,17 +150,17 @@ function moveFeature(i: number, dir: -1 | 1) {
     <div v-if="b.layout !== 'stats'" class="space-y-2">
       <div class="flex items-center justify-between">
         <Label>Images</Label>
-        <Button variant="outline" size="sm" @click="addImage">
+        <AppButton variant="outline" size="sm" @click="addImage">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add image
-        </Button>
+        </AppButton>
       </div>
       <div v-if="!b.images?.length" class="text-xs t-text-muted">No images yet.</div>
       <div v-for="(img, j) in b.images" :key="j" class="rounded-lg border t-border p-3 space-y-2">
         <div class="flex items-start justify-between gap-3">
           <LandingBuilderImageField v-model="img.file" thumb-class="h-16 w-24" title="Section image" />
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeImage(j)">
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeImage(j)">
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-          </Button>
+          </AppButton>
         </div>
         <AppInput v-model="img.caption_title" placeholder="Caption title (optional)" />
         <AppInput v-model="img.caption_body" placeholder="Caption description (optional)" />
@@ -179,9 +179,9 @@ function moveFeature(i: number, dir: -1 | 1) {
     <div v-if="b.layout === 'stats'" class="space-y-2">
       <div class="flex items-center justify-between">
         <Label>Stats</Label>
-        <Button variant="outline" size="sm" @click="addStat">
+        <AppButton variant="outline" size="sm" @click="addStat">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add stat
-        </Button>
+        </AppButton>
       </div>
       <div v-if="!b.stats?.length" class="text-xs t-text-muted">No stats yet.</div>
       <div v-for="(s, k) in b.stats" :key="k" class="flex items-center gap-2">
@@ -192,9 +192,9 @@ function moveFeature(i: number, dir: -1 | 1) {
         <AppInput v-model="s.value" placeholder="6" class="w-16" />
         <AppInput v-model="s.unit" placeholder="min" class="w-20" />
         <AppInput v-model="s.label" placeholder="Beach" class="flex-1" />
-        <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
+        <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
           <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-        </Button>
+        </AppButton>
       </div>
     </div>
 
@@ -202,9 +202,9 @@ function moveFeature(i: number, dir: -1 | 1) {
     <div class="space-y-3 rounded-lg border t-border p-3">
       <div class="flex items-center justify-between gap-2">
         <Label class="block">Feature list</Label>
-        <Button variant="outline" size="sm" @click="addFeature">
+        <AppButton variant="outline" size="sm" @click="addFeature">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add feature
-        </Button>
+        </AppButton>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1.5">
@@ -248,9 +248,9 @@ function moveFeature(i: number, dir: -1 | 1) {
             <input type="checkbox" :checked="f.wide" @change="f.wide = ($event.target as HTMLInputElement).checked" />
             Wide
           </label>
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeFeature(k)">
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeFeature(k)">
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-          </Button>
+          </AppButton>
         </div>
         <AppInput v-model="f.title" placeholder="Title (optional — used by cards & tiles)" />
         <AppInput v-model="f.text" placeholder="Feature text" />

@@ -8,7 +8,6 @@
  * happened, and the one control that changes it.
  */
 import type { BoardroomAttendee, BoardroomActivity } from "#core/app/composables/useBoardroomSession";
-import { Button } from "@/components/ui/button";
 
 const props = defineProps<{
   live?: boolean;
@@ -108,19 +107,19 @@ const activityLine = computed(() => {
       </div>
 
       <div class="flex items-center gap-2 shrink-0">
-        <Button v-if="!live" :disabled="busy" @click="emit('convene')">
+        <AppButton v-if="!live" :disabled="busy" @click="emit('convene')">
           <Icon name="i-lucide-users-round" class="w-4 h-4" />
           Convene the board
-        </Button>
+        </AppButton>
         <template v-else>
-          <Button v-if="!isHost" variant="outline" :disabled="busy" @click="emit('leave')">
+          <AppButton v-if="!isHost" variant="outline" :disabled="busy" @click="emit('leave')">
             <Icon name="i-lucide-log-out" class="w-4 h-4" />
             Leave
-          </Button>
-          <Button v-else variant="outline" :disabled="busy" @click="emit('end')">
+          </AppButton>
+          <AppButton v-else variant="outline" :disabled="busy" @click="emit('end')">
             <Icon name="i-lucide-square" class="w-4 h-4" />
             End meeting
-          </Button>
+          </AppButton>
         </template>
       </div>
     </div>

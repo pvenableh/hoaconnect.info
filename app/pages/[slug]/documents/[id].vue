@@ -202,13 +202,13 @@ const downloadDocument = async () => {
                   </span>
                 </div>
               </div>
-              <Button
+              <AppButton
                 @click="downloadDocument"
                 class="rounded-full flex-shrink-0"
               >
                 <Icon name="heroicons:arrow-down-tray" class="h-4 w-4 mr-1.5" />
                 Download
-              </Button>
+              </AppButton>
             </div>
           </div>
 

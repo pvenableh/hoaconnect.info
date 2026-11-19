@@ -76,7 +76,7 @@ const PRIORITY_TONE: Record<string, string> = { urgent: "text-destructive", high
     <AppEmptyState v-else-if="!pending" class="mt-6" title="Nothing here" description="No requests match these filters." icon="lucide:inbox" />
 
     <div class="mt-3 flex justify-end">
-      <Button variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</Button>
+      <AppButton variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</AppButton>
     </div>
   </OpsShell>
 </template>

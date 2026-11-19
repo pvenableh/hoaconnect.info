@@ -180,12 +180,12 @@ const TABS = computed<Array<{ key: ProjectTab; label: string; icon: string }>>((
                   {{ PROJECT_STATUS_META[s]?.label }}
                 </option>
               </select>
-              <Button variant="outline" size="icon" class="rounded-full" aria-label="Edit" @click="editing = true">
+              <AppButton variant="outline" size="icon" class="rounded-full" aria-label="Edit" @click="editing = true">
                 <Icon name="lucide:pencil" class="w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="icon" class="rounded-full text-red-600" aria-label="Delete" @click="onDelete">
+              </AppButton>
+              <AppButton variant="outline" size="icon" class="rounded-full text-red-600" aria-label="Delete" @click="onDelete">
                 <Icon name="lucide:trash-2" class="w-4 h-4" />
-              </Button>
+              </AppButton>
             </div>
           </div>
 

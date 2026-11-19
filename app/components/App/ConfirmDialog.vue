@@ -22,8 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { appButtonClasses } from "./button-variants";
 import { promptTextOk } from "#core/app/composables/useConfirm";
 
 const { current, settle } = useConfirm();
@@ -127,15 +127,18 @@ function onFieldKeydown(e: KeyboardEvent) {
         />
       </div>
       <AlertDialogFooter>
-        <AlertDialogCancel v-if="shown.kind !== 'alert'">{{ shown.cancelLabel }}</AlertDialogCancel>
-        <Button
+        <!-- Stock Cancel applies the stock outline itself; the pill + pane are added here. -->
+        <AlertDialogCancel v-if="shown.kind !== 'alert'" :class="appButtonClasses({ variant: 'outline' })">
+          {{ shown.cancelLabel }}
+        </AlertDialogCancel>
+        <AppButton
           :variant="shown.destructive ? 'destructive' : 'default'"
           :disabled="!canAccept"
           data-confirm-action
           @click="accept"
         >
           {{ shown.confirmLabel }}
-        </Button>
+        </AppButton>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>

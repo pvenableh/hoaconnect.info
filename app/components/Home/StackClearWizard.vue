@@ -108,13 +108,13 @@ function skip() {
         </Transition>
 
         <div class="flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" class="rounded-full" @click="open = false">
+          <AppButton variant="ghost" size="sm" class="rounded-full" @click="open = false">
             Done for now
-          </Button>
-          <Button variant="outline" size="sm" class="rounded-full" @click="skip">
+          </AppButton>
+          <AppButton variant="outline" size="sm" class="rounded-full" @click="skip">
             <Icon name="i-lucide-fast-forward" class="w-3.5 h-3.5 mr-1.5" />
             Skip for now
-          </Button>
+          </AppButton>
         </div>
       </template>
 
@@ -123,7 +123,7 @@ function skip() {
         <p class="text-sm font-medium t-text">
           {{ doneCount ? "Pile cleared — nice work." : "Nothing left to walk through." }}
         </p>
-        <Button size="sm" class="rounded-full" @click="open = false">Close</Button>
+        <AppButton size="sm" class="rounded-full" @click="open = false">Close</AppButton>
       </div>
     </div>
   </AppBottomSheet>

@@ -343,8 +343,8 @@ const authorName = computed(() =>
             @submit="saveEdit"
           />
           <div class="flex items-center gap-2 mt-2">
-            <Button size="sm" :disabled="savingEdit" @click="saveEdit">Save</Button>
-            <Button size="sm" variant="ghost" :disabled="savingEdit" @click="cancelEdit">Cancel</Button>
+            <AppButton size="sm" :disabled="savingEdit" @click="saveEdit">Save</AppButton>
+            <AppButton size="sm" variant="ghost" :disabled="savingEdit" @click="cancelEdit">Cancel</AppButton>
             <span class="text-xs t-text-muted">Enter to save</span>
           </div>
         </div>
@@ -377,7 +377,7 @@ const authorName = computed(() =>
           class="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <!-- Reply Count -->
-          <Button
+          <AppButton
             variant="ghost"
             size="sm"
             class="h-7 px-2 text-xs"
@@ -386,10 +386,10 @@ const authorName = computed(() =>
           >
             <Icon name="lucide:message-square" class="w-3.5 h-3.5 mr-1" />
             {{ replyCount }} {{ replyCount === 1 ? "reply" : "replies" }}
-          </Button>
+          </AppButton>
 
           <!-- Reply Button -->
-          <Button
+          <AppButton
             variant="ghost"
             size="sm"
             class="h-7 px-2 text-xs t-text-muted"
@@ -397,10 +397,10 @@ const authorName = computed(() =>
           >
             <Icon name="lucide:corner-down-right" class="w-3.5 h-3.5 mr-1" />
             Reply
-          </Button>
+          </AppButton>
 
           <!-- Edit (author inside the window; managers any time) -->
-          <Button
+          <AppButton
             v-if="canEdit && !editing"
             variant="ghost"
             size="sm"
@@ -410,10 +410,10 @@ const authorName = computed(() =>
             @click="startEdit"
           >
             <Icon name="lucide:pencil" class="w-3.5 h-3.5" />
-          </Button>
+          </AppButton>
 
           <!-- Delete Button (only for author) -->
-          <Button
+          <AppButton
             v-if="isAuthor"
             variant="ghost"
             size="sm"
@@ -425,10 +425,10 @@ const authorName = computed(() =>
               :name="isDeleting ? 'lucide:loader-2' : 'lucide:trash-2'"
               :class="['w-3.5 h-3.5', isDeleting ? 'animate-spin' : '']"
             />
-          </Button>
+          </AppButton>
 
           <!-- Moderation (non-author): managers hide/remove; anyone reports -->
-          <Button
+          <AppButton
             v-if="!isAuthor && canModerate"
             variant="ghost"
             size="sm"
@@ -438,8 +438,8 @@ const authorName = computed(() =>
             @click="moderate('hide')"
           >
             <Icon name="lucide:eye-off" class="w-3.5 h-3.5" />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isAuthor && canModerate"
             variant="ghost"
             size="sm"
@@ -449,8 +449,8 @@ const authorName = computed(() =>
             @click="moderate('remove')"
           >
             <Icon name="lucide:trash-2" class="w-3.5 h-3.5" />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isAuthor"
             variant="ghost"
             size="sm"
@@ -459,7 +459,7 @@ const authorName = computed(() =>
             @click="report()"
           >
             <Icon name="lucide:flag" class="w-3.5 h-3.5" />
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Reply Actions for replies -->
@@ -467,7 +467,7 @@ const authorName = computed(() =>
           v-else
           class="flex items-center gap-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
         >
-          <Button
+          <AppButton
             v-if="canEdit && !editing"
             variant="ghost"
             size="sm"
@@ -476,8 +476,8 @@ const authorName = computed(() =>
             @click="startEdit"
           >
             <Icon name="lucide:pencil" class="w-3 h-3" />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="isAuthor"
             variant="ghost"
             size="sm"
@@ -489,8 +489,8 @@ const authorName = computed(() =>
               :name="isDeleting ? 'lucide:loader-2' : 'lucide:trash-2'"
               :class="['w-3 h-3', isDeleting ? 'animate-spin' : '']"
             />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isAuthor && canModerate"
             variant="ghost"
             size="sm"
@@ -500,8 +500,8 @@ const authorName = computed(() =>
             @click="moderate('hide')"
           >
             <Icon name="lucide:eye-off" class="w-3 h-3" />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isAuthor && canModerate"
             variant="ghost"
             size="sm"
@@ -511,8 +511,8 @@ const authorName = computed(() =>
             @click="moderate('remove')"
           >
             <Icon name="lucide:trash-2" class="w-3 h-3" />
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isAuthor"
             variant="ghost"
             size="sm"
@@ -521,7 +521,7 @@ const authorName = computed(() =>
             @click="report()"
           >
             <Icon name="lucide:flag" class="w-3 h-3" />
-          </Button>
+          </AppButton>
         </div>
       </div>
     </div>
@@ -543,22 +543,22 @@ const authorName = computed(() =>
         <div class="flex items-center justify-between">
           <span class="text-xs t-text-muted">Press Enter to send</span>
           <div class="flex gap-2">
-            <Button
+            <AppButton
               variant="ghost"
               size="sm"
               class="h-7"
               @click="showReplyInput = false"
             >
               Cancel
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               size="sm"
               class="h-7"
               :disabled="!replyContent?.replace(/<[^>]*>/g, '').trim() && !replyAttachments.length"
               @click="sendReply"
             >
               Reply
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>

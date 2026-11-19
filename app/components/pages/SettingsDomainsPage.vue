@@ -178,10 +178,10 @@ useSeoMeta({ title: "Public site" });
         description="Choose your landing page setup and connect a custom domain."
       >
         <template #actions>
-          <!-- `as="a"` rather than an <a> wrapping a <Button>: a link may not
+          <!-- `as="a"` rather than an <a> wrapping a <AppButton>: a link may not
                contain interactive content, and the wrapper gave the row two
                focusable stops for one action. -->
-          <Button
+          <AppButton
             as="a"
             :href="`/${slug}`"
             target="_blank"
@@ -192,7 +192,7 @@ useSeoMeta({ title: "Public site" });
           >
             <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" />
             View site
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -210,10 +210,10 @@ useSeoMeta({ title: "Public site" });
               </p>
             </div>
           </div>
-          <Button class="rounded-full" @click="navigateToOrg('/admin/settings/site')">
+          <AppButton class="rounded-full" @click="navigateToOrg('/admin/settings/site')">
             <Icon name="lucide:paintbrush" class="w-4 h-4 mr-1.5" />
             Open builder
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Public landing: built-in vs external marketing site -->
@@ -257,9 +257,9 @@ useSeoMeta({ title: "Public site" });
               <p class="t-text-muted mb-1.5">Add this "Resident Login" link to your external site:</p>
               <div class="flex items-center gap-2">
                 <span class="font-mono break-all t-text">{{ portalUrl }}</span>
-                <Button variant="ghost" size="sm" class="w-8 h-8 p-0 shrink-0" @click="copy(portalUrl)">
+                <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0 shrink-0" @click="copy(portalUrl)">
                   <Icon name="lucide:copy" class="w-4 h-4" />
-                </Button>
+                </AppButton>
               </div>
             </div>
           </div>
@@ -268,11 +268,11 @@ useSeoMeta({ title: "Public site" });
             <button type="button" class="t-link" @click="navigateToOrg('/admin/settings/site')">Design it →</button>
           </p>
 
-          <Button class="rounded-full" :disabled="savingExternal" @click="saveExternalUrl">
+          <AppButton class="rounded-full" :disabled="savingExternal" @click="saveExternalUrl">
             <Icon v-if="savingExternal" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
             <Icon v-else name="lucide:check" class="w-4 h-4 mr-2" />
             Save landing setting
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Custom domain -->
@@ -293,11 +293,11 @@ useSeoMeta({ title: "Public site" });
               (<span class="font-mono">portal.yourbuilding.com</span>). You'll add a couple of DNS records next.
             </p>
           </div>
-          <Button class="rounded-full" :disabled="connecting || !domainInput.trim()" @click="connect">
+          <AppButton class="rounded-full" :disabled="connecting || !domainInput.trim()" @click="connect">
             <Icon v-if="connecting" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
             <Icon v-else name="lucide:globe" class="w-4 h-4 mr-2" />
             Connect domain
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Connected: instructions + status -->
@@ -309,10 +309,10 @@ useSeoMeta({ title: "Public site" });
                 <span class="font-mono font-medium truncate">{{ org?.custom_domain }}</span>
                 <span class="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full" :class="statusClass">{{ statusLabel }}</span>
               </div>
-              <Button variant="ghost" size="sm" :disabled="disconnecting" @click="showDisconnectConfirm = true">
+              <AppButton variant="ghost" size="sm" :disabled="disconnecting" @click="showDisconnectConfirm = true">
                 <Icon name="lucide:unlink" class="w-4 h-4 mr-1.5" />
                 Disconnect
-              </Button>
+              </AppButton>
             </div>
             <p v-if="isVerified" class="text-sm text-success flex items-center gap-1.5">
               <Icon name="lucide:check-circle" class="w-4 h-4" />
@@ -353,21 +353,21 @@ useSeoMeta({ title: "Public site" });
                 <div class="grid grid-cols-[5rem_1fr_auto] items-center gap-2 p-3">
                   <span class="t-text-muted">Name</span>
                   <span class="font-mono break-all">{{ cfg.record_name }}</span>
-                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="copy(cfg.record_name)"><Icon name="lucide:copy" class="w-4 h-4" /></Button>
+                  <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="copy(cfg.record_name)"><Icon name="lucide:copy" class="w-4 h-4" /></AppButton>
                 </div>
                 <div class="grid grid-cols-[5rem_1fr_auto] items-center gap-2 p-3">
                   <span class="t-text-muted">Value</span>
                   <span class="font-mono break-all">{{ cfg.record_value }}</span>
-                  <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="copy(cfg.record_value)"><Icon name="lucide:copy" class="w-4 h-4" /></Button>
+                  <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="copy(cfg.record_value)"><Icon name="lucide:copy" class="w-4 h-4" /></AppButton>
                 </div>
               </div>
 
               <div class="flex items-center gap-3 pt-1">
-                <Button class="rounded-full" :disabled="verifying" @click="verify">
+                <AppButton class="rounded-full" :disabled="verifying" @click="verify">
                   <Icon v-if="verifying" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
                   <Icon v-else name="lucide:badge-check" class="w-4 h-4 mr-2" />
                   {{ isVerified ? "Re-check" : "Verify domain" }}
-                </Button>
+                </AppButton>
                 <p class="text-xs t-text-muted">DNS changes can take a few minutes to propagate. SSL is issued automatically once verified.</p>
               </div>
             </template>
@@ -394,11 +394,11 @@ useSeoMeta({ title: "Public site" });
           </DialogDescription>
         </DialogHeader>
         <DialogFooter class="gap-2">
-          <Button variant="outline" :disabled="disconnecting" @click="showDisconnectConfirm = false">Cancel</Button>
-          <Button variant="destructive" :disabled="disconnecting" @click="disconnect">
+          <AppButton variant="outline" :disabled="disconnecting" @click="showDisconnectConfirm = false">Cancel</AppButton>
+          <AppButton variant="destructive" :disabled="disconnecting" @click="disconnect">
             <Icon v-if="disconnecting" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
             Disconnect
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

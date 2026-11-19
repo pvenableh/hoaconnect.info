@@ -89,7 +89,7 @@ const columns = computed(() => [
           <template #cell-status="{ row }">
             <OpsStatusPill :status="row.status" />
             <span v-if="row.failureMessage" class="block type-micro text-destructive">{{ row.failureMessage }}</span>
-            <Button v-if="canRefund && row.refundable" variant="ghost" size="sm" class="mt-1 h-7 px-2" @click.stop="startRefund(row)">Refund</Button>
+            <AppButton v-if="canRefund && row.refundable" variant="ghost" size="sm" class="mt-1 h-7 px-2" @click.stop="startRefund(row)">Refund</AppButton>
           </template>
           <template #cell-description="{ row }"><span class="type-meta t-text-muted">{{ row.description || "—" }}</span></template>
         </AppDataTable>

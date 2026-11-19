@@ -15,22 +15,21 @@
       </div>
 
       <div class="space-y-4">
-        <Button @click="handleError" size="lg">
+        <AppButton @click="handleError" size="lg">
           <Icon name="lucide:home" class="w-4 h-4 mr-2" />
           Go Home
-        </Button>
+        </AppButton>
 
-        <Button @click="refresh" variant="outline" size="lg">
+        <AppButton @click="refresh" variant="outline" size="lg">
           <Icon name="lucide:refresh-cw" class="w-4 h-4 mr-2" />
           Try Again
-        </Button>
+        </AppButton>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { Button } from "@/components/ui/button";
 
 const props = defineProps({
   error: Object,

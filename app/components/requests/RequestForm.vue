@@ -166,11 +166,11 @@ const submit = async () => {
 
     <!-- Actions -->
     <div class="flex justify-end gap-2 pt-2">
-      <Button variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</Button>
-      <Button class="rounded-full" :disabled="!canSubmit || isSubmitting" @click="submit">
+      <AppButton variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</AppButton>
+      <AppButton class="rounded-full" :disabled="!canSubmit || isSubmitting" @click="submit">
         <Icon v-if="isSubmitting" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         Submit request
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

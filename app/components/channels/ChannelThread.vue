@@ -745,9 +745,9 @@ onBeforeUnmount(() => {
       <AlertTitle>Connection Error</AlertTitle>
       <AlertDescription class="flex items-center justify-between">
         <span>{{ messagesError }}</span>
-        <Button variant="outline" size="sm" :disabled="messagesLoading" @click="refreshMessages">
+        <AppButton variant="outline" size="sm" :disabled="messagesLoading" @click="refreshMessages">
           <Icon name="lucide:refresh-cw" class="w-4 h-4 mr-1" /> Retry
-        </Button>
+        </AppButton>
       </AlertDescription>
     </Alert>
 
@@ -812,9 +812,9 @@ onBeforeUnmount(() => {
         <Icon name="lucide:search-x" class="w-12 h-12 mb-4" />
         <p class="font-medium mb-1">Channel not found</p>
         <p class="text-sm mb-4">This channel may have been deleted or you don't have access.</p>
-        <Button variant="outline" @click="emit('back')">
+        <AppButton variant="outline" @click="emit('back')">
           <Icon name="lucide:arrow-left" class="w-4 h-4 mr-2" /> Back to channels
-        </Button>
+        </AppButton>
       </div>
     </div>
 
@@ -851,14 +851,14 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <Button
+          <AppButton
             class="shrink-0 self-end"
             :disabled="(!newMessage?.replace(/<[^>]*>/g, '').trim() && !messageAttachments.length) || !currentChannel"
             @click="sendMessage"
           >
             <Icon name="lucide:send" class="w-4 h-4" />
             <span class="sr-only">Send</span>
-          </Button>
+          </AppButton>
         </div>
         <p class="text-xs t-text-muted mt-2">
           Press <kbd class="px-1 py-0.5 t-bg-subtle rounded text-xs">Enter</kbd> to send,

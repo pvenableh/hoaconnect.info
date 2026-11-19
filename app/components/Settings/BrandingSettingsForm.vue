@@ -44,7 +44,7 @@
                   or an SVG to enable the animated color-fill logo in the header.
                 </p>
               </div>
-              <Button
+              <AppButton
                 v-if="logoPreview || currentLogoUrl"
                 variant="outline"
                 size="sm"
@@ -53,7 +53,7 @@
               >
                 <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
                 Remove Logo
-              </Button>
+              </AppButton>
             </div>
 
             <!-- Icon Upload -->
@@ -89,7 +89,7 @@
                   Recommended: 512x512px, PNG
                 </p>
               </div>
-              <Button
+              <AppButton
                 v-if="iconPreview || currentIconUrl"
                 variant="outline"
                 size="sm"
@@ -98,7 +98,7 @@
               >
                 <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
                 Remove Icon
-              </Button>
+              </AppButton>
             </div>
           </div>
         </section>
@@ -179,7 +179,7 @@
                   ? "Using the platform's default email colors. Pick colors above to brand your emails."
                   : "Alert emails keep their red badge regardless of your palette, so urgent messages stay urgent." }}
               </p>
-              <Button
+              <AppButton
                 v-if="!usingPlatformPalette"
                 variant="outline"
                 size="sm"
@@ -187,7 +187,7 @@
                 :disabled="isSaving"
               >
                 Reset to defaults
-              </Button>
+              </AppButton>
             </div>
           </div>
         </section>
@@ -306,7 +306,7 @@
                   Shown full-width at the bottom of emails. Recommended: 1200px wide.
                 </p>
               </div>
-              <Button
+              <AppButton
                 v-if="footerPreview || currentFooterImageUrl"
                 variant="outline"
                 size="sm"
@@ -315,7 +315,7 @@
               >
                 <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
                 Remove Photo
-              </Button>
+              </AppButton>
             </div>
 
             <!-- Live email preview -->
@@ -386,14 +386,14 @@
 
     <!-- Save Button -->
     <div class="flex justify-end">
-      <Button @click="saveChanges" :disabled="isSaving">
+      <AppButton @click="saveChanges" :disabled="isSaving">
         <Icon
           v-if="isSaving"
           name="lucide:loader-2"
           class="mr-2 h-4 w-4 animate-spin"
         />
         {{ isSaving ? "Saving..." : "Save Branding" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

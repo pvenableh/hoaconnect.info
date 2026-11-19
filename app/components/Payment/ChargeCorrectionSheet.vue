@@ -208,11 +208,11 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
       </div>
 
       <div class="flex justify-end gap-2">
-        <Button variant="outline" class="rounded-full" @click="emit('update:open', false)">Cancel</Button>
-        <Button class="rounded-full" :disabled="!canSend || busy" @click="send">
+        <AppButton variant="outline" class="rounded-full" @click="emit('update:open', false)">Cancel</AppButton>
+        <AppButton class="rounded-full" :disabled="!canSend || busy" @click="send">
           <Icon v-if="busy" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
           {{ mode === "edit" ? "Save" : mode === "waive" ? "Ask to Waive" : "Ask to Move" }}
-        </Button>
+        </AppButton>
       </div>
     </div>
   </AppBottomSheet>

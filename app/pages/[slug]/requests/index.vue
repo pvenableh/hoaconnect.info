@@ -48,10 +48,10 @@ const onCreated = async (id: string) => {
             Questions for your community, maintenance, architectural review and complaints.
           </p>
         </div>
-        <Button class="rounded-full" @click="showNew = !showNew">
+        <AppButton class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           New request
-        </Button>
+        </AppButton>
       </div>
 
       <AppBottomSheet v-model:open="showNew" title="New request">
@@ -66,7 +66,7 @@ const onCreated = async (id: string) => {
       <div class="ios-card p-2">
         <RequestsRequestList :requests="requests || []" :base-path="basePath" :loading="pending">
           <template #empty-actions>
-            <Button class="rounded-full" @click="showNew = true">New Request</Button>
+            <AppButton class="rounded-full" @click="showNew = true">New Request</AppButton>
           </template>
         </RequestsRequestList>
       </div>

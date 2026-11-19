@@ -122,10 +122,10 @@ const submit = () => {
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Signed lease (PDF)</label>
         <div class="flex items-center gap-2 min-w-0">
-          <Button variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="fileInput?.click()">
+          <AppButton variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="fileInput?.click()">
             <Icon :name="uploading ? 'lucide:loader-2' : 'lucide:paperclip'" class="w-4 h-4" :class="{ 'animate-spin': uploading }" />
             {{ documentId ? "Replace" : "Choose the PDF" }}
-          </Button>
+          </AppButton>
           <span class="text-sm t-text-muted truncate">{{ uploading ? "Uploading…" : documentName || "No file chosen" }}</span>
           <input ref="fileInput" type="file" accept="application/pdf" class="hidden" @change="onFile" />
         </div>
@@ -139,11 +139,11 @@ const submit = () => {
     </div>
 
     <div class="flex justify-end gap-2 pt-1">
-      <Button variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</Button>
-      <Button class="rounded-full" :disabled="!canSubmit || submitting" @click="submit">
+      <AppButton variant="ghost" class="rounded-full" @click="emit('cancel')">Cancel</AppButton>
+      <AppButton class="rounded-full" :disabled="!canSubmit || submitting" @click="submit">
         <Icon v-if="submitting" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         {{ record ? "Save" : "Add lease" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

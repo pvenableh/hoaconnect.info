@@ -164,9 +164,9 @@ onMounted(scrollToHash);
           <p class="type-meta t-text-secondary flex-1 min-w-0">
             {{ doc.status === "published" ? "Correct the text against the original. Each edit is recorded." : `${unreviewed} of ${provisions.length} provisions still to review before this can be published.` }}
           </p>
-          <Button as-child size="sm" :variant="doc.status === 'published' ? 'outline' : 'default'">
+          <AppButton as-child size="sm" :variant="doc.status === 'published' ? 'outline' : 'default'">
             <NuxtLink :to="buildOrgPath(`/governing/review/${doc.id}`)">{{ doc.status === "published" ? "Edit Text" : "Review Text" }}</NuxtLink>
-          </Button>
+          </AppButton>
         </div>
 
         <div
@@ -179,10 +179,10 @@ onMounted(scrollToHash);
               Have software look for provisions that touch a statute in the library. It uses the community's AI credits. Suggestions wait on the
               overview for someone to confirm or dismiss; members do not see them.
             </p>
-            <Button size="sm" variant="outline" :disabled="suggesting" @click="suggest">
+            <AppButton size="sm" variant="outline" :disabled="suggesting" @click="suggest">
               <Icon :name="suggesting ? 'lucide:loader-2' : 'lucide:sparkles'" class="w-4 h-4 mr-1.5" :class="suggesting ? 'animate-spin' : ''" />
               Suggest Flags
-            </Button>
+            </AppButton>
           </div>
           <p v-if="suggestion" class="type-meta t-text-secondary" role="status" data-testid="governing-suggest-result">
             {{ suggestion.suggested }} {{ suggestion.suggested === 1 ? "suggestion" : "suggestions" }} saved, {{ suggestion.rejected }} dropped as

@@ -74,7 +74,7 @@ const timeline = computed(() => {
     @close="$emit('close')"
   >
     <template v-if="charge && open && (canWrite || hasChargeMenu(charge, canEnter, canCorrect))" #actions>
-      <Button
+      <AppButton
         v-if="canWrite"
         size="sm"
         class="rounded-full"
@@ -84,12 +84,12 @@ const timeline = computed(() => {
         <Icon v-if="markingId === charge.id" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         <Icon v-else name="lucide:check" class="w-4 h-4 mr-1.5" />
         Mark Paid
-      </Button>
+      </AppButton>
       <DropdownMenu v-if="hasChargeMenu(charge, canEnter, canCorrect)">
         <DropdownMenuTrigger as-child>
-          <Button variant="ghost" size="icon-sm" aria-label="More actions">
+          <AppButton variant="ghost" size="icon-sm" aria-label="More actions">
             <Icon name="lucide:more-horizontal" />
-          </Button>
+          </AppButton>
         </DropdownMenuTrigger>
         <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-if="canEditCharge(charge, canCorrect)" @click="openSheet('edit')">

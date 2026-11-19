@@ -51,7 +51,7 @@ const runSearch = async () => {
           placeholder="Search by citation or words, for example By-Law 3.5 or proxies"
           aria-label="Search governing documents"
         />
-        <Button type="submit" variant="outline">Search</Button>
+        <AppButton type="submit" variant="outline">Search</AppButton>
       </form>
 
       <NuxtLink :to="buildOrgPath('/governing/overview')" class="ios-card flex items-center gap-3 px-4 py-3">
@@ -64,16 +64,16 @@ const runSearch = async () => {
       </NuxtLink>
 
       <div v-if="canUpload" class="flex justify-end gap-2">
-        <Button as-child variant="outline" size="sm">
+        <AppButton as-child variant="outline" size="sm">
           <NuxtLink :to="buildOrgPath('/governing/audit')">
             <Icon name="lucide:history" class="w-4 h-4 mr-1.5" /> Change History
           </NuxtLink>
-        </Button>
-        <Button as-child variant="outline" size="sm">
+        </AppButton>
+        <AppButton as-child variant="outline" size="sm">
           <NuxtLink :to="buildOrgPath('/governing/upload')">
             <Icon name="lucide:upload" class="w-4 h-4 mr-1.5" /> Upload Document
           </NuxtLink>
-        </Button>
+        </AppButton>
       </div>
 
       <AppEmptyState

@@ -195,8 +195,8 @@ async function save() {
       <ResponsibilitiesHolderPicker v-else v-model="first" :org-id="orgId" optional id-prefix="job-first" />
     </div>
     <template #footer>
-      <Button variant="outline" @click="isOpen = false">Cancel</Button>
-      <Button :disabled="!canSave" @click="save">{{ editing ? "Save job" : "Add job" }}</Button>
+      <AppButton variant="outline" @click="isOpen = false">Cancel</AppButton>
+      <AppButton :disabled="!canSave" @click="save">{{ editing ? "Save job" : "Add job" }}</AppButton>
     </template>
   </AppBottomSheet>
 </template>

@@ -61,32 +61,32 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
 
     <div class="flex items-center justify-between">
       <Label>Nearby places</Label>
-      <Button variant="outline" size="sm" @click="addHighlight">
+      <AppButton variant="outline" size="sm" @click="addHighlight">
         <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add place
-      </Button>
+      </AppButton>
     </div>
     <div v-for="(p, j) in landing.location.highlights" :key="j" class="flex items-center gap-2">
       <AppInput v-model="p.name" placeholder="The Beach" class="flex-1" />
       <AppInput v-model="p.walk_time" placeholder="6 min" class="w-24" />
       <AppInput v-model="p.distance" placeholder="0.5 mi" class="w-24" />
-      <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeHighlight(j)">
+      <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeHighlight(j)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-      </Button>
+      </AppButton>
     </div>
 
     <div class="flex items-center justify-between">
       <Label>Editorial stats</Label>
-      <Button variant="outline" size="sm" @click="addStat">
+      <AppButton variant="outline" size="sm" @click="addStat">
         <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add stat
-      </Button>
+      </AppButton>
     </div>
     <div v-for="(s, k) in landing.location.stats" :key="k" class="flex items-center gap-2">
       <AppInput v-model="s.value" placeholder="12" class="w-20" />
       <AppInput v-model="s.unit" placeholder="min" class="w-24" />
       <AppInput v-model="s.label" placeholder="to the beach" class="flex-1" />
-      <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
+      <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-      </Button>
+      </AppButton>
     </div>
 
     <!-- Walk-time number band -->
@@ -95,16 +95,16 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
         <Label>Walk-time band</Label>
         <p class="text-xs t-text-muted">Big "N min — to X" tiles (e.g. 6 / to the Ocean).</p>
       </div>
-      <Button variant="outline" size="sm" @click="addWalkTime">
+      <AppButton variant="outline" size="sm" @click="addWalkTime">
         <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add
-      </Button>
+      </AppButton>
     </div>
     <div v-for="(w, k) in landing.location.walk_times" :key="`wt-${k}`" class="flex items-center gap-2">
       <AppInput v-model="w.minutes" placeholder="6" class="w-20" />
       <AppInput v-model="w.label" placeholder="to the Ocean" class="flex-1" />
-      <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeWalkTime(k)">
+      <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeWalkTime(k)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-      </Button>
+      </AppButton>
     </div>
 
     <!-- Lifestyle gallery -->
@@ -114,9 +114,9 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
           <Label>Lifestyle gallery</Label>
           <p class="text-xs t-text-muted">"Active Living, Steps Away" cards (icon · title · note · image).</p>
         </div>
-        <Button variant="outline" size="sm" @click="addLifestyleItem">
+        <AppButton variant="outline" size="sm" @click="addLifestyleItem">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add card
-        </Button>
+        </AppButton>
       </div>
       <div v-if="landing.location.lifestyle" class="grid grid-cols-2 gap-2">
         <AppInput v-model="landing.location.lifestyle.eyebrow" placeholder="Eyebrow — The Flamingo Park Lifestyle" />
@@ -133,9 +133,9 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
           </span>
           <AppInput v-model="it.icon" placeholder="lucide:sun" class="w-36" />
           <AppInput v-model="it.title" placeholder="BEACH MORNING" class="flex-1" />
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLifestyleItem(k)">
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLifestyleItem(k)">
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-          </Button>
+          </AppButton>
         </div>
         <AppInput v-model="it.desc" placeholder="Sunrise run on the sand" />
         <LandingBuilderImageField v-model="it.image" thumb-class="h-12 w-12" title="Lifestyle image" />

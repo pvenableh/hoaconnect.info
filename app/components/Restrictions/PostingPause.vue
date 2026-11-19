@@ -108,13 +108,13 @@ const day = (iso: string | null) =>
       <p v-if="open.internalNote" class="text-sm t-text-muted">Admins' note: {{ open.internalNote }}</p>
       <p class="type-meta t-text-muted">Since {{ day(open.startsAt) }}<template v-if="open.imposedBy"> by {{ open.imposedBy }}</template></p>
       <div>
-        <Button variant="outline" size="sm" :disabled="lifting" @click="lift">Lift pause</Button>
+        <AppButton variant="outline" size="sm" :disabled="lifting" @click="lift">Lift pause</AppButton>
       </div>
     </div>
     <p v-else-if="!data.canRestrict" class="text-sm t-text-muted">{{ data.reason }}</p>
     <RestrictionsPauseForm v-else-if="formOpen" :name="name" :save="pause" @cancel="formOpen = false" />
     <div v-else>
-      <Button variant="outline" size="sm" @click="formOpen = true">Pause posting</Button>
+      <AppButton variant="outline" size="sm" @click="formOpen = true">Pause posting</AppButton>
     </div>
 
     <div v-if="past.length" class="grid gap-1.5">

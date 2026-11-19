@@ -642,9 +642,9 @@ const isLastVisibleStep = (step: number) => {
           <p class="text-sm text-muted-foreground">
             Communities this size are priced with us directly. Onboarding, migration and support are tailored.
           </p>
-          <Button as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
+          <AppButton as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
             Talk to us
-          </Button>
+          </AppButton>
         </div>
 
         <div v-else-if="quote" class="space-y-4" data-testid="signup-quote">
@@ -682,7 +682,7 @@ const isLastVisibleStep = (step: number) => {
           <div class="space-y-2" data-testid="signup-promo">
             <div v-if="promo" class="flex items-center justify-between gap-4 text-sm">
               <span>Code {{ promo.code }} applied</span>
-              <Button variant="ghost" size="sm" @click="removePromo">Remove</Button>
+              <AppButton variant="ghost" size="sm" @click="removePromo">Remove</AppButton>
             </div>
             <div v-else class="flex gap-2">
               <AppInput
@@ -693,9 +693,9 @@ const isLastVisibleStep = (step: number) => {
                 class="flex-1"
                 @keydown.enter.prevent="applyPromo"
               />
-              <Button variant="outline" :disabled="!promoInput.trim() || promoChecking" @click="applyPromo">
+              <AppButton variant="outline" :disabled="!promoInput.trim() || promoChecking" @click="applyPromo">
                 {{ promoChecking ? "Checking..." : "Apply" }}
-              </Button>
+              </AppButton>
             </div>
             <p v-if="promoError" class="text-sm text-destructive" data-testid="signup-promo-error">{{ promoError }}</p>
           </div>
@@ -821,25 +821,25 @@ const isLastVisibleStep = (step: number) => {
     </CardContent>
 
     <CardFooter class="flex justify-between">
-      <Button
+      <AppButton
         v-if="canGoBack"
         variant="outline"
         @click="prevStep"
         :disabled="loading"
       >
         Back
-      </Button>
+      </AppButton>
 
       <div class="flex-1" />
 
       <!-- Step 4 has none: the card's own button pays. -->
-      <Button
+      <AppButton
         v-if="currentStep !== 4"
         @click="nextStep"
         :disabled="loading || !currentStepValid"
       >
         {{ loading ? "Setting up..." : (paymentIsNext ? "Continue to Payment" : "Continue") }}
-      </Button>
+      </AppButton>
     </CardFooter>
   </AppCard>
 </template>

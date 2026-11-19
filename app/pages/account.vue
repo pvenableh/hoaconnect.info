@@ -32,7 +32,7 @@
                       {{ user?.firstName?.[0] }}{{ user?.lastName?.[0] }}
                     </AvatarFallback>
                   </Avatar>
-                  <Button
+                  <AppButton
                     v-if="avatarUrl && !isUploadingAvatar"
                     variant="destructive"
                     size="icon"
@@ -42,7 +42,7 @@
                     @click="removeAvatar"
                   >
                     <Icon name="lucide:x" class="h-3 w-3" />
-                  </Button>
+                  </AppButton>
                 </div>
 
                 <!-- Upload Controls -->
@@ -54,7 +54,7 @@
                     class="hidden"
                     @change="handleAvatarUpload"
                   />
-                  <Button
+                  <AppButton
                     @click="avatarInput?.click()"
                     :disabled="isUploadingAvatar"
                     variant="outline"
@@ -66,7 +66,7 @@
                     />
                     <Icon v-else name="lucide:upload" class="mr-2 h-4 w-4" />
                     {{ isUploadingAvatar ? "Uploading..." : "Upload Photo" }}
-                  </Button>
+                  </AppButton>
                   <p class="text-xs text-muted-foreground mt-2">
                     JPG, PNG or GIF. Max 5MB.
                   </p>
@@ -128,14 +128,14 @@
 
                 <!-- Submit Button -->
                 <div class="flex justify-end">
-                  <Button type="submit" :disabled="isUpdating">
+                  <AppButton type="submit" :disabled="isUpdating">
                     <Icon
                       v-if="isUpdating"
                       name="lucide:loader-2"
                       class="mr-2 h-4 w-4 animate-spin"
                     />
                     {{ isUpdating ? "Saving..." : "Save Changes" }}
-                  </Button>
+                  </AppButton>
                 </div>
               </form>
             </section>
@@ -164,7 +164,7 @@
                 <div class="ml-2">{{ resetRequestError }}</div>
               </Alert>
 
-              <Button
+              <AppButton
                 @click="requestPasswordReset"
                 :disabled="isRequestingReset"
                 variant="outline"
@@ -176,7 +176,7 @@
                 />
                 <Icon v-else name="lucide:mail" class="mr-2 h-4 w-4" />
                 {{ isRequestingReset ? "Sending..." : "Send Reset Link" }}
-              </Button>
+              </AppButton>
             </section>
 
             <!-- Connected Accounts — rows divided by hairlines, not a box each. -->
@@ -192,13 +192,13 @@
                       <p class="text-sm text-muted-foreground">Not connected</p>
                     </div>
                   </div>
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
                     @click="connectOAuth('github')"
                   >
                     Connect
-                  </Button>
+                  </AppButton>
                 </li>
 
                 <li class="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
@@ -209,13 +209,13 @@
                       <p class="text-sm text-muted-foreground">Not connected</p>
                     </div>
                   </div>
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
                     @click="connectOAuth('google')"
                   >
                     Connect
-                  </Button>
+                  </AppButton>
                 </li>
               </ul>
             </section>
@@ -272,7 +272,7 @@
               </p>
 
               <div class="flex justify-end">
-                <Button :disabled="isUpdating" @click="updatePreferences">Save preferences</Button>
+                <AppButton :disabled="isUpdating" @click="updatePreferences">Save preferences</AppButton>
               </div>
             </section>
 
@@ -296,14 +296,14 @@
                       }}
                     </p>
                   </div>
-                  <Button
+                  <AppButton
                     size="sm"
                     :variant="push.subscribed.value ? 'outline' : 'default'"
                     :disabled="push.busy.value"
                     @click="togglePush"
                   >
                     {{ push.subscribed.value ? "Turn off" : "Turn on" }}
-                  </Button>
+                  </AppButton>
                 </label>
 
                 <!-- A flat warning line (tinted glyph, quiet text), not a box. -->
@@ -319,9 +319,9 @@
                 </p>
 
                 <div v-if="push.subscribed.value" class="flex items-center gap-3">
-                  <Button size="sm" variant="outline" :disabled="push.busy.value" @click="testPush">
+                  <AppButton size="sm" variant="outline" :disabled="push.busy.value" @click="testPush">
                     Send a test notification
-                  </Button>
+                  </AppButton>
                   <span v-if="pushTestMessage" class="text-sm text-muted-foreground">
                     {{ pushTestMessage }}
                   </span>
@@ -398,7 +398,7 @@
               </div>
 
               <div class="flex justify-end">
-                <Button :disabled="isUpdating" @click="updatePreferences">Save preferences</Button>
+                <AppButton :disabled="isUpdating" @click="updatePreferences">Save preferences</AppButton>
               </div>
             </section>
 
@@ -441,9 +441,9 @@
               </div>
 
               <div class="flex justify-end">
-                <Button @click="updatePreferences" :disabled="isUpdating">
+                <AppButton @click="updatePreferences" :disabled="isUpdating">
                   Save Preferences
-                </Button>
+                </AppButton>
               </div>
             </section>
           </div>
@@ -474,7 +474,7 @@
                 <p class="font-medium">What's new</p>
                 <p class="text-sm text-muted-foreground">{{ releaseNote.title }}</p>
               </div>
-              <Button size="sm" variant="outline" @click="openWhatsNew()">View</Button>
+              <AppButton size="sm" variant="outline" @click="openWhatsNew()">View</AppButton>
             </div>
           </template>
         </section>

@@ -67,7 +67,7 @@ useHead({ title: "Email preferences" });
           This link doesn't say whose subscription it is. Sign in to choose which emails your
           community sends you.
         </p>
-        <Button as-child class="rounded-full mt-2"><NuxtLink to="/auth/login">Sign in</NuxtLink></Button>
+        <AppButton as-child class="rounded-full mt-2"><NuxtLink to="/auth/login">Sign in</NuxtLink></AppButton>
       </div>
 
       <div v-else-if="pending" class="py-10 text-center" data-state="loading">
@@ -79,7 +79,7 @@ useHead({ title: "Email preferences" });
         <Icon name="lucide:cloud-off" class="w-8 h-8 mx-auto t-text-muted" />
         <h1 class="text-xl font-semibold t-text">We couldn't load this</h1>
         <p class="text-sm t-text-muted">Your email settings didn't load. Try again in a moment.</p>
-        <Button variant="outline" class="rounded-full" @click="refresh()">Try again</Button>
+        <AppButton variant="outline" class="rounded-full" @click="refresh()">Try again</AppButton>
       </div>
 
       <div v-else-if="!data?.valid" class="text-center space-y-3" data-state="invalid">
@@ -88,7 +88,7 @@ useHead({ title: "Email preferences" });
         <p class="text-sm t-text-muted">
           Sign in to your community's portal to manage the email you receive.
         </p>
-        <Button as-child class="rounded-full mt-2"><NuxtLink to="/auth/login">Sign in</NuxtLink></Button>
+        <AppButton as-child class="rounded-full mt-2"><NuxtLink to="/auth/login">Sign in</NuxtLink></AppButton>
       </div>
 
       <div v-else class="space-y-6" :data-state="optedOut ? 'opted-out' : 'subscribed'">
@@ -132,7 +132,7 @@ useHead({ title: "Email preferences" });
         <p v-if="actionError" class="text-sm text-destructive text-center" role="alert">{{ actionError }}</p>
 
         <div class="flex flex-col items-center gap-3">
-          <Button
+          <AppButton
             v-if="!optedOut"
             class="rounded-full w-full sm:w-auto sm:min-w-56"
             size="lg"
@@ -142,8 +142,8 @@ useHead({ title: "Email preferences" });
           >
             <Icon v-if="working" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
             Unsubscribe
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-else
             variant="outline"
             class="rounded-full w-full sm:w-auto sm:min-w-56"
@@ -154,7 +154,7 @@ useHead({ title: "Email preferences" });
           >
             <Icon v-if="working" name="lucide:loader-2" class="w-4 h-4 animate-spin" />
             {{ justDid === "unsubscribed" ? "Changed your mind? Resubscribe" : "Resubscribe" }}
-          </Button>
+          </AppButton>
           <NuxtLink
             v-if="data.preferencesUrl"
             :to="data.preferencesUrl"

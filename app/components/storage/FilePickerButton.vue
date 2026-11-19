@@ -41,7 +41,7 @@ function onSelect(files: PickedFile[]) {
 
 <template>
   <span>
-    <Button
+    <AppButton
       :variant="variant as any"
       :size="size as any"
       type="button"
@@ -50,7 +50,7 @@ function onSelect(files: PickedFile[]) {
     >
       <Icon :name="icon" :class="iconOnly ? 'h-4 w-4' : 'mr-1.5 h-4 w-4'" />
       <span v-if="!iconOnly">{{ label }}</span>
-    </Button>
+    </AppButton>
     <StorageFilePickerDialog
       v-model:open="open"
       :multiple="multiple"

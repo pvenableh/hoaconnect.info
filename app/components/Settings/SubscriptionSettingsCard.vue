@@ -103,13 +103,13 @@
         </div>
       </CardContent>
       <CardFooter class="flex justify-between border-t pt-6">
-        <Button variant="outline" disabled>
+        <AppButton variant="outline" disabled>
           <Icon name="lucide:arrow-up-circle" class="h-4 w-4 mr-2" />
           Upgrade Plan
-        </Button>
-        <Button variant="ghost" disabled>
+        </AppButton>
+        <AppButton variant="ghost" disabled>
           Manage Billing
-        </Button>
+        </AppButton>
       </CardFooter>
     </AppCard>
 
@@ -192,17 +192,17 @@
               <p class="text-sm text-muted-foreground">Expires {{ expiryDate }}</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" disabled>
+          <AppButton variant="outline" size="sm" disabled>
             Update
-          </Button>
+          </AppButton>
         </div>
         <div v-else class="text-center py-8">
           <Icon name="lucide:credit-card" class="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <p class="text-muted-foreground">No payment method on file</p>
-          <Button class="mt-4" disabled>
+          <AppButton class="mt-4" disabled>
             <Icon name="lucide:plus" class="h-4 w-4 mr-2" />
             Add Payment Method
-          </Button>
+          </AppButton>
         </div>
       </CardContent>
     </AppCard>
@@ -223,9 +223,9 @@
               Cancel your subscription. You'll lose access at the end of your billing period.
             </p>
           </div>
-          <Button variant="destructive" size="sm" disabled>
+          <AppButton variant="destructive" size="sm" disabled>
             Cancel
-          </Button>
+          </AppButton>
         </div>
       </CardContent>
     </AppCard>

@@ -7,7 +7,6 @@ import { z } from "zod";
 
 const { $gsap } = useNuxtApp();
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { toast } from "vue-sonner";
 import { Loader2, ArrowLeft, Mail } from "lucide-vue-next";
 
@@ -100,10 +99,10 @@ const onSubmit = handleSubmit(async (values) => {
           </VeeField>
 
           <div class="flex flex-col gap-3 pt-3">
-            <Button type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
+            <AppButton type="submit" size="lg" class="w-full rounded-full" :disabled="isSubmitting">
               <Loader2 v-if="isSubmitting" class="mr-2 h-4 w-4 animate-spin" />
               {{ isSubmitting ? "Sending..." : "Send reset link" }}
-            </Button>
+            </AppButton>
 
             <button
               type="button"
@@ -127,7 +126,7 @@ const onSubmit = handleSubmit(async (values) => {
             <p class="font-medium t-text">{{ submittedEmail }}</p>
             <p class="type-meta">Please check your inbox and spam folder.</p>
           </div>
-          <Button
+          <AppButton
             type="button"
             variant="outline"
             size="lg"
@@ -136,7 +135,7 @@ const onSubmit = handleSubmit(async (values) => {
           >
             <ArrowLeft class="mr-2 h-4 w-4" />
             Back to login
-          </Button>
+          </AppButton>
         </div>
     </div>
   </div>

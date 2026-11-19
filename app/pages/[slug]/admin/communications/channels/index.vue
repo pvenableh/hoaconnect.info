@@ -37,10 +37,10 @@ const newChannel = () => router.replace({ query: { ...route.query, new: "channel
             Ongoing group conversations for {{ orgName }} — board, committees, and community threads.
           </p>
         </div>
-        <Button v-if="isAdmin && channelsEnabled" size="lg" @click="newChannel">
+        <AppButton v-if="isAdmin && channelsEnabled" size="lg" @click="newChannel">
           <Icon name="lucide:plus" class="w-5 h-5 mr-2" />
           New channel
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Module disabled -->

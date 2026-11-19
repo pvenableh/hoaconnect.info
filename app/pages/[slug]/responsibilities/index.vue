@@ -167,7 +167,7 @@ const day = (d: string) => {
         size="sm"
       >
         <template #actions>
-          <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+          <AppButton variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</AppButton>
         </template>
       </AppEmptyState>
 

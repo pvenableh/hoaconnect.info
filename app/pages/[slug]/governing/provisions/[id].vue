@@ -90,9 +90,9 @@ const copyCitation = async () => {
               <p class="type-micro t-text-muted">Citation</p>
               <p class="type-body t-text select-all" data-testid="governing-citation">{{ data.citation }}</p>
             </div>
-            <Button variant="outline" @click="copyCitation">
+            <AppButton variant="outline" @click="copyCitation">
               <Icon name="lucide:copy" class="w-4 h-4 mr-1.5" /> Copy Citation
-            </Button>
+            </AppButton>
           </div>
 
           <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 border-t t-border pt-3">

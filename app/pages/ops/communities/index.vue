@@ -128,9 +128,9 @@ const columns = [
       </AppDataTable>
 
       <div v-if="data && data.pages > 1" class="mt-4 flex items-center justify-between gap-2">
-        <Button variant="outline" size="sm" :disabled="page <= 1" @click="setQuery({ page: page - 1 > 1 ? page - 1 : undefined })">Previous</Button>
+        <AppButton variant="outline" size="sm" :disabled="page <= 1" @click="setQuery({ page: page - 1 > 1 ? page - 1 : undefined })">Previous</AppButton>
         <span class="type-meta t-text-muted">Page {{ data.page }} of {{ data.pages }} · {{ data.total }} communities</span>
-        <Button variant="outline" size="sm" :disabled="page >= data.pages" @click="setQuery({ page: page + 1 })">Next</Button>
+        <AppButton variant="outline" size="sm" :disabled="page >= data.pages" @click="setQuery({ page: page + 1 })">Next</AppButton>
       </div>
       <p v-else-if="data" class="mt-3 type-micro t-text-muted">{{ data.total }} communities</p>
     </div>

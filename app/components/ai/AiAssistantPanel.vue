@@ -466,7 +466,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     :disabled="chat.isStreaming.value"
                     @keydown.enter.exact.prevent="onSend"
                   />
-                  <Button
+                  <AppButton
                     type="button"
                     size="icon"
                     class="rounded-full shrink-0"
@@ -478,7 +478,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                       class="w-4 h-4"
                       :class="{ 'animate-spin': chat.isStreaming.value }"
                     />
-                  </Button>
+                  </AppButton>
                 </div>
                 <p class="text-[11px] t-text-muted text-center">
                   The assistant can be wrong — review drafts before sending. It can't take actions.
@@ -506,10 +506,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                       <div class="font-medium t-text">{{ pack.label }}</div>
                       <div class="text-xs t-text-muted">{{ formatCredits(pack.credits) }} credits</div>
                     </div>
-                    <Button type="button" size="sm" :disabled="buying === pack.id" @click="purchase(pack.id)">
+                    <AppButton type="button" size="sm" :disabled="buying === pack.id" @click="purchase(pack.id)">
                       <Icon v-if="buying === pack.id" name="i-lucide-loader-circle" class="w-4 h-4 mr-1.5 animate-spin" />
                       ${{ pack.priceUsd }}
-                    </Button>
+                    </AppButton>
                   </div>
                 </div>
               </AppDialogContent>

@@ -531,7 +531,7 @@ defineExpose({
         v-if="showToolbar"
         class="flex items-center gap-0.5 p-1.5 border-b t-border t-bg-subtle"
       >
-        <Button
+        <AppButton
           v-for="button in toolbarButtons"
           :key="button.command"
           type="button"
@@ -542,11 +542,11 @@ defineExpose({
           @click="button.action"
         >
           <Icon :name="button.icon" class="w-4 h-4" />
-        </Button>
+        </AppButton>
 
         <Separator orientation="vertical" class="mx-1 h-5" />
 
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -560,7 +560,7 @@ defineExpose({
             class="w-4 h-4 animate-spin"
           />
           <Icon v-else name="lucide:paperclip" class="w-4 h-4" />
-        </Button>
+        </AppButton>
 
         <input
           ref="fileInput"
@@ -592,7 +592,7 @@ defineExpose({
         v-if="!showToolbar"
         class="absolute right-2 bottom-2 flex items-center gap-1"
       >
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -606,7 +606,7 @@ defineExpose({
             class="w-4 h-4 animate-spin"
           />
           <Icon v-else name="lucide:paperclip" class="w-4 h-4" />
-        </Button>
+        </AppButton>
 
         <input
           ref="fileInput"

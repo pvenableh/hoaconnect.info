@@ -112,11 +112,11 @@ async function submit() {
           />
         </div>
         <DialogFooter class="gap-2 sm:gap-0">
-          <Button type="button" variant="ghost" :disabled="busy" @click="open = false">Cancel</Button>
-          <Button type="submit" :variant="destructive ? 'destructive' : 'default'" :disabled="busy">
+          <AppButton type="button" variant="ghost" :disabled="busy" @click="open = false">Cancel</AppButton>
+          <AppButton type="submit" :variant="destructive ? 'destructive' : 'default'" :disabled="busy">
             <Icon v-if="busy" name="lucide:loader-circle" class="mr-1.5 h-4 w-4 animate-spin" />
             {{ busy ? "Working…" : submitLabel }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </form>
     </AppDialogContent>

@@ -152,13 +152,13 @@ onBeforeUnmount(() => {
            variant is bg-primary, which IS the theme accent, so it follows the
            org's colour and both modes. The hand-rolled version was a fixed
            near-black that stayed near-black on a dark background. -->
-      <Button
+      <AppButton
         type="submit"
         class="w-full"
         :disabled="!isElementReady || isSubmitting"
       >
         {{ submitLabel }}
-      </Button>
+      </AppButton>
     </div>
   </form>
 </template>

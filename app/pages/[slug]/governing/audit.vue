@@ -187,7 +187,7 @@ const who = (e: GoverningAuditEntry) => e.actor_name || e.actor_email || "Unknow
           </ul>
 
           <div v-if="nextBefore" class="flex justify-center">
-            <Button variant="outline" :disabled="loadingMore" @click="loadMore">Load More</Button>
+            <AppButton variant="outline" :disabled="loadingMore" @click="loadMore">Load More</AppButton>
           </div>
         </template>
       </template>

@@ -77,7 +77,7 @@ const statusItems = Object.entries(SUPPORT_STATUS_LABEL_STAFF).map(([value, labe
               <input v-model="internal" type="checkbox" />
               Internal note
             </label>
-            <Button type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : internal ? "Add note" : "Send reply" }}</Button>
+            <AppButton type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : internal ? "Add note" : "Send reply" }}</AppButton>
           </div>
         </form>
       </div>

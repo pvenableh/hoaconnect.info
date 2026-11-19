@@ -41,7 +41,7 @@
       <div id="payment-element" class="mb-6" />
 
       <div class="mt-6 space-y-4">
-        <Button
+        <AppButton
           type="submit"
           class="w-full"
           :disabled="!isElementReady || isSubmitting"
@@ -58,7 +58,7 @@
             Processing Payment...
           </div>
           <span v-else>{{ submitButtonText }}</span>
-        </Button>
+        </AppButton>
 
         <p
           v-if="isElementReady"

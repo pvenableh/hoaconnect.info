@@ -71,8 +71,8 @@ async function submit() {
     </div>
 
     <div class="flex justify-end gap-2">
-      <Button type="button" variant="outline" size="sm" @click="emit('cancel')">Cancel</Button>
-      <Button type="button" size="sm" :disabled="!canSave" @click="submit">Pause posting</Button>
+      <AppButton type="button" variant="outline" size="sm" @click="emit('cancel')">Cancel</AppButton>
+      <AppButton type="button" size="sm" :disabled="!canSave" @click="submit">Pause posting</AppButton>
     </div>
   </div>
 </template>

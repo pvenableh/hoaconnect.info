@@ -54,7 +54,7 @@ const setStatus = async (id: string, status: string) => {
   <div class="min-h-screen t-bg t-text t-transition">
     <PageContainer class="space-y-6">
       <div>
-        <Button
+        <AppButton
           variant="ghost"
           size="sm"
           class="mb-2 -ml-2"
@@ -62,7 +62,7 @@ const setStatus = async (id: string, status: string) => {
         >
           <Icon name="lucide:arrow-left" class="w-4 h-4 mr-1.5" />
           Requests
-        </Button>
+        </AppButton>
         <div class="flex items-center justify-between gap-2">
           <div>
             <h1 class="text-2xl font-semibold t-text">Website leads</h1>
@@ -147,7 +147,7 @@ const setStatus = async (id: string, status: string) => {
           </div>
 
           <div class="shrink-0">
-            <Button
+            <AppButton
               v-if="lead.status !== 'resolved' && lead.status !== 'closed'"
               size="sm"
               variant="outline"
@@ -157,8 +157,8 @@ const setStatus = async (id: string, status: string) => {
             >
               <Icon name="lucide:check" class="w-4 h-4 mr-1.5" />
               Mark handled
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               v-else
               size="sm"
               variant="ghost"
@@ -167,7 +167,7 @@ const setStatus = async (id: string, status: string) => {
               @click="setStatus(lead.id, 'open')"
             >
               Reopen
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>

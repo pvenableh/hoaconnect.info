@@ -398,10 +398,10 @@ useSeoMeta({
     <PageContainer>
         <!-- Header -->
         <div class="mb-6">
-          <Button variant="ghost" size="sm" @click="handleBack" class="mb-4">
+          <AppButton variant="ghost" size="sm" @click="handleBack" class="mb-4">
             <Icon name="lucide:arrow-left" class="w-4 h-4 mr-2" />
             Back to Emails
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Loading State -->
@@ -422,9 +422,9 @@ useSeoMeta({
               The email you're looking for doesn't exist or has been deleted.
             </AlertDescription>
           </Alert>
-          <Button @click="handleBack" class="mt-4">
+          <AppButton @click="handleBack" class="mt-4">
             Back to Emails
-          </Button>
+          </AppButton>
         </div>
 
         <!-- Email Details - Two Column Layout -->
@@ -456,15 +456,15 @@ useSeoMeta({
                     </CardDescription>
                   </div>
                   <div class="flex gap-2">
-                    <Button
+                    <AppButton
                       v-if="email.status === 'draft'"
                       variant="outline"
                       size="sm"
                       @click="handleEdit"
                     >
                       <Icon name="lucide:edit" class="w-4 h-4" />
-                    </Button>
-                    <Button
+                    </AppButton>
+                    <AppButton
                       v-if="canRemove"
                       variant="destructive"
                       size="sm"
@@ -473,7 +473,7 @@ useSeoMeta({
                       @click="showDeleteDialog = true"
                     >
                       <Icon name="lucide:trash-2" class="w-4 h-4" />
-                    </Button>
+                    </AppButton>
                   </div>
                 </div>
               </CardHeader>
@@ -525,7 +525,7 @@ useSeoMeta({
                       SendGrid refused {{ failedCount === 1 ? "this message" : "these messages" }}, so nothing reached {{ failedCount === 1 ? "this person" : "these people" }}.
                     </p>
                   </div>
-                  <Button
+                  <AppButton
                     v-if="retryPlan.memberIds.length"
                     size="sm"
                     variant="outline"
@@ -536,7 +536,7 @@ useSeoMeta({
                   >
                     <Icon name="lucide:rotate-cw" class="w-4 h-4 mr-1.5" />
                     Retry {{ retryPlan.memberIds.length }} failed
-                  </Button>
+                  </AppButton>
                 </div>
                 <ul class="space-y-2">
                   <li
@@ -633,7 +633,7 @@ useSeoMeta({
                     </template>
                   </p>
                 </div>
-                <Button
+                <AppButton
                   v-if="resendPlan.memberIds.length"
                   size="sm"
                   variant="outline"
@@ -643,7 +643,7 @@ useSeoMeta({
                 >
                   <Icon name="lucide:mail-plus" class="w-4 h-4 mr-1.5" />
                   Resend to {{ resendPlan.memberIds.length }}
-                </Button>
+                </AppButton>
               </CardContent>
             </AppCard>
 
@@ -929,12 +929,12 @@ useSeoMeta({
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" @click="showDeleteDialog = false">
+              <AppButton variant="outline" @click="showDeleteDialog = false">
                 Cancel
-              </Button>
-              <Button variant="destructive" @click="handleDelete">
+              </AppButton>
+              <AppButton variant="destructive" @click="handleDelete">
                 {{ email?.status === 'draft' ? 'Delete' : 'Remove' }}
-              </Button>
+              </AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>

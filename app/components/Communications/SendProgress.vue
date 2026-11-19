@@ -53,10 +53,10 @@ const failedDone = computed(
         {{ progress?.paused?.sentence || "This send is on hold. Nobody else gets it until you resume it." }}
       </p>
       <div class="flex items-center gap-3">
-        <Button size="sm" :disabled="resuming" data-testid="send-progress-resume" @click="$emit('resume')">
+        <AppButton size="sm" :disabled="resuming" data-testid="send-progress-resume" @click="$emit('resume')">
           <Icon v-if="resuming" name="lucide:loader-2" class="w-3.5 h-3.5 mr-1.5 animate-spin" aria-hidden="true" />
           Resume sending
-        </Button>
+        </AppButton>
         <span v-if="resumeError" class="text-xs text-destructive">{{ resumeError }}</span>
       </div>
     </div>

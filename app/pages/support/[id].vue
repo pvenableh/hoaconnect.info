@@ -72,7 +72,7 @@ const categoryLabel = (v: string) => SUPPORT_CATEGORIES.find((c) => c.value === 
         <AppTextarea id="support-reply" v-model="reply" rows="4" :maxlength="BODY_MAX" />
         <div class="flex flex-wrap items-end justify-between gap-2">
           <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
-          <Button type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</Button>
+          <AppButton type="submit" :disabled="!canSend">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</AppButton>
         </div>
       </form>
     </template>

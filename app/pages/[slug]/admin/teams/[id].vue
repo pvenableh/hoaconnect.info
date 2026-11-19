@@ -190,7 +190,7 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
                 >Lead</span>
               </span>
               <div class="flex items-center gap-2">
-                <Button
+                <AppButton
                   size="sm"
                   variant="outline"
                   class="rounded-full text-xs"
@@ -198,7 +198,7 @@ const leadCount = computed(() => members.value.filter((m) => m.role === "lead").
                   @click="onToggleLead(r)"
                 >
                   {{ r.role === "lead" ? "Remove lead" : "Make lead" }}
-                </Button>
+                </AppButton>
                 <button
                   type="button"
                   class="t-text-tertiary hover:text-red-600"

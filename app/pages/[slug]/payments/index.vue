@@ -231,9 +231,9 @@ const TYPE_LABEL: Record<string, string> = {
             </div>
 
             <div class="mt-4">
-              <Button class="rounded-full" @click="payRequest(request)">
+              <AppButton class="rounded-full" @click="payRequest(request)">
                 <Icon name="heroicons:credit-card" class="mr-2 h-4 w-4" /> Pay Now
-              </Button>
+              </AppButton>
             </div>
           </div>
           </div>

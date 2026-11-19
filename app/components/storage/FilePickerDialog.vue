@@ -278,10 +278,10 @@ function thumbUrl(f: StorageFile, size = 160) {
             <Icon name="lucide:upload-cloud" class="mx-auto h-12 w-12 text-muted-foreground" />
             <p class="mt-3 text-sm font-medium">Drag & drop a file here</p>
             <p class="text-xs text-muted-foreground">or</p>
-            <Button size="sm" class="mt-2" :disabled="busy" @click="pickFiles">
+            <AppButton size="sm" class="mt-2" :disabled="busy" @click="pickFiles">
               <Icon v-if="busy" name="lucide:loader-2" class="mr-1.5 h-4 w-4 animate-spin" />
               Choose file{{ multiple ? "s" : "" }}
-            </Button>
+            </AppButton>
             <input ref="uploadInput" type="file" :multiple="multiple" :accept="acceptAttr" class="hidden" @change="onChosen" />
           </div>
         </div>
@@ -335,10 +335,10 @@ function thumbUrl(f: StorageFile, size = 160) {
       <DialogFooter v-if="tab !== 'upload'" class="items-center sm:justify-between">
         <span class="text-sm text-muted-foreground">{{ picked.size }} selected</span>
         <div class="flex gap-2">
-          <Button variant="ghost" @click="emit('update:open', false)">Cancel</Button>
-          <Button :disabled="!picked.size" @click="confirm">
+          <AppButton variant="ghost" @click="emit('update:open', false)">Cancel</AppButton>
+          <AppButton :disabled="!picked.size" @click="confirm">
             Attach{{ picked.size > 1 ? ` ${picked.size}` : "" }}
-          </Button>
+          </AppButton>
         </div>
       </DialogFooter>
     </AppDialogContent>

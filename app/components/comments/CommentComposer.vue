@@ -112,7 +112,7 @@ const submit = async () => {
       </label>
       <span v-else />
 
-      <Button
+      <AppButton
         size="sm"
         class="rounded-full"
         :disabled="isEmpty || isSubmitting"
@@ -124,7 +124,7 @@ const submit = async () => {
           class="w-3.5 h-3.5 mr-1 animate-spin"
         />
         {{ parentComment ? "Reply" : "Comment" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

@@ -157,12 +157,12 @@ const propose = async () => {
             <p class="type-meta t-text-muted" data-testid="governing-extraction-summary">{{ summary(row) }}</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <Button v-if="row.missing > 0" variant="outline" size="sm" :disabled="!!job" @click="prepare(row)">
+            <AppButton v-if="row.missing > 0" variant="outline" size="sm" :disabled="!!job" @click="prepare(row)">
               <Icon name="lucide:images" class="w-4 h-4 mr-1.5" /> {{ row.stored ? "Continue Preparing" : "Prepare Pages" }}
-            </Button>
-            <Button v-if="row.unread.length" variant="outline" size="sm" :disabled="!!job" @click="read(row)">
+            </AppButton>
+            <AppButton v-if="row.unread.length" variant="outline" size="sm" :disabled="!!job" @click="read(row)">
               <Icon name="lucide:scan-text" class="w-4 h-4 mr-1.5" /> Read {{ row.unread.length }} Scanned {{ row.unread.length === 1 ? "Page" : "Pages" }}
-            </Button>
+            </AppButton>
           </div>
         </div>
         <p v-if="row.unread.length && !job" class="type-meta t-text-muted">
@@ -176,7 +176,7 @@ const propose = async () => {
           <span class="type-meta t-text-secondary flex-1">
             {{ job.kind === "prepare" ? "Preparing" : "Reading" }} page {{ Math.min(job.done + 1, job.total) }} of {{ job.total }}. Keep this tab open.
           </span>
-          <Button variant="ghost" size="sm" :disabled="stop" @click="stop = true">Stop</Button>
+          <AppButton variant="ghost" size="sm" :disabled="stop" @click="stop = true">Stop</AppButton>
         </div>
       </li>
     </ul>
@@ -185,10 +185,10 @@ const propose = async () => {
       <p class="type-meta t-text-secondary flex-1 min-w-0">
         Cut the page text into draft provisions at its headings. The words are copied exactly; you fix the boundaries in review.
       </p>
-      <Button size="sm" :disabled="proposing || !!job" @click="propose">
+      <AppButton size="sm" :disabled="proposing || !!job" @click="propose">
         <Icon v-if="proposing" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         Propose Provisions
-      </Button>
+      </AppButton>
     </div>
   </section>
 </template>

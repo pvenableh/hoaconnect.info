@@ -4,34 +4,29 @@ import { cva } from "class-variance-authority"
 export { default as Button } from "./Button.vue"
 
 export const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
-      // Every filled/outlined variant wears a glass material (earnest-ui.css)
-      // rather than a flat 1px border, so buttons carry the same refracted rim
-      // as the cards and bars around them. `outline` and `secondary` share the
-      // quiet `glass-btn-soft` pane — they differ only by accent tint.
-      //
-      // NOTE: do not re-run `shadcn-vue add` with `--overwrite` — it restores
-      // the stock variants and silently undoes this (and the pill base above).
       variant: {
         default:
-          "glass-btn-primary bg-primary text-primary-foreground hover:bg-primary/90",
+          "bg-primary text-primary-foreground hover:bg-primary/90",
         destructive:
-          "glass-btn-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
-          "glass-btn-soft hover:text-accent-foreground",
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
         secondary:
-          "glass-btn-soft glass-btn-soft--tinted text-secondary-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         "default": "h-9 px-4 py-2 has-[>svg]:px-3",
-        "sm": "h-8 rounded-full gap-1.5 px-3 has-[>svg]:px-2.5",
-        "lg": "h-10 rounded-full px-6 has-[>svg]:px-4",
+        "xs": "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        "sm": "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        "lg": "h-10 rounded-md px-6 has-[>svg]:px-4",
         "icon": "size-9",
+        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
       },
@@ -42,5 +37,4 @@ export const buttonVariants = cva(
     },
   },
 )
-
 export type ButtonVariants = VariantProps<typeof buttonVariants>

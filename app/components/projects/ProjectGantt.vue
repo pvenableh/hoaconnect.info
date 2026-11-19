@@ -482,33 +482,33 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                   <input v-model="reForm.duration_days" type="number" min="1" class="t-input w-full rounded-lg px-2.5 py-1.5 text-sm mt-0.5" />
                 </label>
               </div>
-              <Button size="sm" variant="outline" class="rounded-full" @click="reviewReschedule(selected!)">
+              <AppButton size="sm" variant="outline" class="rounded-full" @click="reviewReschedule(selected!)">
                 Review changes
-              </Button>
+              </AppButton>
             </div>
           </details>
 
           <!-- Approval actions -->
           <div class="flex flex-wrap items-center gap-2 pt-1">
-            <Button
+            <AppButton
               v-if="selected.approval !== 'needs_approval'"
               size="sm" variant="outline" class="rounded-full"
               @click="onRequestApproval(selected!)"
             >
               <Icon name="lucide:send" class="w-3.5 h-3.5 mr-1" />Request approval
-            </Button>
+            </AppButton>
             <template v-if="selected.approval === 'needs_approval'">
-              <Button size="sm" class="rounded-full" @click="onDecide(selected!, 'approved')">
+              <AppButton size="sm" class="rounded-full" @click="onDecide(selected!, 'approved')">
                 <Icon name="lucide:check" class="w-3.5 h-3.5 mr-1" />Approve
-              </Button>
-              <Button size="sm" variant="outline" class="rounded-full" @click="onDecide(selected!, 'rejected')">Send back</Button>
+              </AppButton>
+              <AppButton size="sm" variant="outline" class="rounded-full" @click="onDecide(selected!, 'rejected')">Send back</AppButton>
             </template>
-            <Button size="sm" variant="outline" class="rounded-full" @click="onSpawn(selected!)">
+            <AppButton size="sm" variant="outline" class="rounded-full" @click="onSpawn(selected!)">
               <Icon name="lucide:git-branch-plus" class="w-3.5 h-3.5 mr-1" />Spawn project
-            </Button>
-            <Button size="sm" variant="ghost" class="rounded-full" @click="toggleDone(selected!)">
+            </AppButton>
+            <AppButton size="sm" variant="ghost" class="rounded-full" @click="toggleDone(selected!)">
               {{ selected.status === "completed" ? "Reopen" : "Mark done" }}
-            </Button>
+            </AppButton>
             <button type="button" class="ml-auto p-1.5 rounded-full hover:t-bg-subtle text-red-600" aria-label="Remove" @click="removeEvent(selected!)">
               <Icon name="lucide:trash-2" class="w-4 h-4" />
             </button>
@@ -518,9 +518,9 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
           <div v-if="approvalLink && selected.approval === 'needs_approval'" class="t-bg-subtle rounded-lg p-2.5 flex items-center gap-2">
             <Icon name="lucide:link" class="w-4 h-4 t-text-muted shrink-0" />
             <input :value="approvalLink" readonly class="bg-transparent text-xs t-text-secondary flex-1 min-w-0 outline-none" @focus="($event.target as HTMLInputElement).select()" />
-            <Button size="sm" variant="outline" class="rounded-full shrink-0" @click="copyLink">
+            <AppButton size="sm" variant="outline" class="rounded-full shrink-0" @click="copyLink">
               {{ linkCopied ? "Copied" : "Copy" }}
-            </Button>
+            </AppButton>
           </div>
 
           <!-- spawned projects list -->
@@ -554,8 +554,8 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
           </div>
           <p v-if="addEnd" class="text-xs t-text-muted">Ends {{ fmt(addEnd) }} (business days)</p>
           <div class="flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" class="rounded-full" @click="showAdd = false">Cancel</Button>
-            <Button type="button" size="sm" class="rounded-full" :disabled="!addForm.title.trim()" @click="addEvent">Add</Button>
+            <AppButton type="button" variant="outline" size="sm" class="rounded-full" @click="showAdd = false">Cancel</AppButton>
+            <AppButton type="button" size="sm" class="rounded-full" :disabled="!addForm.title.trim()" @click="addEvent">Add</AppButton>
           </div>
         </div>
         <button
@@ -587,10 +587,10 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
             </li>
           </ul>
           <div class="flex justify-end gap-2 mt-4">
-            <Button variant="outline" size="sm" class="rounded-full" :disabled="rescheduling" @click="pendingShifts = null">Cancel</Button>
-            <Button size="sm" class="rounded-full" :disabled="rescheduling" @click="confirmReschedule">
+            <AppButton variant="outline" size="sm" class="rounded-full" :disabled="rescheduling" @click="pendingShifts = null">Cancel</AppButton>
+            <AppButton size="sm" class="rounded-full" :disabled="rescheduling" @click="confirmReschedule">
               {{ rescheduling ? "Applying…" : "Apply changes" }}
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>

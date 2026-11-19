@@ -164,7 +164,7 @@ const handleOpenChange = (open: boolean) => {
           >
             <!-- as-child so the announcement's own href/target/rel survive:
                  the CTA is a real link, and Button only lends it the theme. -->
-            <Button v-if="getButtonAttrs" as-child>
+            <AppButton v-if="getButtonAttrs" as-child>
               <a v-bind="getButtonAttrs" @click="handleClose">
                 {{ selectedAnnouncement.button_text }}
                 <Icon
@@ -176,7 +176,7 @@ const handleOpenChange = (open: boolean) => {
                   class="w-4 h-4"
                 />
               </a>
-            </Button>
+            </AppButton>
           </div>
         </div>
 

@@ -113,8 +113,8 @@ async function send() {
       </div>
       <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
       <div class="flex justify-end gap-2">
-        <Button type="button" variant="ghost" as="a" href="/support">Cancel</Button>
-        <Button type="submit" :disabled="busy || uploading || !category">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</Button>
+        <AppButton type="button" variant="ghost" as="a" href="/support">Cancel</AppButton>
+        <AppButton type="submit" :disabled="busy || uploading || !category">{{ busy ? "Sending…" : uploading ? "Uploading…" : "Send" }}</AppButton>
       </div>
     </form>
   </PageContainer>

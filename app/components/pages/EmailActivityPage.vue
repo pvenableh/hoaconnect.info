@@ -365,18 +365,18 @@ useSeoMeta({
             </p>
           </div>
           <div class="mt-4 md:mt-0 flex gap-3">
-            <Button variant="outline" :disabled="loading" @click="refreshData">
+            <AppButton variant="outline" :disabled="loading" @click="refreshData">
               <Icon
                 name="lucide:refresh-cw"
                 class="w-4 h-4 mr-2"
                 :class="{ 'animate-spin': loading }"
               />
               Refresh
-            </Button>
-            <Button variant="outline" @click="goToEmails">
+            </AppButton>
+            <AppButton variant="outline" @click="goToEmails">
               <Icon name="lucide:mail" class="w-4 h-4 mr-2" />
               Emails
-            </Button>
+            </AppButton>
           </div>
         </div>
 
@@ -633,7 +633,7 @@ useSeoMeta({
               {{ activities.length.toLocaleString() }} loaded events
             </div>
             <div v-if="hasMore" class="flex items-center gap-2">
-              <Button
+              <AppButton
                 size="sm"
                 variant="ghost"
                 :disabled="loadingMore"
@@ -641,7 +641,7 @@ useSeoMeta({
               >
                 <Icon name="lucide:arrow-down" class="w-4 h-4 mr-1" />
                 Load More
-              </Button>
+              </AppButton>
             </div>
           </div>
 

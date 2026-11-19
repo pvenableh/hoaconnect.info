@@ -17,9 +17,9 @@ reads as part of a sentence.
 
 | Tier | Component | Material | Use |
 |---|---|---|---|
-| **T1** primary | `<Button>` | `glass-btn-primary` (filled accent) | The one thing this view is for. **One filled button per view.** |
-| **T1** destructive | `<Button variant="destructive">` | `glass-btn-destructive` | The confirm in a destructive dialog. Never a resting button on a page. |
-| **T2** secondary | `<Button variant="outline">` / `variant="secondary"` | `glass-btn-soft` / `--tinted` | Cancel, Export, Add Member beside a primary. |
+| **T1** primary | `<AppButton>` | `glass-btn-primary` (filled accent) | The one thing this view is for. **One filled button per view.** |
+| **T1** destructive | `<AppButton variant="destructive">` | `glass-btn-destructive` | The confirm in a destructive dialog. Never a resting button on a page. |
+| **T2** secondary | `<AppButton variant="outline">` / `variant="secondary"` | `glass-btn-soft` / `--tinted` | Cancel, Export, Add Member beside a primary. |
 | **T3** tertiary | `<ActionButton>` | 28px `glass-btn-soft` pill | Inline actions inside a card or row: Reply, Add File, New Task. |
 | **T4** micro | `<ActionButton size="xs" title="…">` | no pane — a 24px glyph that grows a hover circle | A banner dismiss ×, a chip's remove ×, a row-hover edit/delete. No label; `title` is the accessible name. |
 

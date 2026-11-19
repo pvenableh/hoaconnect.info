@@ -100,9 +100,9 @@ const remove = async (source: GovSource) => {
   <section v-if="sources.length || manages" class="space-y-2" data-testid="governing-originals">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h2 class="type-section t-text">{{ sources.length > 1 ? "Original documents" : "Original document" }}</h2>
-      <Button v-if="manages && !adding" variant="outline" size="sm" @click="adding = true">
+      <AppButton v-if="manages && !adding" variant="outline" size="sm" @click="adding = true">
         <Icon name="lucide:paperclip" class="w-4 h-4 mr-1.5" /> Attach Original
-      </Button>
+      </AppButton>
     </div>
 
     <ul v-if="sources.length" class="ios-card divide-y t-border">
@@ -116,17 +116,17 @@ const remove = async (source: GovSource) => {
           <p v-if="source.notes" class="type-meta t-text-secondary whitespace-pre-wrap">{{ source.notes }}</p>
         </div>
         <div class="flex items-center gap-2">
-          <Button as-child variant="outline" size="sm">
+          <AppButton as-child variant="outline" size="sm">
             <a :href="getAuthUrl(source.file) ?? undefined" target="_blank" rel="noopener">
               <Icon name="lucide:external-link" class="w-4 h-4 mr-1.5" /> Open
             </a>
-          </Button>
-          <Button as-child variant="ghost" size="sm">
+          </AppButton>
+          <AppButton as-child variant="ghost" size="sm">
             <a :href="getAuthUrl(source.file, { download: true }) ?? undefined" :download="source.filename ?? ''">
               <Icon name="lucide:download" class="w-4 h-4 mr-1.5" /> Download
             </a>
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="manages"
             variant="ghost"
             size="sm"
@@ -135,7 +135,7 @@ const remove = async (source: GovSource) => {
             @click="remove(source)"
           >
             <Icon name="lucide:trash-2" class="w-4 h-4" />
-          </Button>
+          </AppButton>
         </div>
       </li>
     </ul>
@@ -163,11 +163,11 @@ const remove = async (source: GovSource) => {
       </label>
       <AppInput v-model="notes" placeholder="Notes (optional), e.g. where this copy came from" />
       <div class="flex items-center justify-end gap-2">
-        <Button type="button" variant="ghost" :disabled="saving" @click="reset">Cancel</Button>
-        <Button type="submit" :disabled="!file || saving">
+        <AppButton type="button" variant="ghost" :disabled="saving" @click="reset">Cancel</AppButton>
+        <AppButton type="submit" :disabled="!file || saving">
           <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
           Attach
-        </Button>
+        </AppButton>
       </div>
     </form>
   </section>

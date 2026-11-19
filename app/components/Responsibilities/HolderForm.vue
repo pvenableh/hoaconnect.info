@@ -102,10 +102,10 @@ async function save() {
       </div>
     </div>
     <template #footer>
-      <Button variant="outline" @click="isOpen = false">Cancel</Button>
-      <Button :disabled="!canSave" @click="save">
+      <AppButton variant="outline" @click="isOpen = false">Cancel</AppButton>
+      <AppButton :disabled="!canSave" @click="save">
         {{ handing ? (target ? "Hand over" : "End holder") : "Add holder" }}
-      </Button>
+      </AppButton>
     </template>
   </AppBottomSheet>
 </template>

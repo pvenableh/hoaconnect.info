@@ -58,10 +58,10 @@ async function onInstall() {
         </ol>
 
         <div v-else class="pt-1">
-          <Button size="sm" :disabled="busy" data-testid="install-card-install" @click="onInstall">
+          <AppButton size="sm" :disabled="busy" data-testid="install-card-install" @click="onInstall">
             <Icon name="i-lucide-download" class="h-4 w-4" />
             Install app
-          </Button>
+          </AppButton>
         </div>
       </div>
     </div>

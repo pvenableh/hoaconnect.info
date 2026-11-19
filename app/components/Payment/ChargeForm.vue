@@ -155,11 +155,11 @@ const memberName = (m: HoaMember) =>
     </div>
 
     <div class="flex justify-end gap-2">
-      <Button variant="outline" class="rounded-full" @click="cancel">Cancel</Button>
-      <Button class="rounded-full" :disabled="!canSave || saving" @click="save">
+      <AppButton variant="outline" class="rounded-full" @click="cancel">Cancel</AppButton>
+      <AppButton class="rounded-full" :disabled="!canSave || saving" @click="save">
         <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
         {{ recurring ? "Create recurring charge" : "Create charge" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

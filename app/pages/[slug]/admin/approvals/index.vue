@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
-import { Button } from "@/components/ui/button";
 import { leaseRequestLine } from "#core/shared/units/lease-requests";
 
 // Light middleware so Property Managers (not just admins) can reach it; the
@@ -168,8 +167,8 @@ const reject = async (r: any) => {
               <p v-if="r.note" class="mt-1 text-xs t-text-muted italic">“{{ r.note }}”</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <Button variant="ghost" size="sm" :disabled="busy === r.id" @click="reject(r)">Reject</Button>
-              <Button size="sm" :disabled="busy === r.id" @click="approve(r)">{{ busy === r.id ? "…" : "Approve" }}</Button>
+              <AppButton variant="ghost" size="sm" :disabled="busy === r.id" @click="reject(r)">Reject</AppButton>
+              <AppButton size="sm" :disabled="busy === r.id" @click="approve(r)">{{ busy === r.id ? "…" : "Approve" }}</AppButton>
             </div>
           </div>
         </li>

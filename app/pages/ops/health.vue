@@ -182,7 +182,7 @@ const EVENT_LABEL: Record<string, string> = { bounce: "Bounced", dropped: "Dropp
 
       <div class="mt-6 flex items-center justify-between gap-2">
         <p class="type-micro t-text-muted">Updated {{ new Date(h.generatedAt).toLocaleTimeString() }}</p>
-        <Button variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</Button>
+        <AppButton variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</AppButton>
       </div>
     </template>
   </OpsShell>

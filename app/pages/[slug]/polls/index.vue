@@ -58,9 +58,9 @@ const onCreated = async () => {
             </span>
           </p>
         </div>
-        <Button v-if="canManage" class="rounded-full" @click="showNew = !showNew">
+        <AppButton v-if="canManage" class="rounded-full" @click="showNew = !showNew">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> New poll
-        </Button>
+        </AppButton>
       </div>
 
       <div v-if="showNew && canManage" class="ios-card p-6">

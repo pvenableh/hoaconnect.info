@@ -120,10 +120,10 @@ const composeTo = (audience: "all" | "owners" | "tenants") =>
                 </div>
                 <p class="text-sm t-text-muted">{{ g.description }}</p>
               </div>
-              <Button class="rounded-full shrink-0" :disabled="g.count === 0" @click="composeTo(g.key)">
+              <AppButton class="rounded-full shrink-0" :disabled="g.count === 0" @click="composeTo(g.key)">
                 <Icon name="lucide:mail" class="w-4 h-4 mr-1.5" />
                 Compose
-              </Button>
+              </AppButton>
             </div>
           </AppCard>
         </StaggerList>

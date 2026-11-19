@@ -314,10 +314,10 @@ const blockerText = computed(() => {
               <template v-if="isDraft && blockerText"> · {{ blockerText }}</template>
             </span>
             <template v-if="isDraft">
-              <Button variant="ghost" size="sm" class="text-destructive" :disabled="!!busy" @click="removeDraft">Delete Draft</Button>
-              <Button size="sm" :disabled="!data?.can_publish || anyDirty || !!busy" @click="publish">Publish</Button>
+              <AppButton variant="ghost" size="sm" class="text-destructive" :disabled="!!busy" @click="removeDraft">Delete Draft</AppButton>
+              <AppButton size="sm" :disabled="!data?.can_publish || anyDirty || !!busy" @click="publish">Publish</AppButton>
             </template>
-            <Button
+            <AppButton
               v-else-if="doc.status === 'published'"
               variant="ghost"
               size="sm"
@@ -327,7 +327,7 @@ const blockerText = computed(() => {
               @click="unpublish"
             >
               Unpublish
-            </Button>
+            </AppButton>
             <NuxtLink :to="{ path: buildOrgPath('/governing/audit'), query: { document: doc.id } }" class="type-meta t-text-accent underline">
               Change History
             </NuxtLink>
@@ -351,7 +351,7 @@ const blockerText = computed(() => {
         <GoverningDocumentDetails :document="doc" :org-id="selectedOrgId" @saved="refresh()" />
 
         <div v-if="groups.length > 1" class="flex flex-wrap items-center gap-2" data-testid="governing-review-pages">
-          <Button
+          <AppButton
             v-for="(g, i) in groups"
             :key="g.key"
             :variant="i === groupIndex ? 'default' : 'outline'"
@@ -361,7 +361,7 @@ const blockerText = computed(() => {
             {{ g.label }}
             <span v-if="groupOpen(g)" class="ml-1.5 opacity-70">{{ groupOpen(g) }} open</span>
             <Icon v-else-if="g.provisions.length" name="lucide:check" class="w-3.5 h-3.5 ml-1.5" />
-          </Button>
+          </AppButton>
         </div>
 
         <AppEmptyState
@@ -377,19 +377,19 @@ const blockerText = computed(() => {
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h2 class="type-section t-text">{{ group.label }}, as scanned</h2>
               <div class="flex items-center gap-2" data-testid="governing-review-image-tools">
-                <Button size="sm" variant="ghost" aria-label="Turn left" @click="turn = (turn + 270) % 360">
+                <AppButton size="sm" variant="ghost" aria-label="Turn left" @click="turn = (turn + 270) % 360">
                   <Icon name="lucide:rotate-ccw" class="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="ghost" aria-label="Turn right" @click="turn = (turn + 90) % 360">
+                </AppButton>
+                <AppButton size="sm" variant="ghost" aria-label="Turn right" @click="turn = (turn + 90) % 360">
                   <Icon name="lucide:rotate-cw" class="w-4 h-4" />
-                </Button>
-                <Button size="sm" variant="ghost" aria-label="Smaller" :disabled="zoom === ZOOMS[0]" @click="stepZoom(-1)">
+                </AppButton>
+                <AppButton size="sm" variant="ghost" aria-label="Smaller" :disabled="zoom === ZOOMS[0]" @click="stepZoom(-1)">
                   <Icon name="lucide:zoom-out" class="w-4 h-4" />
-                </Button>
+                </AppButton>
                 <span class="type-meta t-text-muted tabular-nums w-10 text-center">{{ Math.round(zoom * 100) }}%</span>
-                <Button size="sm" variant="ghost" aria-label="Larger" :disabled="zoom === ZOOMS[ZOOMS.length - 1]" @click="stepZoom(1)">
+                <AppButton size="sm" variant="ghost" aria-label="Larger" :disabled="zoom === ZOOMS[ZOOMS.length - 1]" @click="stepZoom(1)">
                   <Icon name="lucide:zoom-in" class="w-4 h-4" />
-                </Button>
+                </AppButton>
                 <a :href="getAuthUrl(group.image) ?? undefined" target="_blank" rel="noopener" class="type-meta t-text-accent underline">Open Full Size</a>
               </div>
             </div>
@@ -492,14 +492,14 @@ const blockerText = computed(() => {
 
               <div class="flex flex-wrap items-center gap-2">
                 <template v-if="dirty(p)">
-                  <Button size="sm" :disabled="!!busy || !draftOf(p).text.length || (!isDraft && !reason.trim())" @click="save(p)">
+                  <AppButton size="sm" :disabled="!!busy || !draftOf(p).text.length || (!isDraft && !reason.trim())" @click="save(p)">
                     <Icon v-if="busy === p.id" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" /> Save Changes
-                  </Button>
-                  <Button variant="ghost" size="sm" :disabled="!!busy" @click="discard(p)">Discard</Button>
+                  </AppButton>
+                  <AppButton variant="ghost" size="sm" :disabled="!!busy" @click="discard(p)">Discard</AppButton>
                   <span v-if="!isDraft && !reason.trim()" class="type-meta t-text-muted">Give a reason above to save.</span>
                 </template>
                 <template v-else>
-                  <Button
+                  <AppButton
                     v-if="p.review_state === 'ocr_draft'"
                     size="sm"
                     :disabled="!!busy || p.markers[BLOCKING_MARKER] > 0"
@@ -507,27 +507,27 @@ const blockerText = computed(() => {
                     @click="setState(p, 'reviewed')"
                   >
                     Mark Reviewed
-                  </Button>
-                  <Button v-if="p.review_state === 'reviewed'" size="sm" variant="outline" :disabled="!!busy" @click="setState(p, 'verified')">
+                  </AppButton>
+                  <AppButton v-if="p.review_state === 'reviewed'" size="sm" variant="outline" :disabled="!!busy" @click="setState(p, 'verified')">
                     Mark Verified
-                  </Button>
-                  <Button v-if="isDraft && p.review_state !== 'ocr_draft'" size="sm" variant="ghost" :disabled="!!busy" @click="setState(p, 'ocr_draft')">
+                  </AppButton>
+                  <AppButton v-if="isDraft && p.review_state !== 'ocr_draft'" size="sm" variant="ghost" :disabled="!!busy" @click="setState(p, 'ocr_draft')">
                     Reopen
-                  </Button>
+                  </AppButton>
                   <template v-if="isDraft">
                     <span class="flex-1" />
-                    <Button size="sm" variant="outline" :disabled="!!busy || !canSplit(p)" title="Click in the text where the next provision starts" @click="split(p)">
+                    <AppButton size="sm" variant="outline" :disabled="!!busy || !canSplit(p)" title="Click in the text where the next provision starts" @click="split(p)">
                       <Icon name="lucide:scissors" class="w-4 h-4 mr-1.5" /> Split at Cursor
-                    </Button>
-                    <Button size="sm" variant="outline" :disabled="!!busy || !nextOf(p) || dirty(nextOf(p)!)" @click="merge(p)">
+                    </AppButton>
+                    <AppButton size="sm" variant="outline" :disabled="!!busy || !nextOf(p) || dirty(nextOf(p)!)" @click="merge(p)">
                       <Icon name="lucide:merge" class="w-4 h-4 mr-1.5" /> Merge with Next
-                    </Button>
-                    <Button size="sm" variant="ghost" :disabled="!!busy || indexOf(p) === 0" aria-label="Move up" @click="move(p, -1)">
+                    </AppButton>
+                    <AppButton size="sm" variant="ghost" :disabled="!!busy || indexOf(p) === 0" aria-label="Move up" @click="move(p, -1)">
                       <Icon name="lucide:arrow-up" class="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" :disabled="!!busy || !nextOf(p)" aria-label="Move down" @click="move(p, 1)">
+                    </AppButton>
+                    <AppButton size="sm" variant="ghost" :disabled="!!busy || !nextOf(p)" aria-label="Move down" @click="move(p, 1)">
                       <Icon name="lucide:arrow-down" class="w-4 h-4" />
-                    </Button>
+                    </AppButton>
                   </template>
                 </template>
               </div>

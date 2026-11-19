@@ -212,9 +212,9 @@ const handleManageBilling = async () => {
           </p>
         </div>
 
-        <Button v-if="currentSubscription.status === 'active'" variant="outline" size="sm" @click="handleManageBilling">
+        <AppButton v-if="currentSubscription.status === 'active'" variant="outline" size="sm" @click="handleManageBilling">
           Manage billing and payment methods
-        </Button>
+        </AppButton>
       </div>
 
       <!-- Your band -->
@@ -260,18 +260,18 @@ const handleManageBilling = async () => {
               Plus a one-time {{ formatPrice(activeQuote.onboardingAmount) }} onboarding fee on the first invoice —
               {{ formatPrice((activeQuote.firstInvoiceCents ?? 0) / 100) }} today.
             </p>
-            <Button v-if="canSubscribe" :disabled="isProcessing" data-testid="subscription-subscribe" @click="handleSubscribe">
+            <AppButton v-if="canSubscribe" :disabled="isProcessing" data-testid="subscription-subscribe" @click="handleSubscribe">
               {{ currentSubscription.status === "trial" ? "Subscribe now" : "Subscribe" }}
-            </Button>
+            </AppButton>
           </template>
 
           <div v-else-if="activeQuote?.reason === 'contact_only'" class="space-y-3">
             <p class="text-sm t-text-secondary">
               Communities this size are priced with us directly — onboarding, migration and support are tailored.
             </p>
-            <Button as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
+            <AppButton as="a" href="mailto:support@hoaconnect.info?subject=Subscription%20pricing" variant="outline">
               Talk to us
-            </Button>
+            </AppButton>
           </div>
 
           <p v-else class="text-sm t-text-secondary">
@@ -305,7 +305,7 @@ const handleManageBilling = async () => {
       <div class="p-6">
         <p class="font-medium t-text mb-1">Need help?</p>
         <p class="text-sm t-text-secondary mb-3">Questions about billing, or a change to your subscription?</p>
-        <Button as="a" href="mailto:support@hoaconnect.info" variant="link" class="px-0">Contact support</Button>
+        <AppButton as="a" href="mailto:support@hoaconnect.info" variant="link" class="px-0">Contact support</AppButton>
       </div>
     </section>
 

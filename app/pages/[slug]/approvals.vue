@@ -202,8 +202,8 @@ const decide = async (a: ApprovalItem, decision: "approve" | "reject") => {
           </ul>
 
           <div v-if="a.canDecide" class="flex justify-end gap-2 pt-1">
-            <Button variant="outline" class="rounded-full" :disabled="busy === a.id" @click="decide(a, 'reject')">Reject</Button>
-            <Button class="rounded-full" :disabled="busy === a.id" @click="decide(a, 'approve')">Approve</Button>
+            <AppButton variant="outline" class="rounded-full" :disabled="busy === a.id" @click="decide(a, 'reject')">Reject</AppButton>
+            <AppButton class="rounded-full" :disabled="busy === a.id" @click="decide(a, 'approve')">Approve</AppButton>
           </div>
         </article>
       </div>

@@ -18,9 +18,9 @@ function move(i: number, dir: -1 | 1) {
   <div class="space-y-3">
     <div class="flex items-center justify-between">
       <p class="text-sm t-text-muted">Answer common questions. They appear as an accordion section.</p>
-      <Button variant="outline" size="sm" @click="add">
+      <AppButton variant="outline" size="sm" @click="add">
         <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Add question
-      </Button>
+      </AppButton>
     </div>
     <div v-if="!landing.faq.length" class="text-xs t-text-muted">No questions yet.</div>
     <div v-for="(f, i) in landing.faq" :key="i" class="rounded-xl border t-border p-4">
@@ -36,15 +36,15 @@ function move(i: number, dir: -1 | 1) {
           />
         </div>
         <div class="flex flex-col gap-1">
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === 0" @click="move(i, -1)">
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === 0" @click="move(i, -1)">
             <Icon name="lucide:chevron-up" class="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === landing.faq.length - 1" @click="move(i, 1)">
+          </AppButton>
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" :disabled="i === landing.faq.length - 1" @click="move(i, 1)">
             <Icon name="lucide:chevron-down" class="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="remove(i)">
+          </AppButton>
+          <AppButton variant="ghost" size="sm" class="w-8 h-8 p-0" @click="remove(i)">
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
-          </Button>
+          </AppButton>
         </div>
       </div>
     </div>

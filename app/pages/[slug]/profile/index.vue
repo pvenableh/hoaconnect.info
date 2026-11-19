@@ -7,7 +7,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { ChangeKind, ChangeAction, HouseholdLease } from "#core/app/composables/useChangeRequests";
 import { LEASE_DOCUMENT_MAX_BYTES, leaseDay, leaseRequestLine } from "#core/shared/units/lease-requests";
@@ -266,7 +265,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
               </p>
               <p class="t-text-muted text-xs mt-1">The name your neighbors see in this community.</p>
             </div>
-            <Button variant="outline" size="sm" @click="openName">Edit</Button>
+            <AppButton variant="outline" size="sm" @click="openName">Edit</AppButton>
           </div>
         </section>
 
@@ -282,7 +281,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                 {{ data?.member?.email }}<span v-if="data?.member?.phone"> · {{ data.member.phone }}</span>
               </p>
             </div>
-            <Button variant="outline" size="sm" @click="openContact">Edit</Button>
+            <AppButton variant="outline" size="sm" @click="openContact">Edit</AppButton>
           </div>
         </section>
 
@@ -298,7 +297,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                 {{ fmtAddress(data?.member?.mailing_address) || "No separate mailing address on file." }}
               </p>
             </div>
-            <Button variant="outline" size="sm" @click="openMailing">Edit</Button>
+            <AppButton variant="outline" size="sm" @click="openMailing">Edit</AppButton>
           </div>
         </section>
 
@@ -306,9 +305,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         <section v-if="vehiclesEnabled" class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Vehicles</h2>
-            <Button variant="outline" size="sm" @click="openAddVehicle">
+            <AppButton variant="outline" size="sm" @click="openAddVehicle">
               <Icon name="i-lucide-plus" class="size-4" /> Add vehicle
-            </Button>
+            </AppButton>
           </div>
           <ul v-if="data?.vehicles?.length" class="divide-y t-border">
             <li v-for="v in data.vehicles" :key="v.id" class="py-2.5 flex items-center justify-between gap-3">
@@ -320,7 +319,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                 >
                 <span v-if="pendingTargetIds.has(v.id)" class="text-[11px] uppercase tracking-wide text-amber-600"> · pending</span>
               </div>
-              <Button variant="ghost" size="sm" @click="requestRemoval('vehicle', v.id, [v.make, v.model].filter(Boolean).join(' ') || 'this vehicle')">Remove</Button>
+              <AppButton variant="ghost" size="sm" @click="requestRemoval('vehicle', v.id, [v.make, v.model].filter(Boolean).join(' ') || 'this vehicle')">Remove</AppButton>
             </li>
           </ul>
           <p v-else class="t-text-muted text-sm">No vehicles on file.</p>
@@ -330,9 +329,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         <section v-if="petsEnabled" class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Pets</h2>
-            <Button variant="outline" size="sm" @click="openAddPet">
+            <AppButton variant="outline" size="sm" @click="openAddPet">
               <Icon name="i-lucide-plus" class="size-4" /> Add pet
-            </Button>
+            </AppButton>
           </div>
           <ul v-if="data?.pets?.length" class="divide-y t-border">
             <li v-for="p in data.pets" :key="p.id" class="py-2.5 flex items-center justify-between gap-3">
@@ -344,7 +343,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                 >
                 <span v-if="pendingTargetIds.has(p.id)" class="text-[11px] uppercase tracking-wide text-amber-600"> · pending</span>
               </div>
-              <Button variant="ghost" size="sm" @click="requestRemoval('pet', p.id, p.name || 'this pet')">Remove</Button>
+              <AppButton variant="ghost" size="sm" @click="requestRemoval('pet', p.id, p.name || 'this pet')">Remove</AppButton>
             </li>
           </ul>
           <p v-else class="t-text-muted text-sm">No pets on file.</p>
@@ -354,9 +353,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         <section v-if="showLeases" class="ios-card rounded-xl t-bg-elevated p-5">
           <div class="flex items-center justify-between gap-4 mb-3">
             <h2 class="font-medium">Leases</h2>
-            <Button v-if="ownedUnits.length" variant="outline" size="sm" @click="openLease">
+            <AppButton v-if="ownedUnits.length" variant="outline" size="sm" @click="openLease">
               <Icon name="i-lucide-plus" class="size-4" /> Report a lease
-            </Button>
+            </AppButton>
           </div>
           <ul v-if="leases.length || pendingLeases.length" class="divide-y t-border">
             <li v-for="l in leases" :key="l.id" class="py-2.5 flex items-center justify-between gap-3">
@@ -490,10 +489,10 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
             <div class="space-y-1.5">
               <Label>Signed lease (PDF)</Label>
               <div class="flex items-center gap-2 min-w-0">
-                <Button variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="leaseFileInput?.click()">
+                <AppButton variant="outline" size="sm" class="shrink-0" :disabled="uploading" @click="leaseFileInput?.click()">
                   <Icon :name="uploading ? 'i-lucide-loader-2' : 'i-lucide-paperclip'" class="size-4" :class="{ 'animate-spin': uploading }" />
                   {{ editor.fields.document ? "Replace" : "Choose the PDF" }}
-                </Button>
+                </AppButton>
                 <span class="text-sm t-text-muted truncate">{{ uploading ? "Uploading…" : editor.fields.document_name || "No file chosen" }}</span>
                 <input ref="leaseFileInput" type="file" accept="application/pdf" class="hidden" @change="onLeaseFile" />
               </div>
@@ -517,8 +516,8 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" @click="editor = null">Cancel</Button>
-          <Button :disabled="!canSave" @click="save">{{ saving ? "Submitting…" : "Submit for review" }}</Button>
+          <AppButton variant="ghost" @click="editor = null">Cancel</AppButton>
+          <AppButton :disabled="!canSave" @click="save">{{ saving ? "Submitting…" : "Submit for review" }}</AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

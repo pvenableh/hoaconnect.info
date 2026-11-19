@@ -149,9 +149,9 @@ const save = async () => {
       </div>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <span v-if="published && changed.length && !reason.trim()" class="type-meta t-text-muted">Give a reason to save.</span>
-        <Button type="submit" size="sm" :disabled="saving || !changed.length || !String(form.title ?? '').trim() || (published && !reason.trim())">
+        <AppButton type="submit" size="sm" :disabled="saving || !changed.length || !String(form.title ?? '').trim() || (published && !reason.trim())">
           Save Details
-        </Button>
+        </AppButton>
       </div>
     </form>
   </details>

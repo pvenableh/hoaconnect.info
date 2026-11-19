@@ -41,7 +41,7 @@ function onAiApply(payload: { subject: string; previewText: string; sections: an
         {{ builder.canvas.value.length }} block{{ builder.canvas.value.length === 1 ? "" : "s" }}
       </span>
       <div class="flex items-center gap-1.5">
-        <Button
+        <AppButton
           v-if="builder.canvas.value.length"
           type="button"
           variant="ghost"
@@ -51,11 +51,11 @@ function onAiApply(payload: { subject: string; previewText: string; sections: an
         >
           <Icon name="lucide:eraser" class="w-3.5 h-3.5 mr-1" />
           Clear
-        </Button>
-        <Button type="button" variant="outline" size="sm" @click="showWizard = true">
+        </AppButton>
+        <AppButton type="button" variant="outline" size="sm" @click="showWizard = true">
           <Icon name="lucide:sparkles" class="w-3.5 h-3.5 mr-1.5" />
           Generate with AI
-        </Button>
+        </AppButton>
       </div>
     </div>
 

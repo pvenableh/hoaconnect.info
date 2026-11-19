@@ -2,7 +2,6 @@
 import type { HTMLAttributes } from "vue";
 import { ref, computed, watch } from "vue";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Loader2, Check, X, Tag, Percent } from "lucide-vue-next";
 import { refDebounced } from "@vueuse/core";
 import type { CouponData, AppliedCoupon } from "#core/app/composables/useCoupons";
@@ -173,7 +172,7 @@ watch(
               @keyup.enter="handleApply"
             />
           </div>
-          <Button
+          <AppButton
             type="button"
             variant="secondary"
             :disabled="!couponCode.trim() || isValidating || disabled"
@@ -182,7 +181,7 @@ watch(
             <Loader2 v-if="isValidating" class="h-4 w-4 animate-spin" />
             <Check v-else class="h-4 w-4" />
             <span class="sr-only">Apply</span>
-          </Button>
+          </AppButton>
         </div>
         <Transition
           enter-active-class="transition-opacity duration-200 ease-out"

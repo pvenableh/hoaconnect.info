@@ -14,10 +14,10 @@ const emit = defineEmits<{ add: [key: string]; reset: [] }>();
         <h3 class="font-semibold t-text">Add a widget</h3>
         <p class="text-sm t-text-muted">Drag cards to rearrange, or tap a widget below to add it back.</p>
       </div>
-      <Button variant="ghost" size="sm" class="rounded-full" @click="emit('reset')">
+      <AppButton variant="ghost" size="sm" class="rounded-full" @click="emit('reset')">
         <Icon name="lucide:rotate-ccw" class="w-4 h-4 mr-1.5" />
         Reset
-      </Button>
+      </AppButton>
     </div>
 
     <div v-if="hidden.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

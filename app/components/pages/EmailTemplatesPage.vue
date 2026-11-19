@@ -78,10 +78,10 @@ useSeoMeta({ title: "Email Templates" });
         description="Reusable starting points for your emails. Save one from the composer with “Save as template”."
       >
         <template #actions>
-          <Button class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+          <AppButton class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             New email
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -95,10 +95,10 @@ useSeoMeta({ title: "Email Templates" });
           title="No templates yet"
           description="Templates are made in the composer, not here — write an email you expect to send again, then choose “Save as template”."
         >
-          <Button class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+          <AppButton class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             Compose an email
-          </Button>
+          </AppButton>
         </AppEmptyState>
       </div>
 
@@ -117,11 +117,11 @@ useSeoMeta({ title: "Email Templates" });
           <p v-if="tpl.subject" class="text-xs t-text-muted mt-1 truncate">Subject: {{ tpl.subject }}</p>
 
           <div class="flex gap-2 mt-auto pt-3">
-            <Button size="sm" variant="outline" class="rounded-full flex-1" @click="navigateToOrg('/admin/communications/compose')">
+            <AppButton size="sm" variant="outline" class="rounded-full flex-1" @click="navigateToOrg('/admin/communications/compose')">
               <Icon name="lucide:pencil" class="w-3.5 h-3.5 mr-1.5" />
               Use
-            </Button>
-            <Button
+            </AppButton>
+            <AppButton
               v-if="isOwned(tpl)"
               size="sm"
               variant="ghost"
@@ -129,7 +129,7 @@ useSeoMeta({ title: "Email Templates" });
               @click="confirmDelete(tpl)"
             >
               <Icon name="lucide:trash-2" class="w-4 h-4 text-destructive" />
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -145,11 +145,11 @@ useSeoMeta({ title: "Email Templates" });
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" @click="toDelete = null">Cancel</Button>
-          <Button variant="destructive" :disabled="deleting" @click="doDelete">
+          <AppButton variant="outline" @click="toDelete = null">Cancel</AppButton>
+          <AppButton variant="destructive" :disabled="deleting" @click="doDelete">
             <Icon v-if="deleting" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
             Delete
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

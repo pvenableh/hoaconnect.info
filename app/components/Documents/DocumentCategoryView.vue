@@ -367,24 +367,24 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           <span class="text-sm text-blue-600 font-medium">
             {{ selectedDocuments.size }} selected
           </span>
-          <Button variant="outline" size="sm" @click="clearSelection">
+          <AppButton variant="outline" size="sm" @click="clearSelection">
             Clear
-          </Button>
-          <Button variant="outline" size="sm" @click="showBatchEditDialog = true">
+          </AppButton>
+          <AppButton variant="outline" size="sm" @click="showBatchEditDialog = true">
             <Icon name="heroicons:pencil-square" class="h-4 w-4 mr-1" />
             Edit
-          </Button>
-          <Button variant="destructive" size="sm" @click="confirmBatchDelete">
+          </AppButton>
+          <AppButton variant="destructive" size="sm" @click="confirmBatchDelete">
             <Icon name="heroicons:trash" class="h-4 w-4 mr-1" />
             Delete
-          </Button>
+          </AppButton>
         </template>
 
         <!-- Upload button -->
-        <Button @click="showBatchUploadDialog = true">
+        <AppButton @click="showBatchUploadDialog = true">
           <Icon name="heroicons:cloud-arrow-up" class="h-4 w-4 mr-2" />
           Upload Documents
-        </Button>
+        </AppButton>
       </div>
     </div>
 
@@ -647,14 +647,14 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" @click="showDeleteConfirmDialog = false">
+          <AppButton variant="outline" @click="showDeleteConfirmDialog = false">
             Cancel
-          </Button>
-          <Button variant="destructive" @click="executeBatchDelete">
+          </AppButton>
+          <AppButton variant="destructive" @click="executeBatchDelete">
             Delete {{ selectedDocuments.size }} Document{{
               selectedDocuments.size !== 1 ? "s" : ""
             }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

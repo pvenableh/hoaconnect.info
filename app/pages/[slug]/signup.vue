@@ -94,7 +94,7 @@ useSeoMeta({
       <h1 class="text-xl font-semibold t-text">Organization not found</h1>
       <p class="text-sm t-text-muted">The organization you're looking for doesn't exist.</p>
       <NuxtLink to="/">
-        <Button class="rounded-full mt-2">Go home</Button>
+        <AppButton class="rounded-full mt-2">Go home</AppButton>
       </NuxtLink>
     </div>
 

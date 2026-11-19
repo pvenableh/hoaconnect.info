@@ -431,13 +431,13 @@ const userAvatarUrl = computed(() => {
             Login
           </NuxtLink>
           <!-- Hide Get Started on org pages -->
-          <Button
+          <AppButton
             v-if="!isOnOrgPage"
             as-child
             class="uppercase font-body tracking-widest text-xs"
           >
             <NuxtLink to="/setup"> Get Started </NuxtLink>
-          </Button>
+          </AppButton>
         </div>
       </div>
 

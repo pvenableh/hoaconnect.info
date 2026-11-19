@@ -497,7 +497,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
           <!-- Primary tasks — the highest-frequency resident actions, as pills. -->
           <div v-if="primaryActions.length" class="flex flex-wrap gap-2.5 mt-6">
-            <Button
+            <AppButton
               v-for="(action, i) in primaryActions"
               :key="action.key"
               class="stagger-item"
@@ -506,7 +506,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             >
               <Icon :name="action.icon" class="w-4 h-4" />
               {{ action.label }}
-            </Button>
+            </AppButton>
           </div>
         </header>
 
@@ -551,14 +551,14 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   <CardTitle>Announcements</CardTitle>
                   <CardDescription>Latest community news</CardDescription>
                 </div>
-                <Button
+                <AppButton
                   v-if="feedEnabled"
                   variant="outline"
                   size="sm"
                   @click="activeTab = 'building'"
                 >
                   Building feed
-                </Button>
+                </AppButton>
               </div>
             </CardHeader>
             <CardContent>
@@ -619,9 +619,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   <CardTitle>Recent Documents</CardTitle>
                   <CardDescription>Latest community documents</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" @click="navigateToOrg('/documents')">
+                <AppButton variant="outline" size="sm" @click="navigateToOrg('/documents')">
                   View All
-                </Button>
+                </AppButton>
               </div>
             </CardHeader>
             <CardContent>
@@ -704,9 +704,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <CardTitle>My Household</CardTitle>
                 <CardDescription>Your unit record on file</CardDescription>
               </div>
-              <Button variant="outline" size="sm" @click="navigateToOrg('/profile')">
+              <AppButton variant="outline" size="sm" @click="navigateToOrg('/profile')">
                 Manage
-              </Button>
+              </AppButton>
             </div>
           </CardHeader>
           <CardContent>
@@ -817,10 +817,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <!-- Admin Link (only for admins previewing the member view) -->
         <div v-if="isAdmin" class="text-center">
-          <Button variant="outline" @click="navigateToOrg('/')">
+          <AppButton variant="outline" @click="navigateToOrg('/')">
             <Icon name="i-lucide-layout-dashboard" class="h-4 w-4 mr-2" />
             Go to Admin Dashboard
-          </Button>
+          </AppButton>
         </div>
           </div>
 
@@ -834,10 +834,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 </p>
               </div>
               <NuxtLink :to="buildOrgPath('/polls')">
-                <Button variant="outline" class="rounded-full">
+                <AppButton variant="outline" class="rounded-full">
                   <Icon name="i-lucide-bar-chart-3" class="w-4 h-4 mr-1.5" />
                   Polls
-                </Button>
+                </AppButton>
               </NuxtLink>
             </div>
             <FeedActivityFeed

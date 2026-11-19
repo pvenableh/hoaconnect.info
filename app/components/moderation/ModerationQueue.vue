@@ -141,10 +141,10 @@ const formatDate = (s?: string | null) =>
 
         <!-- Actions -->
         <div v-if="r.status === 'open'" class="flex justify-end gap-2 mt-3">
-          <Button variant="ghost" size="sm" class="rounded-full" :disabled="busyId === r.id" @click="onDismiss(r)">
+          <AppButton variant="ghost" size="sm" class="rounded-full" :disabled="busyId === r.id" @click="onDismiss(r)">
             Dismiss
-          </Button>
-          <Button
+          </AppButton>
+          <AppButton
             v-if="!isHidden(r)"
             variant="destructive"
             size="sm"
@@ -154,10 +154,10 @@ const formatDate = (s?: string | null) =>
           >
             <Icon v-if="busyId === r.id" name="lucide:loader-2" class="w-3.5 h-3.5 mr-1 animate-spin" />
             Hide comment
-          </Button>
-          <Button v-else variant="outline" size="sm" class="rounded-full" :disabled="busyId === r.id" @click="onDismiss(r)">
+          </AppButton>
+          <AppButton v-else variant="outline" size="sm" class="rounded-full" :disabled="busyId === r.id" @click="onDismiss(r)">
             Mark handled
-          </Button>
+          </AppButton>
         </div>
       </div>
     </div>

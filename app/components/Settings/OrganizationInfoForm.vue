@@ -75,7 +75,7 @@
               disabled
               class="bg-muted"
             />
-            <Button
+            <AppButton
               type="button"
               variant="outline"
               size="sm"
@@ -83,7 +83,7 @@
             >
               <Icon name="lucide:globe" class="h-4 w-4 mr-1" />
               Domain
-            </Button>
+            </AppButton>
           </div>
           <p class="text-xs text-muted-foreground">
             Your site URL: {{ siteUrl }}
@@ -187,14 +187,14 @@
 
         <!-- Submit Button -->
         <div class="flex justify-end pt-4">
-          <Button type="submit" :disabled="isSaving || !hasChanges">
+          <AppButton type="submit" :disabled="isSaving || !hasChanges">
             <Icon
               v-if="isSaving"
               name="lucide:loader-2"
               class="mr-2 h-4 w-4 animate-spin"
             />
             {{ isSaving ? "Saving..." : "Save Changes" }}
-          </Button>
+          </AppButton>
         </div>
       </form>
     </CardContent>

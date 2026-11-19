@@ -496,18 +496,18 @@ async function loadFolderSize(id: string) {
           <AppInput v-model="search" placeholder="Search this folder" class="h-9 w-44 pl-8 sm:w-56" />
         </div>
         <AppSegmentedControl v-model="viewMode" :items="VIEW_MODES" size="sm" label="File view" />
-        <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSweep = true">
+        <AppButton v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSweep = true">
           <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Optimize
-        </Button>
-        <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSharing = true">
+        </AppButton>
+        <AppButton v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSharing = true">
           <Icon name="lucide:users" class="mr-1.5 h-4 w-4" /> Sharing
-        </Button>
-        <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showNewFolder = true">
+        </AppButton>
+        <AppButton v-if="canManage" variant="outline" size="sm" class="h-9" @click="showNewFolder = true">
           <Icon name="lucide:folder-plus" class="mr-1.5 h-4 w-4" /> New folder
-        </Button>
-        <Button v-if="canManage" size="sm" class="h-9" @click="pickFiles">
+        </AppButton>
+        <AppButton v-if="canManage" size="sm" class="h-9" @click="pickFiles">
           <Icon name="lucide:upload" class="mr-1.5 h-4 w-4" /> Upload
-        </Button>
+        </AppButton>
         <input ref="uploadInput" type="file" multiple class="hidden" @change="onFilesChosen" />
       </template>
     </AppPageHeader>
@@ -591,9 +591,9 @@ async function loadFolderSize(id: string) {
               : 'Nothing has been put here yet.'
         "
       >
-        <Button v-if="canManage && !search" size="sm" @click="pickFiles">
+        <AppButton v-if="canManage && !search" size="sm" @click="pickFiles">
           <Icon name="lucide:upload" class="mr-1.5 h-4 w-4" /> Upload files
-        </Button>
+        </AppButton>
       </AppEmptyState>
 
       <!-- GRID -->
@@ -777,10 +777,10 @@ async function loadFolderSize(id: string) {
         class="glass-surface glass-surface--strong fixed bottom-24 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full px-4 py-2 shadow-lg"
       >
         <span class="text-sm font-medium">{{ selected.size }} selected</span>
-        <Button v-if="canManage" variant="destructive" size="sm" class="h-8" @click="bulkDelete">
+        <AppButton v-if="canManage" variant="destructive" size="sm" class="h-8" @click="bulkDelete">
           <Icon name="lucide:trash-2" class="mr-1.5 h-4 w-4" /> Delete
-        </Button>
-        <Button variant="ghost" size="sm" class="h-8" @click="clearSelection">Clear</Button>
+        </AppButton>
+        <AppButton variant="ghost" size="sm" class="h-8" @click="clearSelection">Clear</AppButton>
       </div>
     </Transition>
 
@@ -793,8 +793,8 @@ async function loadFolderSize(id: string) {
         </DialogHeader>
         <AppInput v-model="newFolderName" placeholder="Folder name" autofocus @keyup.enter="createFolder" />
         <DialogFooter>
-          <Button variant="ghost" @click="showNewFolder = false">Cancel</Button>
-          <Button :disabled="busy || !newFolderName.trim()" @click="createFolder">Create</Button>
+          <AppButton variant="ghost" @click="showNewFolder = false">Cancel</AppButton>
+          <AppButton :disabled="busy || !newFolderName.trim()" @click="createFolder">Create</AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -807,8 +807,8 @@ async function loadFolderSize(id: string) {
         </DialogHeader>
         <AppInput v-model="renameValue" autofocus @keyup.enter="confirmRename" />
         <DialogFooter>
-          <Button variant="ghost" @click="renameTarget = null">Cancel</Button>
-          <Button :disabled="busy || !renameValue.trim()" @click="confirmRename">Save</Button>
+          <AppButton variant="ghost" @click="renameTarget = null">Cancel</AppButton>
+          <AppButton :disabled="busy || !renameValue.trim()" @click="confirmRename">Save</AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -855,15 +855,15 @@ async function loadFolderSize(id: string) {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" @click="deleteTarget = null">Cancel</Button>
-          <Button
+          <AppButton variant="ghost" @click="deleteTarget = null">Cancel</AppButton>
+          <AppButton
             v-if="deleteTarget?.type === 'file'"
             variant="destructive"
             :disabled="busy"
             @click="confirmDelete"
           >
             Delete
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -919,9 +919,9 @@ async function loadFolderSize(id: string) {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" @click="optimizeTarget = null; optimizeResult = null">
+          <AppButton variant="ghost" @click="optimizeTarget = null; optimizeResult = null">
             {{ optimizeResult ? "Done" : "Cancel" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -952,12 +952,12 @@ async function loadFolderSize(id: string) {
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" :disabled="sweepBusy" @click="showSweep = false">
+          <AppButton variant="ghost" :disabled="sweepBusy" @click="showSweep = false">
             {{ sweepDone ? "Close" : "Cancel" }}
-          </Button>
-          <Button v-if="!sweepDone" :disabled="sweepBusy" @click="runSweep">
+          </AppButton>
+          <AppButton v-if="!sweepDone" :disabled="sweepBusy" @click="runSweep">
             <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Start
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -999,8 +999,8 @@ async function loadFolderSize(id: string) {
             Destination: <span class="font-medium text-foreground">{{ moveNav?.crumb?.at(-1)?.name === undefined ? 'Files' : (moveNav?.crumb?.length === 1 ? 'Files' : moveNav?.crumb?.at(-1)?.name) }}</span>
           </span>
           <div class="flex gap-2">
-            <Button variant="ghost" @click="moveTarget = null; moveNav = null">Cancel</Button>
-            <Button :disabled="busy || moveNav?.id === moveTarget?.id" @click="confirmMove">Move here</Button>
+            <AppButton variant="ghost" @click="moveTarget = null; moveNav = null">Cancel</AppButton>
+            <AppButton :disabled="busy || moveNav?.id === moveTarget?.id" @click="confirmMove">Move here</AppButton>
           </div>
         </DialogFooter>
       </AppDialogContent>
@@ -1028,8 +1028,8 @@ async function loadFolderSize(id: string) {
           </label>
         </div>
         <DialogFooter>
-          <Button variant="ghost" @click="showSharing = false">Cancel</Button>
-          <Button :disabled="busy" @click="saveSharing">Save</Button>
+          <AppButton variant="ghost" @click="showSharing = false">Cancel</AppButton>
+          <AppButton :disabled="busy" @click="saveSharing">Save</AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -1059,18 +1059,18 @@ async function loadFolderSize(id: string) {
             <div class="flex justify-between"><dt class="text-muted-foreground">Uploaded</dt><dd class="font-medium">{{ relativeDate(previewFile.uploaded_on) }}</dd></div>
           </dl>
           <div class="mt-5 flex flex-wrap gap-2">
-            <Button as-child variant="outline" size="sm">
+            <AppButton as-child variant="outline" size="sm">
               <a :href="downloadUrl(previewFile)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-1.5 h-4 w-4" />Download</a>
-            </Button>
-            <Button variant="outline" size="sm" @click="copyLink(previewFile)">
+            </AppButton>
+            <AppButton variant="outline" size="sm" @click="copyLink(previewFile)">
               <Icon :name="copiedId === previewFile.id ? 'lucide:check' : 'lucide:link'" class="mr-1.5 h-4 w-4" />
               {{ copiedId === previewFile.id ? "Copied" : "Copy link" }}
-            </Button>
+            </AppButton>
             <template v-if="canManage">
-              <Button v-if="isOptimizable(previewFile)" variant="outline" size="sm" @click="startOptimize(previewFile)"><Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" />Optimize</Button>
-              <Button variant="outline" size="sm" @click="startRename('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:pencil" class="mr-1.5 h-4 w-4" />Rename</Button>
-              <Button variant="outline" size="sm" @click="startMove('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:folder-input" class="mr-1.5 h-4 w-4" />Move</Button>
-              <Button variant="destructive" size="sm" @click="startDelete('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:trash-2" class="mr-1.5 h-4 w-4" />Delete</Button>
+              <AppButton v-if="isOptimizable(previewFile)" variant="outline" size="sm" @click="startOptimize(previewFile)"><Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" />Optimize</AppButton>
+              <AppButton variant="outline" size="sm" @click="startRename('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:pencil" class="mr-1.5 h-4 w-4" />Rename</AppButton>
+              <AppButton variant="outline" size="sm" @click="startMove('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:folder-input" class="mr-1.5 h-4 w-4" />Move</AppButton>
+              <AppButton variant="destructive" size="sm" @click="startDelete('file', previewFile.id, fileLabel(previewFile))"><Icon name="lucide:trash-2" class="mr-1.5 h-4 w-4" />Delete</AppButton>
             </template>
           </div>
         </template>

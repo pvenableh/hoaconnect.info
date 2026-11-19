@@ -263,10 +263,10 @@ const expenseColumns = [
     <PageContainer class="space-y-6">
       <AppPageHeader title="Expenses">
         <template #actions>
-          <Button v-if="canEnter" class="rounded-full" @click="openCreate">
+          <AppButton v-if="canEnter" class="rounded-full" @click="openCreate">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             Add Expense
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -335,18 +335,18 @@ const expenseColumns = [
           </div>
         </div>
         <div class="flex flex-wrap justify-end gap-2">
-          <Button variant="outline" class="rounded-full" @click="showForm = false">Cancel</Button>
+          <AppButton variant="outline" class="rounded-full" @click="showForm = false">Cancel</AppButton>
           <template v-if="isDraft">
-            <Button variant="outline" class="rounded-full" :disabled="!canSave || saving" @click="save(false)">Save Draft</Button>
-            <Button class="rounded-full" :disabled="!canSave || saving" @click="save(true)">
+            <AppButton variant="outline" class="rounded-full" :disabled="!canSave || saving" @click="save(false)">Save Draft</AppButton>
+            <AppButton class="rounded-full" :disabled="!canSave || saving" @click="save(true)">
               <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
               Submit for Approval
-            </Button>
+            </AppButton>
           </template>
-          <Button v-else class="rounded-full" :disabled="!canSave || saving" @click="save(false)">
+          <AppButton v-else class="rounded-full" :disabled="!canSave || saving" @click="save(false)">
             <Icon v-if="saving" name="lucide:loader-2" class="w-4 h-4 mr-1.5 animate-spin" />
             Save Changes
-          </Button>
+          </AppButton>
         </div>
       </div>
 
@@ -408,9 +408,9 @@ const expenseColumns = [
           </template>
           <template #cell-actions="{ row }">
             <div class="flex flex-wrap items-center justify-end gap-2">
-              <Button v-if="can(asRow(row), 'submit')" size="sm" variant="outline" :disabled="busy === row.id" @click="submitRow(asRow(row))">Submit</Button>
-              <Button v-if="can(asRow(row), 'pay')" size="sm" variant="outline" :disabled="busy === row.id" @click="paying = asRow(row)">Record Paid</Button>
-              <Button
+              <AppButton v-if="can(asRow(row), 'submit')" size="sm" variant="outline" :disabled="busy === row.id" @click="submitRow(asRow(row))">Submit</AppButton>
+              <AppButton v-if="can(asRow(row), 'pay')" size="sm" variant="outline" :disabled="busy === row.id" @click="paying = asRow(row)">Record Paid</AppButton>
+              <AppButton
                 v-if="receiptUrl(asRow(row))"
                 as="a"
                 variant="outline"
@@ -422,11 +422,11 @@ const expenseColumns = [
                 title="View receipt"
               >
                 <Icon name="lucide:paperclip" />
-              </Button>
-              <Button v-if="can(asRow(row), 'edit')" variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(asRow(row))">
+              </AppButton>
+              <AppButton v-if="can(asRow(row), 'edit')" variant="outline" size="icon-sm" aria-label="Edit expense" title="Edit" @click="openEdit(asRow(row))">
                 <Icon name="lucide:pencil" />
-              </Button>
-              <Button
+              </AppButton>
+              <AppButton
                 v-if="can(asRow(row), 'void') || can(asRow(row), 'ask_void')"
                 variant="outline"
                 size="icon-sm"
@@ -436,10 +436,10 @@ const expenseColumns = [
                 @click="voidRow(asRow(row))"
               >
                 <Icon name="lucide:ban" />
-              </Button>
-              <Button v-if="can(asRow(row), 'delete')" variant="destructive" size="icon-sm" aria-label="Delete draft" title="Delete draft" :disabled="busy === row.id" @click="deleteRow(asRow(row))">
+              </AppButton>
+              <AppButton v-if="can(asRow(row), 'delete')" variant="destructive" size="icon-sm" aria-label="Delete draft" title="Delete draft" :disabled="busy === row.id" @click="deleteRow(asRow(row))">
                 <Icon name="lucide:trash-2" />
-              </Button>
+              </AppButton>
             </div>
           </template>
         </AppDataTable>

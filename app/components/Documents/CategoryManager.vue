@@ -283,10 +283,10 @@ async function createAllPredefinedCategories() {
           <CardTitle>Document Categories</CardTitle>
           <CardDescription>Organize your documents into categories</CardDescription>
         </div>
-        <Button @click="openNewDialog" size="sm">
+        <AppButton @click="openNewDialog" size="sm">
           <Icon name="heroicons:plus" class="h-4 w-4 mr-2" />
           Add Category
-        </Button>
+        </AppButton>
       </div>
     </CardHeader>
     <CardContent>
@@ -328,12 +328,12 @@ async function createAllPredefinedCategories() {
 
           <!-- Actions -->
           <div class="flex items-center gap-2">
-            <Button variant="ghost" size="sm" @click="openEditDialog(category)">
+            <AppButton variant="ghost" size="sm" @click="openEditDialog(category)">
               <Icon name="heroicons:pencil" class="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" @click="deleteCategory(category)">
+            </AppButton>
+            <AppButton variant="ghost" size="sm" @click="deleteCategory(category)">
               <Icon name="heroicons:trash" class="h-4 w-4 text-red-500" />
-            </Button>
+            </AppButton>
           </div>
         </div>
       </div>
@@ -351,7 +351,7 @@ async function createAllPredefinedCategories() {
             <h4 class="font-medium t-text">Quick Setup</h4>
             <p class="text-sm t-text-muted">Add common HOA document categories</p>
           </div>
-          <Button
+          <AppButton
             variant="outline"
             size="sm"
             @click="createAllPredefinedCategories"
@@ -359,7 +359,7 @@ async function createAllPredefinedCategories() {
           >
             <Icon name="heroicons:sparkles" class="h-4 w-4 mr-2" />
             {{ creatingPredefined ? 'Creating...' : 'Add All' }}
-          </Button>
+          </AppButton>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -455,12 +455,12 @@ async function createAllPredefinedCategories() {
       </div>
 
       <DialogFooter>
-        <Button variant="outline" @click="showDialog = false" :disabled="saving">
+        <AppButton variant="outline" @click="showDialog = false" :disabled="saving">
           Cancel
-        </Button>
-        <Button @click="saveCategory" :disabled="saving">
+        </AppButton>
+        <AppButton @click="saveCategory" :disabled="saving">
           {{ saving ? 'Saving...' : (isEditing ? 'Update' : 'Create') }}
-        </Button>
+        </AppButton>
       </DialogFooter>
     </AppDialogContent>
   </Dialog>

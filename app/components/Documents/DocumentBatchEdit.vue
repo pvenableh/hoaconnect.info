@@ -271,21 +271,21 @@ const onDateChange = () => {
       </div>
 
       <DialogFooter>
-        <Button
+        <AppButton
           variant="outline"
           @click="dialogOpen = false"
           :disabled="saving"
         >
           Cancel
-        </Button>
-        <Button @click="save" :disabled="saving">
+        </AppButton>
+        <AppButton @click="save" :disabled="saving">
           <Icon
             v-if="saving"
             name="heroicons:arrow-path"
             class="h-4 w-4 mr-2 animate-spin"
           />
           {{ saving ? "Saving..." : "Save Changes" }}
-        </Button>
+        </AppButton>
       </DialogFooter>
     </AppDialogContent>
   </Dialog>

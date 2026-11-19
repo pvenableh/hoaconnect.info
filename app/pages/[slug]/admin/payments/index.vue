@@ -207,10 +207,10 @@ const TYPE_FILTERS = [
           <PaymentStripeModeBadge />
         </template>
         <template v-if="canWrite" #actions>
-          <Button class="rounded-full" @click="openNew">
+          <AppButton class="rounded-full" @click="openNew">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             New charge
-          </Button>
+          </AppButton>
         </template>
       </AppPageHeader>
 
@@ -251,9 +251,9 @@ const TYPE_FILTERS = [
       <div class="flex flex-wrap items-center gap-2">
         <AppSegmentedControl v-model="tab" :items="TABS" label="Finances views" />
         <NuxtLink :to="buildOrgPath('/admin/expenses')" class="ml-auto">
-          <Button variant="outline" class="rounded-full">
+          <AppButton variant="outline" class="rounded-full">
             <Icon name="lucide:receipt" class="w-4 h-4 mr-1.5" /> Manage expenses
-          </Button>
+          </AppButton>
         </NuxtLink>
       </div>
 
@@ -377,7 +377,7 @@ const TYPE_FILTERS = [
           <!-- A control here must not also open the row. -->
           <div class="flex items-center justify-end gap-2" @click.stop @keydown.stop>
             <span v-if="pendingLabel(row)" class="text-xs t-text-muted px-2">{{ pendingLabel(row) }}</span>
-            <Button
+            <AppButton
               v-if="canWrite && isOpenCharge(row)"
               variant="outline"
               size="icon-sm"
@@ -388,12 +388,12 @@ const TYPE_FILTERS = [
             >
               <Icon v-if="markingId === row.id" name="lucide:loader-2" class="animate-spin" />
               <Icon v-else name="lucide:check" />
-            </Button>
+            </AppButton>
             <DropdownMenu v-if="hasChargeMenu(row, canEnter, canCorrect)">
               <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                <AppButton variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
                   <Icon name="lucide:more-horizontal" />
-                </Button>
+                </AppButton>
               </DropdownMenuTrigger>
               <AppDropdownMenuContent align="end">
                 <DropdownMenuItem v-if="canEditCharge(row, canCorrect)" @click="openSheet('edit', row)">
@@ -452,7 +452,7 @@ const TYPE_FILTERS = [
             </template>
             <template #cell-actions="{ row }">
               <div v-if="canWrite" class="flex items-center justify-end gap-2">
-                <Button
+                <AppButton
                   v-if="row.status === 'active'"
                   variant="outline"
                   size="icon-sm"
@@ -461,8 +461,8 @@ const TYPE_FILTERS = [
                   @click="setScheduleStatus(row, 'paused')"
                 >
                   <Icon name="lucide:pause" />
-                </Button>
-                <Button
+                </AppButton>
+                <AppButton
                   v-else-if="row.status === 'paused'"
                   variant="outline"
                   size="icon-sm"
@@ -471,8 +471,8 @@ const TYPE_FILTERS = [
                   @click="setScheduleStatus(row, 'active')"
                 >
                   <Icon name="lucide:play" />
-                </Button>
-                <Button
+                </AppButton>
+                <AppButton
                   v-if="row.status !== 'canceled'"
                   variant="outline"
                   size="icon-sm"
@@ -481,7 +481,7 @@ const TYPE_FILTERS = [
                   @click="setScheduleStatus(row, 'canceled')"
                 >
                   <Icon name="lucide:x" />
-                </Button>
+                </AppButton>
               </div>
             </template>
           </AppDataTable>

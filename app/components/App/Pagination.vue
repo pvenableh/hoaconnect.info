@@ -8,7 +8,8 @@
     a state, not an action. It is rendered as a ghost item with aria-current,
     so the thumb is its only material;
   - Previous / Next are chevrons only (reka gives them their aria-labels);
-  - page numbers are tabular, so the row does not jitter as they change.
+  - page numbers are tabular, so the row does not jitter as they change;
+  - every item is a pill, like every button (`appButtonClasses`).
 
   `v-model:page`, `total`, `itemsPerPage`, `siblingCount`, `showEdges` and the
   rest are reka's PaginationRoot props, passed through.
@@ -27,17 +28,21 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import { appButtonClasses } from "./button-variants";
 
 const props = defineProps<PaginationRootProps & { class?: HTMLAttributes["class"] }>();
 const emits = defineEmits<PaginationRootEmits>();
 
 const forwarded = useForwardPropsEmits(reactiveOmit(props, "class"), emits);
+
+// The stock items apply buttonVariants() (ghost) themselves; this adds the pill.
+const pill = appButtonClasses({ variant: "ghost" });
 </script>
 
 <template>
   <Pagination v-slot="{ page }" v-bind="forwarded" :class="props.class">
     <PaginationContent v-slot="{ items }">
-      <PaginationPrevious class="sm:px-2.5">
+      <PaginationPrevious :class="cn(pill, 'sm:px-2.5')">
         <Icon name="lucide:chevron-left" class="size-4" />
       </PaginationPrevious>
       <template v-for="(item, index) in items" :key="index">
@@ -45,13 +50,13 @@ const forwarded = useForwardPropsEmits(reactiveOmit(props, "class"), emits);
           v-if="item.type === 'page'"
           :value="item.value"
           :aria-current="item.value === page ? 'page' : undefined"
-          :class="cn('tabular-nums', item.value === page && 'glass-active-thumb text-foreground hover:bg-transparent')"
+          :class="cn(pill, 'tabular-nums', item.value === page && 'glass-active-thumb text-foreground hover:bg-transparent')"
         >
           {{ item.value }}
         </PaginationItem>
         <PaginationEllipsis v-else :index="index" class="text-muted-foreground" />
       </template>
-      <PaginationNext class="sm:px-2.5">
+      <PaginationNext :class="cn(pill, 'sm:px-2.5')">
         <Icon name="lucide:chevron-right" class="size-4" />
       </PaginationNext>
     </PaginationContent>

@@ -115,14 +115,14 @@
             </div>
 
             <div class="flex items-center space-x-3">
-              <Button @click="payRequest(request)" class="flex-1">
+              <AppButton @click="payRequest(request)" class="flex-1">
                 <Icon name="heroicons:credit-card" class="mr-2 h-4 w-4" />
                 Pay Now
-              </Button>
-              <Button @click="viewDetails(request)" variant="outline">
+              </AppButton>
+              <AppButton @click="viewDetails(request)" variant="outline">
                 <Icon name="heroicons:eye" class="mr-2 h-4 w-4" />
                 Details
-              </Button>
+              </AppButton>
             </div>
           </div>
         </div>

@@ -84,7 +84,7 @@ function onPick(files: PickedFile[]) {
         size="sm"
         @select="onPick"
       />
-      <Button
+      <AppButton
         v-if="modelValue"
         type="button"
         variant="ghost"
@@ -94,7 +94,7 @@ function onPick(files: PickedFile[]) {
         @click="emit('update:modelValue', null)"
       >
         <Icon name="lucide:x" class="w-4 h-4 text-red-500" />
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

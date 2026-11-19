@@ -246,14 +246,14 @@ async function onSubscribed() {
       <div v-if="canManage && !account.hasSubscription && !account.is_free_account" class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm text-amber-800">No active subscription — properties under this account are not entitled until you subscribe.</p>
-          <Button
+          <AppButton
             v-if="agencyPriceId"
             size="sm"
             class="shrink-0"
             @click="showSubscribe = !showSubscribe"
           >
             {{ showSubscribe ? "Cancel" : "Set up billing" }}
-          </Button>
+          </AppButton>
           <span v-else class="shrink-0 text-xs text-amber-700">Set STRIPE_AGENCY_PRICE_ID_* to enable</span>
         </div>
         <div v-if="showSubscribe && agencyPriceId" class="mt-4 border-t border-amber-200 pt-4">
@@ -274,7 +274,7 @@ async function onSubscribed() {
           <h2 class="text-sm font-semibold uppercase tracking-wide t-text-muted">Properties</h2>
           <div class="flex items-center gap-2">
             <button v-if="canManage" :disabled="busy" class="text-sm text-blue-600 disabled:opacity-50" @click="syncSeats">Sync seats</button>
-            <Button v-if="canManage" size="sm" :disabled="busy" @click="showAdd = !showAdd">+ Add property</Button>
+            <AppButton v-if="canManage" size="sm" :disabled="busy" @click="showAdd = !showAdd">+ Add property</AppButton>
           </div>
         </div>
 
@@ -305,7 +305,7 @@ async function onSubscribed() {
 
           <div class="mt-3 flex justify-end gap-2">
             <button class="text-sm t-text-muted" @click="showAdd = false">Cancel</button>
-            <Button size="sm" :disabled="busy || !canCreateProperty" @click="addProperty">Create property</Button>
+            <AppButton size="sm" :disabled="busy || !canCreateProperty" @click="addProperty">Create property</AppButton>
           </div>
         </div>
 
@@ -335,9 +335,9 @@ async function onSubscribed() {
             </template>
             <template #cell-member_count="{ value }">{{ value ?? "—" }}</template>
             <template #cell-actions="{ row }">
-              <Button variant="ghost" size="sm" :disabled="busy" class="text-destructive" @click="detach(row.id, row.name)">
+              <AppButton variant="ghost" size="sm" :disabled="busy" class="text-destructive" @click="detach(row.id, row.name)">
                 Detach
-              </Button>
+              </AppButton>
             </template>
           </AppDataTable>
         </div>

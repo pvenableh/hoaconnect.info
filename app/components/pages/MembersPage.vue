@@ -1014,20 +1014,20 @@ useSeoMeta({
             <!-- Action Buttons -->
             <div class="flex justify-between items-center">
               <div class="flex gap-2">
-                <Button @click="navigateToOrg('/admin/units')" variant="outline">
+                <AppButton @click="navigateToOrg('/admin/units')" variant="outline">
                   <Icon name="lucide:building" class="w-4 h-4 mr-2" />
                   Manage Units
-                </Button>
+                </AppButton>
               </div>
               <div class="flex gap-2">
-                <Button @click="activeTab = 'invite'" variant="outline">
+                <AppButton @click="activeTab = 'invite'" variant="outline">
                   <Icon name="lucide:mail" class="w-4 h-4 mr-2" />
                   Invite Member
-                </Button>
-                <Button @click="handleAddMember">
+                </AppButton>
+                <AppButton @click="handleAddMember">
                   <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
                   Add Member
-                </Button>
+                </AppButton>
               </div>
             </div>
 
@@ -1202,7 +1202,7 @@ useSeoMeta({
                   <template #cell-actions="{ row }">
                     <div class="flex items-center justify-end gap-2">
                       <!-- A direct message (Phase 7.3): members with a login, not yourself. -->
-                      <Button
+                      <AppButton
                         v-if="canMessage(row)"
                         variant="outline"
                         size="icon-sm"
@@ -1212,22 +1212,22 @@ useSeoMeta({
                         @click="startDirectMessage(row.user.id)"
                       >
                         <Icon name="lucide:message-circle" />
-                      </Button>
-                      <Button
+                      </AppButton>
+                      <AppButton
                         variant="outline"
                         size="icon-sm"
                         aria-label="Edit member"
                         @click="handleEdit(row)"
                       >
                         <Icon name="lucide:pencil" />
-                      </Button>
+                      </AppButton>
                       <!--
                         Archive is the reversible answer and Delete is not, so an
                         archived row offers Restore where the others offer
                         Archive. Delete stays available but stops being the only
                         way to take someone off the active roster.
                       -->
-                      <Button
+                      <AppButton
                         v-if="row.status === 'archived'"
                         variant="outline"
                         size="icon-sm"
@@ -1236,8 +1236,8 @@ useSeoMeta({
                         @click="handleRestore(row)"
                       >
                         <Icon name="lucide:undo-2" />
-                      </Button>
-                      <Button
+                      </AppButton>
+                      <AppButton
                         v-else
                         variant="outline"
                         size="icon-sm"
@@ -1246,15 +1246,15 @@ useSeoMeta({
                         @click="handleArchive(row)"
                       >
                         <Icon name="lucide:archive" />
-                      </Button>
-                      <Button
+                      </AppButton>
+                      <AppButton
                         variant="destructive"
                         size="icon-sm"
                         aria-label="Delete member"
                         @click="handleDelete(row.id)"
                       >
                         <Icon name="lucide:trash-2" />
-                      </Button>
+                      </AppButton>
                     </div>
                   </template>
 
@@ -1275,14 +1275,14 @@ useSeoMeta({
                       size="sm"
                     >
                       <template #actions>
-                        <Button @click="handleAddMember">
+                        <AppButton @click="handleAddMember">
                           <Icon name="lucide:user-plus" />
                           Add Member
-                        </Button>
-                        <Button variant="outline" @click="activeTab = 'invite'">
+                        </AppButton>
+                        <AppButton variant="outline" @click="activeTab = 'invite'">
                           <Icon name="lucide:mail" />
                           Invite Member
-                        </Button>
+                        </AppButton>
                       </template>
                     </AppEmptyState>
                     <AppEmptyState
@@ -1364,7 +1364,7 @@ useSeoMeta({
                         </p>
                       </div>
                       <div class="flex gap-2">
-                        <Button
+                        <AppButton
                           @click="handleResendInvitation(invitation.id)"
                           variant="outline"
                           size="sm"
@@ -1377,8 +1377,8 @@ useSeoMeta({
                           />
                           <Icon v-else name="lucide:send" class="w-4 h-4" />
                           <span class="ml-1 hidden sm:inline">Resend</span>
-                        </Button>
-                        <Button
+                        </AppButton>
+                        <AppButton
                           @click="handleCancelInvitation(invitation.id)"
                           variant="destructive"
                           size="sm"
@@ -1391,7 +1391,7 @@ useSeoMeta({
                           />
                           <Icon v-else name="lucide:x" class="w-4 h-4" />
                           <span class="ml-1 hidden sm:inline">Cancel</span>
-                        </Button>
+                        </AppButton>
                       </div>
                     </div>
                   </div>
@@ -1402,10 +1402,10 @@ useSeoMeta({
                     title="No pending invitations"
                     description="Everything sent has been accepted or has expired."
                   >
-                    <Button variant="outline" @click="activeTab = 'invite'">
+                    <AppButton variant="outline" @click="activeTab = 'invite'">
                       <Icon name="lucide:user-plus" />
                       Invite someone
-                    </Button>
+                    </AppButton>
                   </AppEmptyState>
                 </div>
               </CardContent>
@@ -1432,14 +1432,14 @@ useSeoMeta({
                   <Label for="board-as-of">As of</Label>
                   <DateInput id="board-as-of" v-model="boardAsOf" class="w-44" />
                 </div>
-                <Button v-if="!boardAsOfIsToday" variant="ghost" size="sm" @click="boardAsOf = localToday()">
+                <AppButton v-if="!boardAsOfIsToday" variant="ghost" size="sm" @click="boardAsOf = localToday()">
                   Today
-                </Button>
+                </AppButton>
               </div>
-              <Button @click="handleAddBoardTerm">
+              <AppButton @click="handleAddBoardTerm">
                 <Icon name="lucide:plus" class="w-4 h-4 mr-2" />
                 Add Board Position
-              </Button>
+              </AppButton>
             </div>
 
             <!-- Current Board Members -->
@@ -1487,17 +1487,17 @@ useSeoMeta({
                     </div>
                     <div class="flex items-center gap-2">
                       <template v-if="isOpenTerm(term)">
-                        <Button variant="outline" size="sm" @click="startTermAction('end', term)">End term</Button>
-                        <Button variant="outline" size="sm" @click="startTermAction('change-office', term)">
+                        <AppButton variant="outline" size="sm" @click="startTermAction('end', term)">End term</AppButton>
+                        <AppButton variant="outline" size="sm" @click="startTermAction('change-office', term)">
                           Change office
-                        </Button>
+                        </AppButton>
                       </template>
-                      <Button variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</Button>
+                      <AppButton variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</AppButton>
                       <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                          <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                          <AppButton variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
                             <Icon name="lucide:more-horizontal" />
-                          </Button>
+                          </AppButton>
                         </DropdownMenuTrigger>
                         <AppDropdownMenuContent align="end">
                           <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
@@ -1563,17 +1563,17 @@ useSeoMeta({
                     </div>
                     <div class="flex items-center gap-2">
                       <template v-if="isOpenTerm(term)">
-                        <Button variant="outline" size="sm" @click="startTermAction('end', term)">End term</Button>
-                        <Button variant="outline" size="sm" @click="startTermAction('change-office', term)">
+                        <AppButton variant="outline" size="sm" @click="startTermAction('end', term)">End term</AppButton>
+                        <AppButton variant="outline" size="sm" @click="startTermAction('change-office', term)">
                           Change office
-                        </Button>
+                        </AppButton>
                       </template>
-                      <Button variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</Button>
+                      <AppButton variant="outline" size="sm" @click="startTermAction('correct', term)">Correct</AppButton>
                       <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                          <Button variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
+                          <AppButton variant="ghost" size="icon-sm" aria-label="More actions" title="More actions">
                             <Icon name="lucide:more-horizontal" />
-                          </Button>
+                          </AppButton>
                         </DropdownMenuTrigger>
                         <AppDropdownMenuContent align="end">
                           <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
@@ -1702,7 +1702,7 @@ useSeoMeta({
             <RestrictionsPostingPause v-if="editingId && orgId" :org-id="orgId" :member="editingId" @changed="refreshPaused()" />
           </div>
           <template #footer>
-            <Button
+            <AppButton
               @click="
                 showAddModal = false;
                 resetForm();
@@ -1710,8 +1710,8 @@ useSeoMeta({
               variant="outline"
             >
               Cancel
-            </Button>
-            <Button @click="handleSubmit">Save</Button>
+            </AppButton>
+            <AppButton @click="handleSubmit">Save</AppButton>
           </template>
         </AppBottomSheet>
 
@@ -1805,7 +1805,7 @@ useSeoMeta({
               </div>
             </div>
             <DialogFooter>
-              <Button
+              <AppButton
                 @click="
                   showBoardModal = false;
                   resetBoardForm();
@@ -1813,8 +1813,8 @@ useSeoMeta({
                 variant="outline"
               >
                 Cancel
-              </Button>
-              <Button @click="handleSubmitBoardTerm">Save Position</Button>
+              </AppButton>
+              <AppButton @click="handleSubmitBoardTerm">Save Position</AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>

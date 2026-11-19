@@ -90,10 +90,10 @@
 
     <div class="flex items-center justify-end gap-3" data-testid="reminders-save-bar">
       <p v-if="hasChanges" class="text-sm text-muted-foreground">Unsaved changes</p>
-      <Button :disabled="saving || !hasChanges" data-testid="reminders-save" @click="save">
+      <AppButton :disabled="saving || !hasChanges" data-testid="reminders-save" @click="save">
         <Icon v-if="saving" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
         {{ saving ? "Saving…" : "Save reminders" }}
-      </Button>
+      </AppButton>
     </div>
 
     <AppCard>
@@ -112,11 +112,11 @@
                 <option v-for="t in TEMPLATES" :key="t.value" :value="t.value">{{ t.label }}</option>
               </select>
             </div>
-            <Button variant="outline" :disabled="sendingTest" data-testid="reminders-send-test" @click="sendTest">
+            <AppButton variant="outline" :disabled="sendingTest" data-testid="reminders-send-test" @click="sendTest">
               <Icon v-if="sendingTest" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               <Icon v-else name="lucide:send" class="mr-2 h-4 w-4" />
               Send me a test
-            </Button>
+            </AppButton>
           </div>
           <!-- allow-color-literal: the email's own canvas. Mail clients show it on
                white in every theme, so the frame must not turn dark around it. -->
@@ -139,11 +139,11 @@
                 Uses the saved settings<span v-if="hasChanges"> — save your changes first</span>. Nothing is sent.
               </p>
             </div>
-            <Button variant="outline" :disabled="dryRunning" data-testid="reminders-dry-run-button" @click="runDry">
+            <AppButton variant="outline" :disabled="dryRunning" data-testid="reminders-dry-run-button" @click="runDry">
               <Icon v-if="dryRunning" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
               <Icon v-else name="lucide:calendar-clock" class="mr-2 h-4 w-4" />
               Check the next 24 hours
-            </Button>
+            </AppButton>
           </div>
 
           <div v-if="dry" class="space-y-2" aria-live="polite">

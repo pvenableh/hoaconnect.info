@@ -167,9 +167,9 @@ const onDeleteTeam = async (t: Team) => {
             <option v-for="d in DOMAINS" :key="d" :value="d">{{ DOMAIN_LABELS[d] }}</option>
           </select>
         </div>
-        <Button class="rounded-full" :disabled="!newName.trim() || busy" @click="createTeam">
+        <AppButton class="rounded-full" :disabled="!newName.trim() || busy" @click="createTeam">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" /> Create
-        </Button>
+        </AppButton>
       </div>
       <p class="text-xs t-text-muted mt-2">
         The domain is a label for the requests this team looks after. It gives
@@ -236,9 +236,9 @@ const onDeleteTeam = async (t: Team) => {
             <option value="">Add a member…</option>
             <option v-for="m in availableFor(t.id)" :key="m.id" :value="orgMemberUserId(m)">{{ personName(m) }}</option>
           </select>
-          <Button variant="outline" size="sm" class="rounded-full" :disabled="!pickUser[t.id] || busy" @click="onAddMember(t)">
+          <AppButton variant="outline" size="sm" class="rounded-full" :disabled="!pickUser[t.id] || busy" @click="onAddMember(t)">
             Add
-          </Button>
+          </AppButton>
         </div>
       </div>
     </div>

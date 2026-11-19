@@ -99,7 +99,7 @@
                   Recommended: 1200x630px, PNG or JPG
                 </p>
               </div>
-              <Button
+              <AppButton
                 v-if="ogImagePreview || currentOgImageUrl"
                 variant="outline"
                 size="sm"
@@ -108,7 +108,7 @@
               >
                 <Icon name="lucide:trash-2" class="h-4 w-4 mr-1" />
                 Remove Image
-              </Button>
+              </AppButton>
             </div>
 
             <!-- Social Preview Card -->
@@ -212,14 +212,14 @@
 
     <!-- Save Button -->
     <div class="flex justify-end">
-      <Button @click="saveChanges" :disabled="isSaving">
+      <AppButton @click="saveChanges" :disabled="isSaving">
         <Icon
           v-if="isSaving"
           name="lucide:loader-2"
           class="mr-2 h-4 w-4 animate-spin"
         />
         {{ isSaving ? "Saving..." : "Save SEO Settings" }}
-      </Button>
+      </AppButton>
     </div>
   </div>
 </template>

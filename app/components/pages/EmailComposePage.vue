@@ -976,14 +976,14 @@ useSeoMeta({
           description="Create and send emails to your HOA members."
         >
           <template #actions>
-            <Button variant="outline" size="sm" @click="openTemplatePicker">
+            <AppButton variant="outline" size="sm" @click="openTemplatePicker">
               <Icon name="lucide:layout-template" class="w-4 h-4 mr-2" />
               Start from template
-            </Button>
-            <Button variant="outline" size="sm" @click="openSaveTemplate">
+            </AppButton>
+            <AppButton variant="outline" size="sm" @click="openSaveTemplate">
               <Icon name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
               Save as template
-            </Button>
+            </AppButton>
           </template>
         </AppPageHeader>
 
@@ -1294,14 +1294,14 @@ useSeoMeta({
               <CardContent class="space-y-4">
                 <!-- Add attachment buttons -->
                 <div class="flex gap-2">
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
                     @click="openAttachmentBrowser"
                   >
                     <Icon name="lucide:folder-open" class="w-4 h-4 mr-2" />
                     Browse Files
-                  </Button>
+                  </AppButton>
                   <StorageFilePickerButton
                     source="email"
                     multiple
@@ -1311,7 +1311,7 @@ useSeoMeta({
                     title="Attach from the organization library"
                     @select="onLibraryPicked"
                   />
-                  <Button
+                  <AppButton
                     variant="outline"
                     size="sm"
                     :disabled="isUploadingAttachment"
@@ -1324,7 +1324,7 @@ useSeoMeta({
                     />
                     <Icon v-else name="lucide:upload" class="w-4 h-4 mr-2" />
                     Upload New
-                  </Button>
+                  </AppButton>
                   <input
                     ref="attachmentFileInput"
                     type="file"
@@ -1354,13 +1354,13 @@ useSeoMeta({
                         </div>
                       </div>
                     </div>
-                    <Button
+                    <AppButton
                       variant="ghost"
                       size="sm"
                       @click="removeAttachment(attachment.id)"
                     >
                       <Icon name="lucide:x" class="w-4 h-4 t-text-muted" />
-                    </Button>
+                    </AppButton>
                   </div>
                 </div>
 
@@ -1455,12 +1455,12 @@ useSeoMeta({
                       {{ form.recipientIds.length }} selected
                     </span>
                     <div class="flex gap-2">
-                      <Button variant="ghost" size="sm" @click="selectAll">
+                      <AppButton variant="ghost" size="sm" @click="selectAll">
                         All
-                      </Button>
-                      <Button variant="ghost" size="sm" @click="deselectAll">
+                      </AppButton>
+                      <AppButton variant="ghost" size="sm" @click="deselectAll">
                         None
-                      </Button>
+                      </AppButton>
                     </div>
                   </div>
                   <div
@@ -1572,9 +1572,9 @@ useSeoMeta({
                         class="text-sm"
                         @keydown.enter.prevent="addEmailEntry(field)"
                       />
-                      <Button type="button" variant="outline" size="sm" @click="addEmailEntry(field)">
+                      <AppButton type="button" variant="outline" size="sm" @click="addEmailEntry(field)">
                         Add
-                      </Button>
+                      </AppButton>
                     </div>
                   </div>
                 </template>
@@ -1588,7 +1588,7 @@ useSeoMeta({
             <!-- Actions -->
             <AppCard>
               <CardContent class="pt-6 space-y-3">
-                <Button
+                <AppButton
                   class="w-full"
                   size="lg"
                   @click="handleSend"
@@ -1605,7 +1605,7 @@ useSeoMeta({
                   Send to {{ recipientCount }} member{{
                     recipientCount !== 1 ? "s" : ""
                   }}
-                </Button>
+                </AppButton>
 
                 <!-- Schedule for later -->
                 <div class="rounded-lg border t-border">
@@ -1647,10 +1647,10 @@ useSeoMeta({
                         {{ repeatSentence }}
                       </p>
                     </div>
-                    <Button class="w-full" @click="handleSchedule" :disabled="emailSystem.isLoading.value">
+                    <AppButton class="w-full" @click="handleSchedule" :disabled="emailSystem.isLoading.value">
                       <Icon name="lucide:calendar-clock" class="w-4 h-4 mr-2" />
                       Schedule
-                    </Button>
+                    </AppButton>
                     <p class="text-[11px] t-text-muted">
                       Recipients are locked in at schedule time using the selection above.
                     </p>
@@ -1658,7 +1658,7 @@ useSeoMeta({
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                  <Button
+                  <AppButton
                     variant="outline"
                     @click="handlePreview"
                     :disabled="previewLoading || !form.subject || !form.content"
@@ -1670,20 +1670,20 @@ useSeoMeta({
                     />
                     <Icon v-else name="lucide:eye" class="w-4 h-4 mr-2" />
                     Preview
-                  </Button>
-                  <Button
+                  </AppButton>
+                  <AppButton
                     variant="outline"
                     @click="handleSaveDraft"
                     :disabled="emailSystem.isLoading.value"
                   >
                     <Icon name="lucide:save" class="w-4 h-4 mr-2" />
                     Save Draft
-                  </Button>
+                  </AppButton>
                 </div>
 
-                <Button variant="ghost" class="w-full" @click="handleCancel">
+                <AppButton variant="ghost" class="w-full" @click="handleCancel">
                   Cancel
-                </Button>
+                </AppButton>
               </CardContent>
             </AppCard>
 
@@ -1741,7 +1741,7 @@ useSeoMeta({
                   </div>
                 </div>
 
-                <Button
+                <AppButton
                   variant="outline"
                   class="w-full"
                   @click="handleTestEmail"
@@ -1754,7 +1754,7 @@ useSeoMeta({
                   />
                   <Icon v-else name="lucide:send" class="w-4 h-4 mr-2" />
                   Send Test Email{{ testEmails.length > 1 ? 's' : '' }}
-                </Button>
+                </AppButton>
               </CardContent>
             </AppCard>
           </div>
@@ -1812,7 +1812,7 @@ useSeoMeta({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" @click="showTemplatePicker = false">Cancel</Button>
+              <AppButton variant="outline" @click="showTemplatePicker = false">Cancel</AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>
@@ -1835,9 +1835,9 @@ useSeoMeta({
                   @resume="sendProgress.resume()"
                 />
             <DialogFooter>
-              <Button data-testid="send-progress-close" @click="closeSendProgress">
+              <AppButton data-testid="send-progress-close" @click="closeSendProgress">
                 {{ sendProgress.done.value ? "Done" : "Close" }}
-              </Button>
+              </AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>
@@ -1864,12 +1864,12 @@ useSeoMeta({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" @click="showSaveTemplate = false">Cancel</Button>
-              <Button :disabled="savingTemplate || !newTemplate.name.trim()" @click="saveAsTemplate">
+              <AppButton variant="outline" @click="showSaveTemplate = false">Cancel</AppButton>
+              <AppButton :disabled="savingTemplate || !newTemplate.name.trim()" @click="saveAsTemplate">
                 <Icon v-if="savingTemplate" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
                 <Icon v-else name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
                 Save template
-              </Button>
+              </AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>
@@ -2030,9 +2030,9 @@ useSeoMeta({
             </div>
 
             <DialogFooter>
-              <Button variant="outline" @click="showAttachmentBrowser = false">
+              <AppButton variant="outline" @click="showAttachmentBrowser = false">
                 Cancel
-              </Button>
+              </AppButton>
             </DialogFooter>
           </AppDialogContent>
         </Dialog>

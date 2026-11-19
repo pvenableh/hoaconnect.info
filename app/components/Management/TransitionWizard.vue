@@ -241,10 +241,10 @@ const titleCase = (s: string | null) =>
           in your vendor list. Everything they did stays in the community's record — that is what
           makes the history yours.
         </div>
-        <Button class="rounded-full" @click="start">
+        <AppButton class="rounded-full" @click="start">
           <Icon name="lucide:arrow-right-left" class="h-4 w-4 mr-1.5" />
           Plan a transition
-        </Button>
+        </AppButton>
       </CardContent>
     </AppCard>
 
@@ -320,9 +320,9 @@ const titleCase = (s: string | null) =>
           </div>
 
           <div class="flex justify-end">
-            <Button class="rounded-full" :disabled="previewing" @click="goTo('successor')">
+            <AppButton class="rounded-full" :disabled="previewing" @click="goTo('successor')">
               Continue<Icon name="lucide:arrow-right" class="h-4 w-4 ml-1.5" />
-            </Button>
+            </AppButton>
           </div>
         </CardContent>
       </AppCard>
@@ -393,12 +393,12 @@ const titleCase = (s: string | null) =>
           </div>
 
           <div class="flex justify-between">
-            <Button variant="ghost" class="rounded-full" @click="goTo('who')">
+            <AppButton variant="ghost" class="rounded-full" @click="goTo('who')">
               <Icon name="lucide:arrow-left" class="h-4 w-4 mr-1.5" />Back
-            </Button>
-            <Button class="rounded-full" :disabled="previewing" @click="goTo('review')">
+            </AppButton>
+            <AppButton class="rounded-full" :disabled="previewing" @click="goTo('review')">
               Review the plan<Icon name="lucide:arrow-right" class="h-4 w-4 ml-1.5" />
-            </Button>
+            </AppButton>
           </div>
         </CardContent>
       </AppCard>
@@ -478,17 +478,17 @@ const titleCase = (s: string | null) =>
             </label>
 
             <div class="flex justify-between items-center pt-2">
-              <Button variant="ghost" class="rounded-full" @click="goTo('successor')">
+              <AppButton variant="ghost" class="rounded-full" @click="goTo('successor')">
                 <Icon name="lucide:arrow-left" class="h-4 w-4 mr-1.5" />Back
-              </Button>
-              <Button
+              </AppButton>
+              <AppButton
                 class="rounded-full"
                 :disabled="!plan.canExecute || executing"
                 @click="execute"
               >
                 <Icon v-if="executing" name="lucide:loader-circle" class="h-4 w-4 mr-1.5 animate-spin" />
                 {{ executing ? "Running…" : "Run the transition" }}
-              </Button>
+              </AppButton>
             </div>
 
             <div v-if="executeError && !result" class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
@@ -551,7 +551,7 @@ const titleCase = (s: string | null) =>
           </div>
 
           <div class="flex justify-end">
-            <Button variant="outline" class="rounded-full" @click="restart">Done</Button>
+            <AppButton variant="outline" class="rounded-full" @click="restart">Done</AppButton>
           </div>
         </CardContent>
       </AppCard>

@@ -64,7 +64,7 @@ const accounts = computed(() => data.value?.accounts ?? []);
           </li>
         </ul>
 
-        <Button v-if="a.stripeUrl" as="a" :href="a.stripeUrl" target="_blank" rel="noopener" variant="outline" size="sm" class="mt-3">Stripe customer</Button>
+        <AppButton v-if="a.stripeUrl" as="a" :href="a.stripeUrl" target="_blank" rel="noopener" variant="outline" size="sm" class="mt-3">Stripe customer</AppButton>
       </section>
     </div>
   </OpsShell>

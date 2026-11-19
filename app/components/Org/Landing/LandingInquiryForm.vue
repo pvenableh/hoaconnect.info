@@ -69,13 +69,13 @@
         />
 
         <DialogFooter class="gap-2">
-          <Button type="button" variant="outline" :disabled="submitting" @click="emit('update:open', false)">
+          <AppButton type="button" variant="outline" :disabled="submitting" @click="emit('update:open', false)">
             Cancel
-          </Button>
-          <Button type="submit" :disabled="submitting">
+          </AppButton>
+          <AppButton type="submit" :disabled="submitting">
             <Icon v-if="submitting" name="lucide:loader-2" class="w-4 h-4 mr-2 animate-spin" />
             Send inquiry
-          </Button>
+          </AppButton>
         </DialogFooter>
       </form>
     </AppDialogContent>

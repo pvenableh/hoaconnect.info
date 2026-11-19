@@ -103,10 +103,10 @@ const reset = () => {
           placeholder="e.g. When did the board change managers?"
           class="flex-1"
         />
-        <Button type="submit" class="rounded-full shrink-0" :disabled="!canAsk">
+        <AppButton type="submit" class="rounded-full shrink-0" :disabled="!canAsk">
           <Icon v-if="asking" name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
           <span v-else>Ask</span>
-        </Button>
+        </AppButton>
       </form>
 
       <div v-if="!answer && !asking && !error" class="mt-2.5 flex flex-wrap gap-1.5">

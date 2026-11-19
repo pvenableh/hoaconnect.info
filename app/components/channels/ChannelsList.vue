@@ -282,7 +282,7 @@ const selectChannel = (channel: HoaChannel) => {
       <h2 class="text-sm font-semibold t-text-muted uppercase tracking-wide">
         Channels
       </h2>
-      <Button
+      <AppButton
         v-if="props.isAdmin"
         variant="ghost"
         size="sm"
@@ -290,7 +290,7 @@ const selectChannel = (channel: HoaChannel) => {
         @click="emit('create')"
       >
         <Icon name="lucide:plus" class="w-4 h-4" />
-      </Button>
+      </AppButton>
     </div>
 
     <!-- Loading State -->
@@ -306,10 +306,10 @@ const selectChannel = (channel: HoaChannel) => {
     <div v-else-if="error" class="px-3 py-4 text-center">
       <p class="text-sm text-red-500 mb-2">Failed to load channels</p>
       <p class="text-xs t-text-muted mb-3">{{ error }}</p>
-      <Button variant="outline" size="sm" @click="refresh">
+      <AppButton variant="outline" size="sm" @click="refresh">
         <Icon name="lucide:refresh-cw" class="w-4 h-4 mr-1" />
         Retry
-      </Button>
+      </AppButton>
     </div>
 
     <!-- Channels List -->
@@ -478,10 +478,10 @@ const selectChannel = (channel: HoaChannel) => {
           size="sm"
         >
           <template v-if="props.isAdmin" #actions>
-            <Button @click="emit('create')">
+            <AppButton @click="emit('create')">
               <Icon name="lucide:plus" />
               Create Channel
-            </Button>
+            </AppButton>
           </template>
         </AppEmptyState>
       </div>
@@ -535,8 +535,8 @@ const selectChannel = (channel: HoaChannel) => {
           <option v-for="f in knownFolders" :key="f" :value="f" />
         </datalist>
         <DialogFooter class="gap-2">
-          <Button variant="outline" :disabled="moving" @click="moveTarget = null">Cancel</Button>
-          <Button :disabled="moving" @click="saveMove">Move</Button>
+          <AppButton variant="outline" :disabled="moving" @click="moveTarget = null">Cancel</AppButton>
+          <AppButton :disabled="moving" @click="saveMove">Move</AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

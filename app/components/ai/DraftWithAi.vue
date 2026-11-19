@@ -82,10 +82,10 @@ async function purchase(packId: string) {
 <template>
   <!-- Only render once we know the org has a wallet and AI is configured. -->
   <div v-if="summary && summary.aiConfigured" class="flex items-center gap-2 flex-wrap">
-    <Button type="button" variant="outline" size="sm" @click="showPrompt = true">
+    <AppButton type="button" variant="outline" size="sm" @click="showPrompt = true">
       <Icon name="i-lucide-sparkles" class="w-4 h-4 mr-1.5" />
       {{ isRewrite ? "Rewrite with AI" : "Draft with AI" }}
-    </Button>
+    </AppButton>
 
     <!-- Wallet meter -->
     <button
@@ -125,17 +125,17 @@ async function purchase(packId: string) {
           <span class="mr-auto text-xs t-text-muted self-center">
             {{ formatCredits(summary.balanceCredits) }} credits available
           </span>
-          <Button type="button" variant="ghost" :disabled="generating" @click="showPrompt = false">
+          <AppButton type="button" variant="ghost" :disabled="generating" @click="showPrompt = false">
             Cancel
-          </Button>
-          <Button type="button" :disabled="generating" @click="generate">
+          </AppButton>
+          <AppButton type="button" :disabled="generating" @click="generate">
             <Icon
               :name="generating ? 'i-lucide-loader-circle' : 'i-lucide-sparkles'"
               class="w-4 h-4 mr-1.5"
               :class="{ 'animate-spin': generating }"
             />
             {{ generating ? "Drafting…" : "Generate" }}
-          </Button>
+          </AppButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -160,10 +160,10 @@ async function purchase(packId: string) {
               <div class="font-medium t-text">{{ pack.label }}</div>
               <div class="text-xs t-text-muted">{{ formatCredits(pack.credits) }} credits</div>
             </div>
-            <Button type="button" size="sm" :disabled="buying === pack.id" @click="purchase(pack.id)">
+            <AppButton type="button" size="sm" :disabled="buying === pack.id" @click="purchase(pack.id)">
               <Icon v-if="buying === pack.id" name="i-lucide-loader-circle" class="w-4 h-4 mr-1.5 animate-spin" />
               ${{ pack.priceUsd }}
-            </Button>
+            </AppButton>
           </div>
         </div>
       </AppDialogContent>

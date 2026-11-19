@@ -117,10 +117,10 @@ function rowClasses(row: Row) {
       </template>
       <template v-if="showCreate || $slots.actions" #actions>
         <slot name="actions" />
-        <Button v-if="showCreate" class="rounded-full" @click="emit('create')">
+        <AppButton v-if="showCreate" class="rounded-full" @click="emit('create')">
           <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
           {{ createLabel }}
-        </Button>
+        </AppButton>
       </template>
     </AppPageHeader>
 
@@ -150,8 +150,8 @@ function rowClasses(row: Row) {
 
     <div v-if="selectable && resource.selected.length" class="resource-index__bulk">
       <span class="type-meta t-text tabular-nums">{{ resource.selected.length }} selected</span>
-      <Button size="sm" variant="ghost" @click="resource.selectAll()">Select All</Button>
-      <Button size="sm" variant="ghost" @click="resource.clear()">Clear</Button>
+      <AppButton size="sm" variant="ghost" @click="resource.selectAll()">Select All</AppButton>
+      <AppButton size="sm" variant="ghost" @click="resource.clear()">Clear</AppButton>
       <div class="resource-index__bulk-actions">
         <slot name="bulk" :rows="resource.selectedRows" />
       </div>
@@ -193,7 +193,7 @@ function rowClasses(row: Row) {
             size="sm"
           >
             <template #actions>
-              <Button variant="outline" size="sm" @click="resource.refresh()">Try Again</Button>
+              <AppButton variant="outline" size="sm" @click="resource.refresh()">Try Again</AppButton>
             </template>
           </AppEmptyState>
           <AppEmptyState
@@ -204,10 +204,10 @@ function rowClasses(row: Row) {
             size="sm"
           >
             <template v-if="showCreate" #actions>
-              <Button class="rounded-full" @click="emit('create')">
+              <AppButton class="rounded-full" @click="emit('create')">
                 <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
                 {{ createLabel }}
-              </Button>
+              </AppButton>
             </template>
           </AppEmptyState>
           <AppEmptyState
@@ -218,7 +218,7 @@ function rowClasses(row: Row) {
             size="sm"
           >
             <template v-if="resource.isFiltered" #actions>
-              <Button variant="outline" size="sm" @click="resource.reset()">Clear Search</Button>
+              <AppButton variant="outline" size="sm" @click="resource.reset()">Clear Search</AppButton>
             </template>
           </AppEmptyState>
         </template>

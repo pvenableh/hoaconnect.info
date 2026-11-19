@@ -86,8 +86,8 @@ async function save() {
       </div>
     </div>
     <template #footer>
-      <Button variant="outline" @click="isOpen = false">Cancel</Button>
-      <Button :disabled="saving || badDates" @click="save">Save correction</Button>
+      <AppButton variant="outline" @click="isOpen = false">Cancel</AppButton>
+      <AppButton :disabled="saving || badDates" @click="save">Save correction</AppButton>
     </template>
   </AppBottomSheet>
 </template>

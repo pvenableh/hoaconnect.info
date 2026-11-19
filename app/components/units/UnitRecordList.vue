@@ -30,9 +30,9 @@ const showHistory = ref(false);
         <h2 class="text-base font-semibold t-text">{{ title }}</h2>
         <span class="text-xs t-text-muted">{{ current.length }} current</span>
       </div>
-      <Button v-if="canManage" size="sm" variant="outline" class="rounded-full" @click="emit('add')">
+      <AppButton v-if="canManage" size="sm" variant="outline" class="rounded-full" @click="emit('add')">
         <Icon name="lucide:plus" class="w-4 h-4 mr-1" /> {{ addLabel || "Add" }}
-      </Button>
+      </AppButton>
     </div>
 
     <!-- Current -->

@@ -181,7 +181,7 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
         <section class="ios-card p-4">
           <div class="flex items-start justify-between gap-2">
             <h2 class="type-card t-text">Discount codes</h2>
-            <Button v-if="canWrite && o?.discounts" variant="outline" size="sm" @click="newCode">New code</Button>
+            <AppButton v-if="canWrite && o?.discounts" variant="outline" size="sm" @click="newCode">New code</AppButton>
           </div>
           <p class="type-meta t-text-muted">{{ o?.discounts?.redemptions ?? "—" }} redemptions</p>
           <ul v-if="o?.discounts?.codes?.length" class="mt-2 divide-y divide-[var(--theme-border-light)]">
@@ -194,8 +194,8 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
                 </span>
               </span>
               <span v-if="code.active" class="mt-0.5 flex gap-1">
-                <Button variant="ghost" size="sm" class="h-7 px-2" @click="copyLink(code.code)">Copy signup link</Button>
-                <Button v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="deactivate(code)">Deactivate</Button>
+                <AppButton variant="ghost" size="sm" class="h-7 px-2" @click="copyLink(code.code)">Copy signup link</AppButton>
+                <AppButton v-if="canWrite" variant="ghost" size="sm" class="h-7 px-2" @click="deactivate(code)">Deactivate</AppButton>
               </span>
             </li>
           </ul>
@@ -224,7 +224,7 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
 
       <div class="mt-6 flex items-center justify-between gap-2">
         <p class="type-micro t-text-muted">Stripe figures are cached for a minute. {{ o?.generatedAt ? `Updated ${new Date(o.generatedAt).toLocaleTimeString()}` : "" }}</p>
-        <Button variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</Button>
+        <AppButton variant="ghost" size="sm" :disabled="pending" @click="refresh()">Refresh</AppButton>
       </div>
 
       <OpsActionDialog v-if="codeProps" v-model:open="codeOpen" v-bind="codeProps" @done="refresh()">
