@@ -35,6 +35,7 @@
  */
 
 import { readItems, aggregate } from "@directus/sdk";
+import type { OrgWideAccessCheck } from "./channel-scope";
 
 export interface ChannelUnread {
   count: number;
@@ -48,13 +49,6 @@ export interface UnreadResult {
 
 const idOf = (v: any): string | null =>
   v == null ? null : typeof v === "string" ? v : (v.id ?? null);
-
-/**
- * Which of the caller's orgs they can read every non-private channel in — i.e.
- * where bucket 2 applies. Injected rather than imported so the test can pin the
- * boundary without standing up admin-auth's session plumbing.
- */
-export type OrgWideAccessCheck = (orgId: string) => boolean | Promise<boolean>;
 
 /**
  * The next value of a read cursor. Exported and pure because the rule it

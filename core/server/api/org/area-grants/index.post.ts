@@ -16,13 +16,13 @@ import {
   idString,
   loadMemberHolder,
   loadTeamHolder,
-  orgName,
   readDelegationBody,
   readHolderRows,
   recordEntry,
   requireDelegationAdmin,
   type LoadedHolder,
 } from "#core/server/utils/delegation";
+import { orgName } from "#core/server/utils/org-name";
 
 const body = z
   .object({

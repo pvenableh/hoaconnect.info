@@ -38,6 +38,7 @@ import type { LedgerActor } from "#core/shared/ledger/entry";
 import { roleIdOf } from "#core/shared/ops/permissions";
 import { expenseCommunity } from "#core/shared/expenses/expense-writes";
 import { ledgerActorFor } from "./member-names";
+import { orgName } from "./org-name";
 import type { H3Event } from "h3";
 
 export type ApprovalKind = "spend" | "void" | "waive" | "move";
@@ -322,13 +323,6 @@ export async function waiverSubject(orgId: string, row: any, approval: Pick<Appr
 /** The open waivers on a charge. */
 export async function openWaiversFor(orgId: string, chargeId: string): Promise<ApprovalRow[]> {
   return loadApprovals(orgId, { charge: { _eq: chargeId }, kind: { _eq: "waive" }, state: { _in: [...OPEN_STATES] } });
-}
-
-export async function orgName(orgId: string): Promise<string | null> {
-  const rows = ((await getTypedDirectus().request(
-    readItems("hoa_organizations", { filter: { id: { _eq: orgId } } as any, fields: ["name"] as any, limit: 1 })
-  )) ?? []) as any[];
-  return rows[0]?.name ?? null;
 }
 
 /** Everyone who may enter money here: admins, every board seat, managers with the projects grant. */

@@ -20,6 +20,13 @@ import { readItems } from "@directus/sdk";
 const idOf = (v: any): string | null =>
   v == null ? null : typeof v === "string" ? v : (v.id ?? null);
 
+/**
+ * Which of the caller's orgs they can read every non-private channel in — i.e.
+ * where bucket 2 applies. Injected rather than imported so the tests can pin the
+ * boundary without standing up admin-auth's session plumbing. channel-unread
+ * imports this one; a second export of the same name would collide in Nitro's
+ * server-utils auto-import.
+ */
 export type OrgWideAccessCheck = (orgId: string) => boolean | Promise<boolean>;
 
 export async function readableChannelIds(opts: {

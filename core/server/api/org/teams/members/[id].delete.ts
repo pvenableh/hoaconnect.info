@@ -5,7 +5,8 @@
  */
 import { deleteItem } from "@directus/sdk";
 import { buildCommitteeMemberEntry } from "#core/shared/ledger/entries";
-import { orgIdFromQuery, orgName, recordEntry, requireDelegationAdmin, teamOpenAreas } from "#core/server/utils/delegation";
+import { orgIdFromQuery, recordEntry, requireDelegationAdmin, teamOpenAreas } from "#core/server/utils/delegation";
+import { orgName } from "#core/server/utils/org-name";
 import { loadTeamMemberRow } from "#core/server/utils/committees";
 
 export default defineEventHandler(async (event) => {

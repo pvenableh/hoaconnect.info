@@ -120,13 +120,6 @@ export async function teamOpenAreas(orgId: string, teamId: string): Promise<Help
   return openAreasOf(rows, { kind: "team", id: teamId }, new Date());
 }
 
-export async function orgName(orgId: string): Promise<string | null> {
-  const rows = (await getTypedDirectus().request(
-    readItems("hoa_organizations", { filter: { id: { _eq: orgId } }, fields: ["name"] as any, limit: 1 })
-  )) as any[];
-  return rows?.[0]?.name ?? null;
-}
-
 /** A user's display name from an expanded M2O, or null. */
 export function personOf(u: any): string | null {
   if (!u || typeof u !== "object") return null;

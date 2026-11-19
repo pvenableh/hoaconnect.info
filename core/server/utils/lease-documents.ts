@@ -11,8 +11,6 @@ import { readItems } from "@directus/sdk";
 import { LEASE_DOCUMENT_MAX_BYTES } from "#core/shared/units/lease-requests";
 import { storeRecordUpload, type UploadPart } from "./private-uploads";
 
-export type { UploadPart } from "./private-uploads";
-
 /**
  * Store a signed lease: one PDF, 4 MB at most, in the community's Records ›
  * Leases folder, marked as a record's file, as the sender's (private-uploads.ts

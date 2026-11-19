@@ -42,6 +42,7 @@ export async function stubMoney(state: { who: Who; db: Db }): Promise<MoneyCaptu
   const modules = [
     "#core/server/utils/money-access",
     "#core/server/utils/member-names",
+    "#core/server/utils/org-name",
     "#core/server/utils/money-approvals",
     "#core/server/utils/expense-flow",
     "#core/server/utils/approval-views",

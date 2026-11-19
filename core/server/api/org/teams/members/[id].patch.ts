@@ -6,7 +6,8 @@
 import { updateItem } from "@directus/sdk";
 import { z } from "zod";
 import { buildCommitteeMemberEntry } from "#core/shared/ledger/entries";
-import { idString, orgName, readDelegationBody, recordEntry, requireDelegationAdmin, teamOpenAreas } from "#core/server/utils/delegation";
+import { idString, readDelegationBody, recordEntry, requireDelegationAdmin, teamOpenAreas } from "#core/server/utils/delegation";
+import { orgName } from "#core/server/utils/org-name";
 import { loadTeamMemberRow } from "#core/server/utils/committees";
 
 const body = z.object({ orgId: idString, role: z.enum(["member", "lead"]) });

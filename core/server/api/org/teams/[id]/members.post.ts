@@ -13,12 +13,12 @@ import {
   idString,
   loadMemberHolder,
   loadTeamHolder,
-  orgName,
   readDelegationBody,
   recordEntry,
   requireDelegationAdmin,
   teamOpenAreas,
 } from "#core/server/utils/delegation";
+import { orgName } from "#core/server/utils/org-name";
 
 const body = z.object({
   orgId: idString,
