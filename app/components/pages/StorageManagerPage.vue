@@ -1038,9 +1038,9 @@ async function loadFolderSize(id: string) {
     <Sheet :open="!!previewFile" @update:open="(v) => !v && (previewFile = null)">
       <AppSheetContent side="right" class="w-full sm:max-w-md">
         <template v-if="previewFile">
-          <SheetHeader>
-            <SheetTitle class="truncate pr-6">{{ fileLabel(previewFile) }}</SheetTitle>
-          </SheetHeader>
+          <AppSheetHeader>
+            <AppSheetTitle class="truncate pr-6">{{ fileLabel(previewFile) }}</AppSheetTitle>
+          </AppSheetHeader>
           <div class="mt-4 grid place-items-center overflow-hidden rounded-xl bg-muted/50 p-2">
             <img
               v-if="isImage(previewFile.type)"

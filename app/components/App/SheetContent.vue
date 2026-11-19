@@ -8,6 +8,11 @@
   1rem radius is layered, so the `rounded-*-none` below squares the screen edge.
   The overlay's glass comes from its stock data-slot (earnest-ui.css).
 
+  The stock new-york-v4 pane is an unpadded flex column whose header and footer
+  pad themselves. The workspace's sheets are written as a padded block (body
+  content follows the header with its own `mt-*`), so `block p-6` restores that;
+  <AppSheetHeader> drops the header's own padding to match.
+
   Use <AppSheetContent> in the app; <SheetContent> only inside ui/. Sheet,
   SheetHeader, SheetTitle and the rest are used as they are, around and inside it.
 -->
@@ -37,7 +42,7 @@ const flatEdge: Record<SheetSide, string> = {
 <template>
   <SheetContent
     :side="props.side"
-    :class="cn('glass-surface glass-surface--strong', flatEdge[props.side], props.class)"
+    :class="cn('glass-surface glass-surface--strong block p-6', flatEdge[props.side], props.class)"
   >
     <slot />
   </SheetContent>

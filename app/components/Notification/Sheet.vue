@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  Sheet,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Sheet, SheetDescription } from "@/components/ui/sheet";
 import type { UnifiedNotification } from "#core/app/composables/useNotifications";
 import type { HoaAnnouncement } from "#core/types/directus";
 import { notificationTargetPath } from "#core/shared/notifications/grouping";
@@ -152,7 +147,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
   <Sheet :open="isSheetOpen" @update:open="handleOpenChange">
     <AppSheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto t-text">
       <template v-if="selectedNotification">
-        <SheetHeader class="space-y-4">
+        <AppSheetHeader class="gap-4">
           <!-- Type Badge -->
           <div class="flex items-center gap-2">
             <div
@@ -201,9 +196,9 @@ const formatFullDate = (dateString: string | null | undefined): string => {
             </span>
           </div>
 
-          <SheetTitle class="text-xl font-semibold text-left t-text">
+          <AppSheetTitle class="text-xl font-semibold text-left t-text">
             {{ selectedNotification.title }}
-          </SheetTitle>
+          </AppSheetTitle>
 
           <SheetDescription class="sr-only">
             Notification details
@@ -236,7 +231,7 @@ const formatFullDate = (dateString: string | null | undefined): string => {
               {{ selectedNotification.metadata.channelName }}
             </span>
           </div>
-        </SheetHeader>
+        </AppSheetHeader>
 
         <!-- Content -->
         <div class="mt-6">

@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  Sheet,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+import { Sheet, SheetDescription } from "@/components/ui/sheet";
 
 const config = useRuntimeConfig();
 
@@ -93,7 +88,7 @@ const handleOpenChange = (open: boolean) => {
       class="w-full sm:max-w-lg overflow-y-auto"
     >
       <template v-if="selectedAnnouncement">
-        <SheetHeader class="space-y-4">
+        <AppSheetHeader class="gap-4">
           <!-- Type Badge -->
           <div class="flex items-center gap-2">
             <div
@@ -120,9 +115,9 @@ const handleOpenChange = (open: boolean) => {
             </span>
           </div>
 
-          <SheetTitle class="text-xl font-semibold text-left">
+          <AppSheetTitle class="text-xl font-semibold text-left">
             {{ selectedAnnouncement.title }}
-          </SheetTitle>
+          </AppSheetTitle>
 
           <SheetDescription class="sr-only">
             Announcement details
@@ -147,7 +142,7 @@ const handleOpenChange = (open: boolean) => {
               </span>
             </span>
           </div>
-        </SheetHeader>
+        </AppSheetHeader>
 
         <!-- Content -->
         <div class="mt-6">

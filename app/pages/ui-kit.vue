@@ -497,10 +497,10 @@ const materials = [
               <AppButton variant="outline" data-kit-open="sheet">Sheet</AppButton>
             </SheetTrigger>
             <AppSheetContent>
-              <SheetHeader>
-                <SheetTitle>Filters</SheetTitle>
+              <AppSheetHeader>
+                <AppSheetTitle>Filters</AppSheetTitle>
                 <SheetDescription>Narrow the member list.</SheetDescription>
-              </SheetHeader>
+              </AppSheetHeader>
             </AppSheetContent>
           </Sheet>
 
