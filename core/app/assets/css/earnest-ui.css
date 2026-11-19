@@ -171,6 +171,8 @@ html[data-tint='off'] {
 [data-sonner-toast],
 .glass-btn-soft,
 .app-btn-soft,
+.app-calendar [data-slot='calendar-prev-button'],
+.app-calendar [data-slot='calendar-next-button'],
 .header-pill,
 .field-underline,
 select,
@@ -386,6 +388,28 @@ select,
 }
 .app-btn-soft:focus-visible {
 	box-shadow: revert-layer;
+}
+
+/* AppCalendar's buttons (App/Calendar.vue). The stock calendar builds them from
+   buttonVariants() inside ui/, so they are reached by their stock data-slots,
+   scoped to the wrapper class. Unlayered, for the same reason as .app-btn-soft
+   above: the stock outline's `border`, `shadow-xs`, `rounded-md` and hover /
+   dark fills are utilities. The nav is a borderless pill wearing the quiet rim
+   with no fill (the stock part's own `bg-transparent`); a day is a pill.
+   Focus hands box-shadow back to the stock ring. (docs/shadcn-census.md.) */
+.app-calendar [data-slot='calendar-prev-button'],
+.app-calendar [data-slot='calendar-next-button'] {
+	background: transparent;
+	border: 0;
+	border-radius: 9999px;
+	box-shadow: var(--glass-edge-shadow);
+}
+.app-calendar [data-slot='calendar-prev-button']:focus-visible,
+.app-calendar [data-slot='calendar-next-button']:focus-visible {
+	box-shadow: revert-layer;
+}
+.app-calendar [data-slot='calendar-cell-trigger'] {
+	border-radius: 9999px;
 }
 
 /* Focus keeps the rim and ADDS the accent ring. Deliberately OUTSIDE @layer so it

@@ -20,7 +20,7 @@ import type { DateValue } from "reka-ui";
 import type { HTMLAttributes } from "vue";
 import { DateFieldInput, DateFieldRoot } from "reka-ui";
 import { cn } from "~/lib/utils";
-import { Calendar } from "~/components/ui/calendar";
+import AppCalendar from "~/components/App/Calendar.vue";
 import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import AppPopoverContent from "~/components/App/PopoverContent.vue";
 import { fromDateTimeValue, fromDateValue, toCalendarDate, toCalendarDateTime } from "~/lib/date-input-value";
@@ -135,7 +135,7 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
       <AppPopoverContent class="w-auto p-0" align="end">
         <!-- default-placeholder opens the grid on the bound month, not today's;
              the Calendar mounts fresh on every open, so this is read each time. -->
-        <Calendar
+        <AppCalendar
           :model-value="calendarValue"
           :default-placeholder="calendarValue"
           :min-value="minValue"

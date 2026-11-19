@@ -198,6 +198,10 @@ describe("unresolved-components", () => {
   it.each(cases)("%s", (_n, tpl, count) => {
     expect(findUnresolvedComponents(sfc(tpl), known).hits).toHaveLength(count);
   });
+  it("a component destructured in script setup resolves", () => {
+    const src = `<script setup>\nconst [DefineRow, ReuseRow] = createReusableTemplate();\nconst { Inner: Shown } = parts;\n</script>\n${sfc("<DefineRow /><ReuseRow /><Shown />")}`;
+    expect(findUnresolvedComponents(src, known).hits).toHaveLength(0);
+  });
   it("a locally imported component resolves", () => {
     const src = `<script setup>\nimport Local from "./Local.vue";\n</script>\n${sfc("<Local />")}`;
     expect(findUnresolvedComponents(src, known).hits).toHaveLength(0);

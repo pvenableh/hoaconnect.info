@@ -247,7 +247,7 @@ export function parseComponentNames(dts: string): Set<string> {
   return out;
 }
 
-/** Names the SFC brings into scope itself (`import Foo from`, `import { Foo }`, `const Foo =`). */
+/** Names the SFC brings into scope itself (`import Foo from`, `import { Foo }`, `const Foo =`, `const [Foo] =`). */
 function localNames(src: string): Set<string> {
   const out = new Set<string>();
   for (const m of src.matchAll(/import\s+(?:type\s+)?([\w$]+)(?:\s*,\s*\{([^}]*)\})?\s+from/g)) {
@@ -257,6 +257,13 @@ function localNames(src: string): Set<string> {
   for (const m of src.matchAll(/import\s+(?:type\s+)?\{([^}]*)\}\s+from/g))
     for (const n of m[1]!.split(",")) out.add(n.trim().split(/\s+as\s+/).pop()!.trim());
   for (const m of src.matchAll(/\b(?:const|let|var|function)\s+([A-Z][\w$]*)\b/g)) out.add(m[1]!);
+  // Destructured: `const [DefineX, ReuseX] = createReusableTemplate()` (the stock
+  // shadcn-vue Calendar does this), `const { Foo } = …`.
+  for (const m of src.matchAll(/\b(?:const|let|var)\s*[[{]([^\]}]*)[\]}]\s*=/g))
+    for (const n of m[1]!.split(",")) {
+      const name = n.trim().split(":").pop()!.trim();
+      if (/^[A-Z][\w$]*$/.test(name)) out.add(name);
+    }
   return out;
 }
 
