@@ -37,8 +37,9 @@ const immersive = computed(() => !!route.meta.immersive);
 // the Nav as it scrolls under the chrome, and earns the Nav its hairline.
 useTitleCollapse();
 
-// The dock is always at the bottom with its labels on (Phase 4).
-const immersiveDockPad = computed(() => (immersive.value ? "app-main--dock-pad-labels" : null));
+// The dock is always at the bottom; its height (names on or off) is measured
+// into --app-dock-h by App/Dock.vue.
+const immersiveDockPad = computed(() => (immersive.value ? "app-main--dock-pad" : null));
 
 // ── Persistent "view as member" preview (admins) ────────────────────────────
 // `?as=member` is the entry point (OrgSelector menu, the view switcher); arriving
@@ -231,8 +232,10 @@ onMounted(() => {
 
 <style scoped>
 /* Immersive pages run to the foot of the viewport; the floating dock sits over
-   that foot at every width, so the page stops above it (pill + its offset). */
-.app-main--dock-pad-labels {
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
+   that foot at every width, so the page stops above it: the pill's measured
+   height (--app-dock-h, App/Dock.vue), its 1rem offset and a 1rem breath.
+   The fallback is the tallest pill (names on). */
+.app-main--dock-pad {
+  padding-bottom: calc(var(--app-dock-h, 4.5rem) + 2rem + env(safe-area-inset-bottom));
 }
 </style>

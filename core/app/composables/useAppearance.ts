@@ -25,6 +25,10 @@
 // a solid ground, for Reduce Transparency). The choice is stored with the
 // person's app prefs (`/api/user/app-prefs`), so it follows them to another
 // device; localStorage caches it for the first frame.
+//
+// THE DOCK'S APP NAMES (Session 18) live beside the tint, owned the same way:
+// off by default, `{ dock: { names: true } }` in the app prefs when a person
+// turns them on, cached on the device first and replaced by the account copy.
 
 import {
   accentCssVars,
@@ -32,7 +36,7 @@ import {
   type ResolvedTint,
   type TintSwatchId,
 } from "#core/shared/branding/accent";
-import type { TintPrefs } from "#core/shared/nav/app-prefs";
+import { DEFAULT_DOCK_NAMES, type DockPrefs, type TintPrefs } from "#core/shared/nav/app-prefs";
 
 export type AppearanceMode = "light" | "dark" | "system";
 export type ResolvedAppearance = "light" | "dark";
@@ -45,6 +49,8 @@ const STORAGE_KEY = "appearance";
 const LEGACY_STORAGE_KEY = "design-theme";
 /** This device's cache of the person's tint ({ on?, swatch? }). */
 const TINT_STORAGE_KEY = "app-tint";
+/** This device's cache of the person's dock prefs ({ names? }). */
+const DOCK_STORAGE_KEY = "app-dock";
 /** The six dock knobs' old cache keys: removed on first load (Phase 4). */
 const RETIRED_KEYS = ["app-nav-palette", "app-nav-position", "app-nav-labels", "app-nav-glass"];
 
@@ -85,6 +91,7 @@ const state = reactive({
   systemDark: false,
   hydrated: false,
   tint: {} as TintPrefs,
+  dock: {} as DockPrefs,
 });
 
 function readStoredTint(): TintPrefs {
@@ -98,6 +105,25 @@ function readStoredTint(): TintPrefs {
   }
 }
 
+function readStoredDock(): DockPrefs {
+  if (!import.meta.client) return {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(DOCK_STORAGE_KEY) || "null") as DockPrefs | null;
+    return raw && typeof raw === "object" && typeof raw.names === "boolean" ? { names: raw.names } : {};
+  } catch {
+    return {};
+  }
+}
+
+function cacheDock() {
+  if (!import.meta.client) return;
+  try {
+    localStorage.setItem(DOCK_STORAGE_KEY, JSON.stringify(state.dock));
+  } catch {
+    // Storage full or blocked: the account copy still holds it.
+  }
+}
+
 function cacheTint() {
   if (!import.meta.client) return;
   try {
@@ -107,7 +133,7 @@ function cacheTint() {
   }
 }
 
-// ── The account copy of the tint ─────────────────────────────────────────
+// ── The account copy of the tint and the dock ────────────────────────────
 // Pulled once per signed-in user per page load; a stored key overrides the
 // cache. Pushed on every change, debounced. Both best-effort: an unprovisioned
 // field answers `available: false` / 503 and the cache stands.
@@ -121,10 +147,12 @@ async function pullTint(userId: string, onArrive: () => void) {
   pulledFor = userId;
   const editsBefore = localEdits;
   try {
-    const res = await $fetch<{ available: boolean; prefs: { tint?: TintPrefs } }>("/api/user/app-prefs");
+    const res = await $fetch<{ available: boolean; prefs: { tint?: TintPrefs; dock?: DockPrefs } }>("/api/user/app-prefs");
     if (!res?.available || localEdits !== editsBefore) return;
     state.tint = { ...(res.prefs?.tint ?? {}) };
+    state.dock = { ...(res.prefs?.dock ?? {}) };
     cacheTint();
+    cacheDock();
     onArrive();
   } catch {
     // Signed out, offline, or the route is unavailable: the cache stands.
@@ -141,6 +169,20 @@ function pushTint() {
     // The whole choice, defaults included: the route drops what is a default.
     const tint = { on: state.tint.on ?? true, swatch: state.tint.swatch ?? "community" };
     $fetch("/api/user/app-prefs", { method: "PATCH", body: { tint } }).catch(() => {});
+  }, 400);
+}
+
+let dockTimer: ReturnType<typeof setTimeout> | null = null;
+function pushDock() {
+  localEdits++;
+  cacheDock();
+  if (!import.meta.client || !pulledFor) return;
+  if (dockTimer) clearTimeout(dockTimer);
+  dockTimer = setTimeout(() => {
+    dockTimer = null;
+    // The route drops the default (names off), so turning names off clears the key.
+    const dock = { names: state.dock.names ?? DEFAULT_DOCK_NAMES };
+    $fetch("/api/user/app-prefs", { method: "PATCH", body: { dock } }).catch(() => {});
   }, 400);
 }
 
@@ -167,6 +209,8 @@ export function useAppearance() {
   const tintOn = computed(() => tint.value.on);
   /** The chosen swatch (the community's when none is stored). Kept while Tint is off. */
   const tintSwatch = computed<TintSwatchId>(() => state.tint.swatch ?? "community");
+  /** The dock names its apps under their icons. Off by default. */
+  const dockNames = computed(() => state.dock.names ?? DEFAULT_DOCK_NAMES);
 
   /**
    * Write the resolved appearance to the document. This is the ONLY place the
@@ -205,7 +249,10 @@ export function useAppearance() {
       state.mode = readStoredMode();
     }
 
-    if (!state.hydrated) state.tint = readStoredTint();
+    if (!state.hydrated) {
+      state.tint = readStoredTint();
+      state.dock = readStoredDock();
+    }
     state.hydrated = true;
     apply();
 
@@ -217,6 +264,11 @@ export function useAppearance() {
     state.tint = { ...state.tint, on };
     apply();
     pushTint();
+  }
+
+  function setDockNames(names: boolean) {
+    state.dock = { ...state.dock, names };
+    pushDock();
   }
 
   function setTintSwatch(swatch: TintSwatchId) {
@@ -269,6 +321,8 @@ export function useAppearance() {
     communityColor,
     setTintOn,
     setTintSwatch,
+    dockNames,
+    setDockNames,
     setMode,
     toggle,
     hydrate,

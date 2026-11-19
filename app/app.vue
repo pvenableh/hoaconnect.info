@@ -4,7 +4,7 @@
       <NuxtPage :transition="pageTransition" />
     </NuxtLayout>
     <!-- On a phone the dock sits at the foot of the screen; toasts rise above it. -->
-    <Toaster :mobile-offset="{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }" />
+    <Toaster :mobile-offset="{ bottom: 'calc(var(--app-dock-h, 4.5rem) + 2rem + env(safe-area-inset-bottom))' }" />
     <!-- The one host for useConfirm(): every confirm/alert in the app renders here. -->
     <AppConfirmDialog />
   </div>

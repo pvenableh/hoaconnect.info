@@ -1,9 +1,9 @@
 // useAppNav — the "Apps" model for the floating dock navigation.
 //
-// The dock has no settings of its own any more (Phase 4, plan §2.4): it sits
-// at the bottom, shows its labels, and wears the person's tint
-// (useAppearance), so there are no palettes, no position, no label switch and
-// no glass chrome switch here. The one ramp left, LANDING_RAMP, colours the
+// The dock's one setting is "Show app names" (Session 18, off by default),
+// which useAppearance owns with the tint: it sits at the bottom and wears the
+// person's tint, so there are no palettes, no position and no glass chrome
+// switch here. The one ramp left, LANDING_RAMP, colours the
 // PUBLIC landing's dock (Org/Landing/LandingDock.vue), which keeps its own
 // look: it is the "fresh" ramp that was every visitor's default.
 

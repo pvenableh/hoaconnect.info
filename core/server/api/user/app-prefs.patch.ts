@@ -2,10 +2,10 @@
  * PATCH /api/user/app-prefs
  *
  * Merge a change into the signed-in user's workspace preferences
- * (`directus_users.app_prefs`). Body: `{ tint: { on?, swatch? } }`.
+ * (`directus_users.app_prefs`). Body: `{ tint?: { on?, swatch? }, dock?: { names? } }`.
  *
  * ⚠️ Writes the SESSION's user and nothing else. The body is reduced to the
- * known tint keys (sanitizeAppPrefs) before it goes anywhere near the row, so
+ * known keys (sanitizeAppPrefs) before it goes anywhere near the row, so
  * an `id`, `role`, `email` or any other field in it is dropped, not written —
  * the admin token below would otherwise write whatever it was handed.
  */
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const patch = sanitizeAppPrefs(await readBody(event));
-  if (!patch.tint) {
+  if (!patch.tint && !patch.dock) {
     throw createError({ statusCode: 400, statusMessage: "Nothing to update" });
   }
 

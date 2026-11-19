@@ -4,7 +4,7 @@
  *
  *   · the row written and read is the session's user — never an id from the
  *     body or the query, which a caller controls;
- *   · the body is reduced to the tint keys before the write, so a request
+ *   · the body is reduced to the tint and dock-names keys before the write, so a request
  *     carrying `role`, `email` or a second `app_prefs` cannot reach the row;
  *   · a change merges into what is stored instead of replacing it;
  *   · no session is a 401, and an unprovisioned field degrades instead of
@@ -61,6 +61,11 @@ describe("sanitizeAppPrefs / mergeAppPrefs", () => {
     ["is empty for null", null, {}],
     ["is empty for a string", "x", {}],
     ["is empty for an array", [{ tint: { on: false } }], {}],
+    ["keeps the dock's names switch", { dock: { names: true } }, { dock: { names: true } }],
+    ["keeps names off when it is sent (a write may choose it, to clear the key)", { dock: { names: false } }, { dock: { names: false } }],
+    ["drops a non-boolean names", { dock: { names: "yes" } }, {}],
+    ["keeps names beside a tint and drops the old dock keys around it", { tint: { swatch: "teal" }, dock: { names: true, palette: "aurora", labels: true } }, { tint: { swatch: "teal" }, dock: { names: true } }],
+    ["does not read the old labels switch as names", { dock: { labels: true } }, {}],
   ])("sanitize %s", (_name, input, out) => {
     expect(sanitizeAppPrefs(input)).toEqual(out);
   });
@@ -71,6 +76,10 @@ describe("sanitizeAppPrefs / mergeAppPrefs", () => {
     ["never stores the community swatch: it is the default", { tint: { swatch: "teal" } }, { tint: { swatch: "community" } }, {}],
     ["drops the old dock keys from what was stored", { dock: { palette: "aurora", labels: true } }, { tint: { swatch: "violet" } }, { tint: { swatch: "violet" } }],
     ["keeps a swatch while Tint is off, so it comes back", { tint: { swatch: "slate" } }, { tint: { on: false } }, { tint: { on: false, swatch: "slate" } }],
+    ["stores names on: the only dock value ever written", {}, { dock: { names: true } }, { dock: { names: true } }],
+    ["never stores names off: it is the default", { dock: { names: true }, tint: { swatch: "rose" } }, { dock: { names: false } }, { tint: { swatch: "rose" } }],
+    ["a tint change keeps names", { dock: { names: true } }, { tint: { swatch: "blue" } }, { tint: { swatch: "blue" }, dock: { names: true } }],
+    ["a names change keeps the tint", { tint: { on: false } }, { dock: { names: true } }, { tint: { on: false }, dock: { names: true } }],
   ])("merge %s", (_name, base, patch, out) => {
     expect(mergeAppPrefs(base, patch)).toEqual(out);
   });
@@ -128,6 +137,12 @@ describe("PATCH /api/user/app-prefs", () => {
     expect(write.data.app_prefs).toEqual({ tint: { on: false, swatch: "violet" } });
   });
 
+  it("writes the dock's names switch, and nothing else of the dock", async () => {
+    body = { dock: { names: true, position: "top" } };
+    await (await loadPatch())({});
+    expect(ops.find((o) => o.op === "updateUser")!.data.app_prefs).toEqual({ tint: { on: false, swatch: "teal" }, dock: { names: true } });
+  });
+
   it("rewrites a row that still holds the old dock keys without them", async () => {
     stored = { dock: { palette: "aurora", position: "top", labels: true, glass: false } };
     body = { tint: { on: false } };
@@ -136,7 +151,7 @@ describe("PATCH /api/user/app-prefs", () => {
   });
 
   it("400s on a body with nothing it may write (the old dock keys included)", async () => {
-    body = { role: "admin-role", dock: { palette: "fresh" } };
+    body = { role: "admin-role", dock: { palette: "fresh", labels: true } };
     await expect((await loadPatch())({})).rejects.toMatchObject({ statusCode: 400 });
     expect(ops.filter((o) => o.op === "updateUser")).toEqual([]);
   });

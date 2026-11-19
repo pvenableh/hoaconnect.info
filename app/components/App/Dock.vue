@@ -6,11 +6,20 @@ import { afterFirstFrame, DURATION } from "#core/shared/motion";
 const { user } = useDirectusAuth();
 const route = useRoute();
 
-// The dock has no settings (Phase 4, plan §2.4): bottom only, labels on, and
+// The dock has one setting (Session 18): "Show app names", off by default, in
+// Appearance (useAppearance owns it with the tint). Otherwise bottom only, and
 // every chip in the person's tint (useAppearance writes --app-accent-*; Tint
 // off drains the chips with the glass). The device's Reduce Transparency, not
-// a switch, decides whether the pill is glass.
+// a switch, decides whether the pill is glass. With names off the open app is
+// marked on its chip (a ring in the ink with a gap, a faint tinted fill), a
+// pointer still gets the name in a tooltip, and every chip keeps its label.
 const { isOnOrgPage, apps, activeKey, badges, go } = useDockApps();
+const { dockNames } = useAppearance();
+
+// The pill's height, for what must clear it (an immersive page's foot, the
+// phone's toasts): names on or off changes it, so it is measured, not assumed.
+const pillEl = ref<HTMLElement | null>(null);
+useChromeHeight(pillEl, "--app-dock-h");
 const nav = useNavContext();
 const { verbs, run } = useCreateVerbs();
 
@@ -199,6 +208,7 @@ watch(shownApps, reset, { immediate: true });
     <nav
       v-if="user && isOnOrgPage"
       class="app-dock ui-kit"
+      :class="{ 'app-dock--names': dockNames }"
       aria-label="App navigation"
     >
       <div class="app-dock__stack">
@@ -246,6 +256,7 @@ watch(shownApps, reset, { immediate: true });
         </section>
 
         <div
+          ref="pillEl"
           class="app-dock__pill glass-surface glass-surface--strong"
           @pointermove="onPointerMove"
           @pointerleave="reset"
@@ -269,7 +280,7 @@ watch(shownApps, reset, { immediate: true });
                 {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
               </span>
             </span>
-            <span class="dock-item__label">{{ app.shortName }}</span>
+            <span v-if="dockNames" class="dock-item__label">{{ app.shortName }}</span>
           </button>
 
           <button
@@ -284,11 +295,12 @@ watch(shownApps, reset, { immediate: true });
             data-dock-more-trigger
             @click="toggleCard"
           >
+            <span class="dock-item__tip">{{ cardOpen ? "Close" : "Apps" }}</span>
             <span class="dock-item__chip">
               <Icon :name="cardOpen ? 'i-lucide-x' : 'i-lucide-layout-grid'" class="dock-item__icon" />
               <span v-if="moreUnread > 0 && !cardOpen" class="dock-item__dot" aria-hidden="true" />
             </span>
-            <span class="dock-item__label">{{ cardOpen ? "Close" : "Apps" }}</span>
+            <span v-if="dockNames" class="dock-item__label">{{ cardOpen ? "Close" : "Apps" }}</span>
           </button>
         </div>
       </div>
@@ -533,10 +545,26 @@ watch(shownApps, reset, { immediate: true });
   text-overflow: ellipsis;
   color: var(--theme-text-secondary, #6b7280);
 }
-/* The open app: its label in the ink (AA on the pill), since labels are on
-   and the old running-app dot would collide with them. */
+/* The open app: its label in the ink (AA on the pill) when names show. */
 .dock-item--active .dock-item__label {
   color: var(--theme-accent-primary);
+}
+/* ...and the chip itself says it, names or not (Session 18): a 2px ring in
+   the ink with a 2px gap in the pill's ground, and a faint tinted fill. In
+   the pill, the phone's dock and the Apps card alike. */
+.dock-item--active .dock-item__chip {
+  background: color-mix(in srgb, var(--theme-accent-primary) 12%, var(--theme-bg-elevated));
+  border-color: transparent;
+  box-shadow:
+    0 0 0 2px var(--theme-bg-elevated),
+    0 0 0 4px var(--theme-accent-primary);
+}
+/* Tint off keeps the ring, in the neutral ink. */
+:global(html[data-tint='off'] .dock-item--active .dock-item__chip) {
+  background: var(--theme-bg-secondary);
+  box-shadow:
+    0 0 0 2px var(--theme-bg-elevated),
+    0 0 0 4px var(--theme-text-primary);
 }
 
 .dock-item__badge {
@@ -567,7 +595,8 @@ watch(shownApps, reset, { immediate: true });
   .app-dock__grid.is-entering .app-dock__grid-item {
     animation: none;
   }
-  .dock-item {
+  .dock-item,
+  .dock-item__chip {
     transition: none;
   }
   .dock-item:active {

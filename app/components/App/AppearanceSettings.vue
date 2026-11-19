@@ -7,14 +7,18 @@
 //     opaque, and the row of swatches appears; the first is the community's
 //     own colour and is the default. Stored with the person's app prefs, so it
 //     follows them to another device.
+//   Show app names — the dock's names under its icons (Session 18). Off by
+//     default: the icons, the open app's ring and a pointer's tooltip carry
+//     it. Stored with the tint, so it follows the person too.
 // Everything else the old panel offered is gone: dock palettes (the tint
 // replaces them), the glass chrome switch (the device's Reduce Transparency
-// decides), the dock label switch (labels are on) and dock position (bottom).
+// decides) and dock position (bottom).
 import { Switch } from "@/components/ui/switch";
 import { TINT_SWATCHES, swatchAccent, type TintSwatchId } from "#core/shared/branding/accent";
 import type { AppearanceMode } from "#core/app/composables/useAppearance";
 
-const { mode, isDark, setMode, tintOn, tintSwatch, communityColor, setTintOn, setTintSwatch } = useAppearance();
+const { mode, isDark, setMode, tintOn, tintSwatch, communityColor, setTintOn, setTintSwatch, dockNames, setDockNames } =
+  useAppearance();
 
 const MODES = [
   { value: "light", label: "Light", icon: "lucide:sun" },
@@ -84,6 +88,15 @@ function onSwatchKey(e: KeyboardEvent, i: number) {
       >
         <Icon v-if="s.id === 'community'" name="lucide:house" class="appearance__swatch-icon" aria-hidden="true" />
       </button>
+    </div>
+
+    <div class="appearance__toggle" data-appearance-dock-names @click="setDockNames(!dockNames)">
+      <Icon name="lucide:tag" class="appearance__toggle-icon" />
+      <span class="appearance__toggle-body">
+        <span class="type-body t-text">Show app names</span>
+        <span class="type-meta t-text-muted">{{ dockNames ? "Under each icon in the dock." : "Icons only." }}</span>
+      </span>
+      <Switch :model-value="dockNames" aria-label="Show app names" @update:model-value="setDockNames" @click.stop />
     </div>
   </div>
 </template>
