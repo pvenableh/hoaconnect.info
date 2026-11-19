@@ -408,7 +408,7 @@ async function createAllPredefinedCategories() {
         <!-- Description -->
         <div class="grid gap-2">
           <Label for="cat-desc">Description (optional)</Label>
-          <Textarea
+          <AppTextarea
             id="cat-desc"
             v-model="formData.description"
             placeholder="Brief description of this category"

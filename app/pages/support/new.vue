@@ -109,7 +109,7 @@ async function send() {
       </div>
       <div class="space-y-1.5">
         <Label for="support-body">Message</Label>
-        <Textarea id="support-body" v-model="body" rows="6" :maxlength="BODY_MAX" placeholder="What happened, and what you expected. Which page, if it's a problem." />
+        <AppTextarea id="support-body" v-model="body" rows="6" :maxlength="BODY_MAX" placeholder="What happened, and what you expected. Which page, if it's a problem." />
       </div>
       <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
       <div class="flex justify-end gap-2">

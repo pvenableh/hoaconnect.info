@@ -930,7 +930,7 @@ const materials = [
             </div>
             <div>
               <Label class="type-label">Note</Label>
-              <Textarea class="glass-field mt-1" placeholder="Anything the board should know" />
+              <AppTextarea class="glass-field mt-1" placeholder="Anything the board should know" />
             </div>
           </div>
           <div class="space-y-4">
@@ -1119,7 +1119,7 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
     <AppSpotlight :destinations="kitDestinations" :search-fn="kitSearch" />
 
     <AppBottomSheet v-model:open="sizedSheetOpen" size="lg" title="Invite members" description="Each person gets an email with a sign-in link.">
-      <Textarea placeholder="one@example.com, two@example.com" />
+      <AppTextarea placeholder="one@example.com, two@example.com" />
       <template #footer>
         <Button variant="ghost" @click="sizedSheetOpen = false">Cancel</Button>
         <Button @click="sizedSheetOpen = false">Send Invites</Button>
@@ -1134,7 +1134,7 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
         </div>
         <div>
           <Label class="type-label">Message</Label>
-          <Textarea class="glass-field mt-1" placeholder="Add the details…" />
+          <AppTextarea class="glass-field mt-1" placeholder="Add the details…" />
         </div>
       </div>
       <template #footer>

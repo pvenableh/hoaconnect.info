@@ -237,15 +237,15 @@ const saveEdit = async () => {
       </div>
       <div class="space-y-1">
         <Label :for="`flag-doc-${flag.id}`">Your documents</Label>
-        <Textarea :id="`flag-doc-${flag.id}`" v-model="form.document_rule" rows="2" />
+        <AppTextarea :id="`flag-doc-${flag.id}`" v-model="form.document_rule" rows="2" />
       </div>
       <div class="space-y-1">
         <Label :for="`flag-law-${flag.id}`">State law</Label>
-        <Textarea :id="`flag-law-${flag.id}`" v-model="form.statute_rule" rows="2" />
+        <AppTextarea :id="`flag-law-${flag.id}`" v-model="form.statute_rule" rows="2" />
       </div>
       <div class="space-y-1">
         <Label :for="`flag-note-${flag.id}`">Note</Label>
-        <Textarea :id="`flag-note-${flag.id}`" v-model="form.note" rows="2" />
+        <AppTextarea :id="`flag-note-${flag.id}`" v-model="form.note" rows="2" />
       </div>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="editing = false">Cancel</Button>

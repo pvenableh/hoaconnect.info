@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { ChangeKind, ChangeAction, HouseholdLease } from "#core/app/composables/useChangeRequests";
 import { LEASE_DOCUMENT_MAX_BYTES, leaseDay, leaseRequestLine } from "#core/shared/units/lease-requests";
 
@@ -514,7 +513,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
           <div class="space-y-1.5">
             <Label>Note for the reviewer <span class="t-text-muted">(optional)</span></Label>
-            <Textarea v-model="note" rows="2" />
+            <AppTextarea v-model="note" rows="2" />
           </div>
         </div>
 

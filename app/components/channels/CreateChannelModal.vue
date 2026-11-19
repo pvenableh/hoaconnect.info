@@ -125,7 +125,7 @@ watch(isOpen, (open) => {
       <VeeField v-slot="{ field, errorMessage }" name="description">
         <FieldLabel>Description (optional)</FieldLabel>
         <FieldContent>
-          <Textarea
+          <AppTextarea
             v-bind="field"
             placeholder="What's this channel about?"
             :rows="2"

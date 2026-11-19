@@ -291,7 +291,7 @@ useSeoMeta({
                 <!-- Message -->
                 <div class="space-y-2">
                   <Label for="message">Additional Information (Optional)</Label>
-                  <Textarea
+                  <AppTextarea
                     id="message"
                     v-model="form.message"
                     placeholder="Any additional information you'd like to share..."

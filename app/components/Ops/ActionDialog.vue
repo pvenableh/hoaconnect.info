@@ -102,7 +102,7 @@ async function submit() {
         <slot />
         <div class="space-y-1.5">
           <Label for="ops-action-reason">Reason</Label>
-          <Textarea
+          <AppTextarea
             id="ops-action-reason"
             v-model="reason"
             rows="3"

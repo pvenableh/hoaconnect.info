@@ -385,6 +385,7 @@ describe("form-dialogs", () => {
     ["a self-closing Dialog", `<Dialog :open="o" />\n<Input />`, 0],
     ["two form dialogs", `<Dialog>\n<Input />\n</Dialog>\n<Dialog>\n<Textarea />\n</Dialog>`, 2],
     ["AppBottomSheet", `<AppBottomSheet v-model:open="o">\n<Input />\n</AppBottomSheet>`, 0],
+    ["a Dialog with an AppTextarea (the wrapper of a stock field)", `<Dialog>\n<AppTextarea v-model="n" />\n</Dialog>`, 1],
   ];
   it.each(cases)("%s", (_n, tpl, count) => {
     expect(findFormDialogs(sfc(tpl)).hits).toHaveLength(count);

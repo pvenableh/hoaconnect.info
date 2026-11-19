@@ -164,12 +164,12 @@ async function save() {
 
       <div class="grid gap-2">
         <Label for="job-description">Description (optional)</Label>
-        <Textarea id="job-description" v-model="form.description" rows="2" />
+        <AppTextarea id="job-description" v-model="form.description" rows="2" />
       </div>
 
       <div class="grid gap-2">
         <Label for="job-notes">Board notes (optional)</Label>
-        <Textarea id="job-notes" v-model="form.notes" rows="2" placeholder="Never shown to owners" />
+        <AppTextarea id="job-notes" v-model="form.notes" rows="2" placeholder="Never shown to owners" />
       </div>
 
       <label class="flex items-start justify-between gap-4">

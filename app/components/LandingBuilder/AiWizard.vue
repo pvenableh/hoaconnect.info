@@ -77,7 +77,7 @@ async function generate() {
         </DialogDescription>
       </DialogHeader>
 
-      <Textarea
+      <AppTextarea
         v-model="brief"
         rows="5"
         :disabled="generating"

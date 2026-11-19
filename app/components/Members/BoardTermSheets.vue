@@ -222,7 +222,7 @@ async function save() {
         </div>
         <div class="grid gap-2">
           <Label for="correct-message">Bio/Message (optional)</Label>
-          <Textarea id="correct-message" v-model="form.message" rows="3" placeholder="Brief bio or message from this board member..." />
+          <AppTextarea id="correct-message" v-model="form.message" rows="3" placeholder="Brief bio or message from this board member..." />
         </div>
         <div class="grid gap-2">
           <Label for="correct-status">Status</Label>

@@ -1783,7 +1783,7 @@ useSeoMeta({
 
               <div class="grid gap-2">
                 <Label for="board-message">Bio/Message (optional)</Label>
-                <Textarea
+                <AppTextarea
                   id="board-message"
                   v-model="boardForm.message"
                   placeholder="Brief bio or message from this board member..."

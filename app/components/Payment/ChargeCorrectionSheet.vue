@@ -154,7 +154,7 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
         </div>
         <div class="space-y-1.5">
           <Label for="charge-notes">Notes</Label>
-          <Textarea id="charge-notes" v-model="form.notes" rows="3" placeholder="For the board" />
+          <AppTextarea id="charge-notes" v-model="form.notes" rows="3" placeholder="For the board" />
         </div>
       </template>
 
@@ -201,7 +201,7 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
 
       <div v-if="mode !== 'edit'" class="space-y-1.5">
         <Label for="charge-reason">Why</Label>
-        <Textarea id="charge-reason" v-model="form.reason" rows="3" maxlength="1000" />
+        <AppTextarea id="charge-reason" v-model="form.reason" rows="3" maxlength="1000" />
         <p class="type-meta t-text-muted">
           This gives up income the community is owed, so the board approves it like spending. You can't approve your own request.
         </p>

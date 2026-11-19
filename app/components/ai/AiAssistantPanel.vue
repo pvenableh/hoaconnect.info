@@ -458,7 +458,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                   </button>
                 </div>
                 <div class="flex items-end gap-2">
-                  <Textarea
+                  <AppTextarea
                     v-model="input"
                     placeholder="Ask the assistant…"
                     rows="1"

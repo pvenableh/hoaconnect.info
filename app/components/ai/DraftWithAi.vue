@@ -111,7 +111,7 @@ async function purchase(packId: string) {
           </DialogDescription>
         </DialogHeader>
 
-        <Textarea
+        <AppTextarea
           v-model="instruction"
           :placeholder="isRewrite
             ? 'e.g. Make it warmer and shorter; emphasize the new deadline'

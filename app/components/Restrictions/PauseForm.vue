@@ -62,12 +62,12 @@ async function submit() {
 
     <div class="grid gap-2">
       <Label for="pause-member-note">Note to {{ name }}</Label>
-      <Textarea id="pause-member-note" v-model="form.memberNote" rows="3" :maxlength="MEMBER_NOTE_MAX" placeholder="Shown to them on every page while their posting is paused" />
+      <AppTextarea id="pause-member-note" v-model="form.memberNote" rows="3" :maxlength="MEMBER_NOTE_MAX" placeholder="Shown to them on every page while their posting is paused" />
     </div>
 
     <div class="grid gap-2">
       <Label for="pause-internal-note">Note for admins (optional)</Label>
-      <Textarea id="pause-internal-note" v-model="form.internalNote" rows="2" :maxlength="INTERNAL_NOTE_MAX" placeholder="Never shown to them, and kept out of the ledger" />
+      <AppTextarea id="pause-internal-note" v-model="form.internalNote" rows="2" :maxlength="INTERNAL_NOTE_MAX" placeholder="Never shown to them, and kept out of the ledger" />
     </div>
 
     <div class="flex justify-end gap-2">

@@ -70,7 +70,7 @@ const statusItems = Object.entries(SUPPORT_STATUS_LABEL_STAFF).map(([value, labe
         </ol>
 
         <form class="ios-card space-y-3 p-4" @submit.prevent="send">
-          <Textarea v-model="body" rows="5" :maxlength="BODY_MAX" :placeholder="internal ? 'A note for HOA Connect only.' : 'Your reply. It goes to them by email too.'" />
+          <AppTextarea v-model="body" rows="5" :maxlength="BODY_MAX" :placeholder="internal ? 'A note for HOA Connect only.' : 'Your reply. It goes to them by email too.'" />
           <SupportAttachmentPicker v-model="files" v-model:uploading="uploading" :disabled="busy" />
           <div class="flex flex-wrap items-center justify-between gap-2">
             <label class="flex items-center gap-2 type-meta t-text-secondary">

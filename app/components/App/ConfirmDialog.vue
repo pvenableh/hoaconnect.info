@@ -25,7 +25,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { promptTextOk } from "#core/app/composables/useConfirm";
 
 const { current, settle } = useConfirm();
@@ -108,7 +107,7 @@ function onFieldKeydown(e: KeyboardEvent) {
       </AlertDialogHeader>
       <div v-if="shown.field" ref="fieldWrap" class="space-y-2" data-confirm-field>
         <Label v-if="shown.field.label" :for="`confirm-field-${shown.id}`">{{ shown.field.label }}</Label>
-        <Textarea
+        <AppTextarea
           v-if="shown.field.multiline"
           :id="`confirm-field-${shown.id}`"
           v-model="text"

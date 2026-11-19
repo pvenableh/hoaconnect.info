@@ -82,7 +82,7 @@ async function save() {
       </div>
       <div class="grid gap-2">
         <Label for="correct-holder-notes">Note (optional)</Label>
-        <Textarea id="correct-holder-notes" v-model="form.notes" rows="2" placeholder="Never shown to owners" />
+        <AppTextarea id="correct-holder-notes" v-model="form.notes" rows="2" placeholder="Never shown to owners" />
       </div>
     </div>
     <template #footer>
