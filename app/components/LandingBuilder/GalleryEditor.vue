@@ -24,7 +24,7 @@ const removeImage = (i: number) => g.value.images.splice(i, 1);
   <div v-if="landing.gallery" class="space-y-4">
     <div class="space-y-1.5">
       <Label>Caption</Label>
-      <Input v-model="landing.gallery.caption" placeholder="A Closer Look" />
+      <AppInput v-model="landing.gallery.caption" placeholder="A Closer Look" />
     </div>
     <div class="space-y-1.5">
       <Label>Image source</Label>
@@ -83,7 +83,7 @@ const removeImage = (i: number) => g.value.images.splice(i, 1);
     <template v-else>
       <div class="space-y-1.5">
         <Label>Folder ID (optional)</Label>
-        <Input v-model="landing.gallery.folder" placeholder="Leave blank for your main folder" class="font-mono text-xs" />
+        <AppInput v-model="landing.gallery.folder" placeholder="Leave blank for your main folder" class="font-mono text-xs" />
         <p class="text-xs t-text-muted">
           Pulls images live from this folder in your file library (and its subfolders). Leave blank
           to use your organization's main folder. Find a folder's ID under Settings → Files.

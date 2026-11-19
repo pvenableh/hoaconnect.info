@@ -2,7 +2,6 @@
 import type { HTMLAttributes } from "vue";
 import { ref, computed, watch } from "vue";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Check, X, Tag, Percent } from "lucide-vue-next";
 import { refDebounced } from "@vueuse/core";
@@ -163,7 +162,7 @@ watch(
         </div>
         <div class="flex gap-2">
           <div class="relative flex-1">
-            <Input
+            <AppInput
               :id="id"
               v-model="couponCode"
               type="text"

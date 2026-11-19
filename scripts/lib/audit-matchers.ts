@@ -626,7 +626,7 @@ export function findPageH1s(src: string) {
 export const FORM_DIALOG_MARKER = "allow-form-dialog";
 const DIALOG_OPEN = /<Dialog(?=[\s>/]|$)/g;
 const FORM_CONTROL =
-  /<(?:form|input|textarea|select|Input|Textarea|AppTextarea|Select|DateInput|DateTimeInput|Switch|Checkbox|RadioGroup)(?=[\s>/]|$)/;
+  /<(?:form|input|textarea|select|Input|AppInput|Textarea|AppTextarea|Select|DateInput|DateTimeInput|Switch|Checkbox|RadioGroup)(?=[\s>/]|$)/;
 export function findFormDialogs(src: string) {
   const tpl = blankComments(templateOnly(src), "vue");
   const raw = src.split("\n");

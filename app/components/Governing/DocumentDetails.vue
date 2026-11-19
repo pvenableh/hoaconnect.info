@@ -86,7 +86,7 @@ const save = async () => {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="space-y-1 sm:col-span-2">
           <Label for="gov-doc-title">Title</Label>
-          <Input id="gov-doc-title" v-model="form.title" />
+          <AppInput id="gov-doc-title" v-model="form.title" />
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-kind">Kind of document</Label>
@@ -99,7 +99,7 @@ const save = async () => {
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-prefix">Citation prefix</Label>
-          <Input id="gov-doc-prefix" v-model="form.citation_prefix" placeholder="By-Law" />
+          <AppInput id="gov-doc-prefix" v-model="form.citation_prefix" placeholder="By-Law" />
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-executed">Signed on</Label>
@@ -111,25 +111,25 @@ const save = async () => {
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-book">Official Records book</Label>
-          <Input id="gov-doc-book" v-model="form.or_book" />
+          <AppInput id="gov-doc-book" v-model="form.or_book" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="space-y-1">
             <Label for="gov-doc-page-start">First page</Label>
-            <Input id="gov-doc-page-start" v-model="form.or_page_start" type="number" min="1" inputmode="numeric" />
+            <AppInput id="gov-doc-page-start" v-model="form.or_page_start" type="number" min="1" inputmode="numeric" />
           </div>
           <div class="space-y-1">
             <Label for="gov-doc-page-end">Last page</Label>
-            <Input id="gov-doc-page-end" v-model="form.or_page_end" type="number" min="1" inputmode="numeric" />
+            <AppInput id="gov-doc-page-end" v-model="form.or_page_end" type="number" min="1" inputmode="numeric" />
           </div>
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-clerk">Clerk's file number</Label>
-          <Input id="gov-doc-clerk" v-model="form.clerk_file_no" />
+          <AppInput id="gov-doc-clerk" v-model="form.clerk_file_no" />
         </div>
         <div class="space-y-1">
           <Label for="gov-doc-county">County</Label>
-          <Input id="gov-doc-county" v-model="form.county" />
+          <AppInput id="gov-doc-county" v-model="form.county" />
         </div>
         <div class="space-y-1 sm:col-span-2">
           <Label for="gov-doc-amends">Amends</Label>
@@ -144,7 +144,7 @@ const save = async () => {
         </div>
         <div v-if="published" class="space-y-1 sm:col-span-2">
           <Label for="gov-doc-reason">Reason for the change</Label>
-          <Input id="gov-doc-reason" v-model="reason" placeholder="For example, the recorded date was mistyped" />
+          <AppInput id="gov-doc-reason" v-model="reason" placeholder="For example, the recorded date was mistyped" />
         </div>
       </div>
       <div class="flex flex-wrap items-center justify-end gap-2">

@@ -209,7 +209,7 @@ const handleSubmit = async () => {
           <CardContent class="pt-6 space-y-4">
             <div>
               <label class="text-sm font-medium mb-2 block">Title *</label>
-              <Input v-model="form.title" placeholder="Document title" />
+              <AppInput v-model="form.title" placeholder="Document title" />
             </div>
 
             <div>

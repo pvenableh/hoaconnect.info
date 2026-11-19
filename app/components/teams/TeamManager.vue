@@ -159,7 +159,7 @@ const onDeleteTeam = async (t: Team) => {
       <div class="flex flex-wrap items-end gap-3">
         <div class="flex-1 min-w-[180px]">
           <label class="block text-xs font-medium t-text-muted mb-1">Name</label>
-          <Input v-model="newName" placeholder="e.g. Violations Committee" />
+          <AppInput v-model="newName" placeholder="e.g. Violations Committee" />
         </div>
         <div class="min-w-[160px]">
           <label class="block text-xs font-medium t-text-muted mb-1">Domain (optional)</label>

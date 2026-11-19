@@ -77,7 +77,7 @@ const submit = () => {
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Name *</label>
-        <Input v-model="name" placeholder="e.g. Bella" />
+        <AppInput v-model="name" placeholder="e.g. Bella" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Type</label>
@@ -91,11 +91,11 @@ const submit = () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Breed</label>
-        <Input v-model="breed" placeholder="e.g. Labrador" />
+        <AppInput v-model="breed" placeholder="e.g. Labrador" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Weight</label>
-        <Input v-model="weight" placeholder="e.g. 45 lbs" />
+        <AppInput v-model="weight" placeholder="e.g. 45 lbs" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Responsible resident *</label>

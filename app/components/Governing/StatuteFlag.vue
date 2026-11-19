@@ -255,7 +255,7 @@ const saveEdit = async () => {
 
     <form v-else-if="manages && counselOpen" class="space-y-2 border-t t-border pt-3" data-testid="governing-flag-counsel" @submit.prevent="confirmCounsel">
       <Label :for="`flag-counsel-${flag.id}`">Who at counsel signed off, and when</Label>
-      <Input :id="`flag-counsel-${flag.id}`" v-model="counselNote" placeholder="Name of the lawyer or firm, and the date" />
+      <AppInput :id="`flag-counsel-${flag.id}`" v-model="counselNote" placeholder="Name of the lawyer or firm, and the date" />
       <p class="type-meta t-text-muted">Mark it only after a lawyer has reviewed this comparison. This is recorded with your name.</p>
       <div class="flex flex-wrap items-center justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" :disabled="saving" @click="counselOpen = false">Cancel</Button>

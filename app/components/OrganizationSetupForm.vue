@@ -459,7 +459,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>Organization Name *</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="orgForm.organizationName"
                   placeholder="Sunset Heights HOA"
                   required
@@ -475,7 +475,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>Street Address</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="orgForm.street_address"
                   placeholder="123 Main Street"
                 />
@@ -488,7 +488,7 @@ const isLastVisibleStep = (step: number) => {
               <FormItem>
                 <FormLabel>City</FormLabel>
                 <FormControl>
-                  <Input
+                  <AppInput
                     v-model="orgForm.city"
                     placeholder="Miami Beach"
                   />
@@ -500,7 +500,7 @@ const isLastVisibleStep = (step: number) => {
               <FormItem>
                 <FormLabel>State</FormLabel>
                 <FormControl>
-                  <Input
+                  <AppInput
                     v-model="orgForm.state"
                     placeholder="FL"
                   />
@@ -513,7 +513,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>ZIP Code</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="orgForm.zip"
                   placeholder="33139"
                 />
@@ -525,7 +525,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>Phone</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="orgForm.org_phone"
                   type="tel"
                   placeholder="(305) 555-1234"
@@ -541,7 +541,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="orgForm.org_email"
                   type="email"
                   placeholder="info@example.com"
@@ -558,7 +558,7 @@ const isLastVisibleStep = (step: number) => {
               <FormLabel>Portal URL Slug *</FormLabel>
               <FormControl>
                 <div class="space-y-2">
-                  <Input
+                  <AppInput
                     v-model="orgForm.slug"
                     @input="handleSlugInput"
                     placeholder="sunset-heights-hoa"
@@ -619,7 +619,7 @@ const isLastVisibleStep = (step: number) => {
           <FormItem>
             <FormLabel>Number of Units *</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="declaredUnits"
                 type="number"
                 min="1"
@@ -685,7 +685,7 @@ const isLastVisibleStep = (step: number) => {
               <Button variant="ghost" size="sm" @click="removePromo">Remove</Button>
             </div>
             <div v-else class="flex gap-2">
-              <Input
+              <AppInput
                 v-model="promoInput"
                 placeholder="Discount code"
                 aria-label="Discount code"
@@ -715,7 +715,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>First Name *</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="adminForm.firstName"
                   placeholder="John"
                   required
@@ -728,7 +728,7 @@ const isLastVisibleStep = (step: number) => {
             <FormItem>
               <FormLabel>Last Name *</FormLabel>
               <FormControl>
-                <Input
+                <AppInput
                   v-model="adminForm.lastName"
                   placeholder="Doe"
                   required
@@ -742,7 +742,7 @@ const isLastVisibleStep = (step: number) => {
           <FormItem>
             <FormLabel>Email *</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="adminForm.email"
                 type="email"
                 placeholder="john@example.com"
@@ -756,7 +756,7 @@ const isLastVisibleStep = (step: number) => {
           <FormItem>
             <FormLabel>Phone</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="adminForm.phone"
                 type="tel"
                 placeholder="(305) 555-1234"
@@ -769,7 +769,7 @@ const isLastVisibleStep = (step: number) => {
           <FormItem>
             <FormLabel>Password *</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="adminForm.password"
                 type="password"
                 placeholder="••••••••"
@@ -784,7 +784,7 @@ const isLastVisibleStep = (step: number) => {
           <FormItem>
             <FormLabel>Confirm Password *</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="adminForm.confirmPassword"
                 type="password"
                 placeholder="••••••••"

@@ -530,7 +530,7 @@ const selectChannel = (channel: HoaChannel) => {
             ungroup it.
           </DialogDescription>
         </DialogHeader>
-        <Input v-model="moveValue" list="channel-folders" placeholder="Folder name" />
+        <AppInput v-model="moveValue" list="channel-folders" placeholder="Folder name" />
         <datalist id="channel-folders">
           <option v-for="f in knownFolders" :key="f" :value="f" />
         </datalist>

@@ -143,7 +143,7 @@ const signOut = async () => {
           <p class="text-sm">You already have an HOA Connect account. Enter its password to add {{ community }} to it.</p>
           <div class="space-y-1.5">
             <Label for="invite-password">Password</Label>
-            <Input id="invite-password" v-model="form.password" type="password" autocomplete="current-password" required />
+            <AppInput id="invite-password" v-model="form.password" type="password" autocomplete="current-password" required />
             <NuxtLink to="/auth/forgot-password" class="text-sm text-blue-600 hover:underline">Forgot your password?</NuxtLink>
           </div>
         </template>
@@ -152,21 +152,21 @@ const signOut = async () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label for="invite-first">First name</Label>
-              <Input id="invite-first" v-model="form.firstName" autocomplete="given-name" required />
+              <AppInput id="invite-first" v-model="form.firstName" autocomplete="given-name" required />
             </div>
             <div class="space-y-1.5">
               <Label for="invite-last">Last name</Label>
-              <Input id="invite-last" v-model="form.lastName" autocomplete="family-name" required />
+              <AppInput id="invite-last" v-model="form.lastName" autocomplete="family-name" required />
             </div>
           </div>
           <div class="space-y-1.5">
             <Label for="invite-new-password">Create a password</Label>
-            <Input id="invite-new-password" v-model="form.password" type="password" autocomplete="new-password" required />
+            <AppInput id="invite-new-password" v-model="form.password" type="password" autocomplete="new-password" required />
             <p class="text-sm text-muted-foreground">At least {{ MIN_PASSWORD }} characters.</p>
           </div>
           <div class="space-y-1.5">
             <Label for="invite-confirm">Confirm the password</Label>
-            <Input id="invite-confirm" v-model="form.confirmPassword" type="password" autocomplete="new-password" required />
+            <AppInput id="invite-confirm" v-model="form.confirmPassword" type="password" autocomplete="new-password" required />
             <p v-if="form.confirmPassword && form.password !== form.confirmPassword" class="text-sm text-destructive">
               The passwords don't match.
             </p>

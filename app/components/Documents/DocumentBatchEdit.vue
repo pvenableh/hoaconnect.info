@@ -209,7 +209,7 @@ const onDateChange = () => {
         <!-- Title (only for single document) -->
         <div v-if="isSingleDocument" class="grid gap-2">
           <Label for="edit-title">Title</Label>
-          <Input
+          <AppInput
             id="edit-title"
             v-model="title"
             placeholder="Document title"

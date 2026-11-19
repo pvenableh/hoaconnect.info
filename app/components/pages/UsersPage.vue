@@ -530,7 +530,7 @@ useSeoMeta({
                     name="lucide:search"
                     class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
                   />
-                  <Input
+                  <AppInput
                     v-model="searchQuery"
                     placeholder="Search users..."
                     class="pl-10 w-64"
@@ -915,7 +915,7 @@ useSeoMeta({
                 <div class="grid gap-2">
                   <Label for="search-email">Search by Email</Label>
                   <div class="flex gap-2">
-                    <Input
+                    <AppInput
                       id="search-email"
                       v-model="connectForm.userEmail"
                       placeholder="Enter email to search..."

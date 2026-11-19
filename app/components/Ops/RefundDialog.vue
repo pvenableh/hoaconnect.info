@@ -45,12 +45,12 @@ watch(open, (v) => {
   >
     <div class="space-y-1.5">
       <Label for="ops-refund-amount">Amount (USD)</Label>
-      <Input id="ops-refund-amount" v-model="amount" inputmode="decimal" autocomplete="off" />
+      <AppInput id="ops-refund-amount" v-model="amount" inputmode="decimal" autocomplete="off" />
       <p class="type-micro t-text-muted">Leave it at {{ money(remaining, currency) }} for a full refund.</p>
     </div>
     <div v-if="mustType" class="space-y-1.5">
       <Label for="ops-refund-typed">Type {{ money(cents, currency) }} to confirm</Label>
-      <Input id="ops-refund-typed" v-model="typed" inputmode="decimal" autocomplete="off" />
+      <AppInput id="ops-refund-typed" v-model="typed" inputmode="decimal" autocomplete="off" />
       <p class="type-micro text-warning">Refunds over $500 need the amount typed out.</p>
     </div>
   </OpsActionDialog>

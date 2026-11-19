@@ -849,7 +849,7 @@ const handleBatchUploadComplete = async () => {
         <div class="grid gap-4 py-4">
           <div class="grid gap-2">
             <Label for="folder-name">Folder Name</Label>
-            <Input
+            <AppInput
               id="folder-name"
               v-model="newFolderName"
               placeholder="Enter folder name"

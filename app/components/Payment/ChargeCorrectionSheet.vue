@@ -129,14 +129,14 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
       <template v-if="mode === 'edit'">
         <div class="space-y-1.5">
           <Label for="charge-title">Title</Label>
-          <Input id="charge-title" v-model="form.title" />
+          <AppInput id="charge-title" v-model="form.title" />
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <Label for="charge-amount">Amount</Label>
             <div class="relative">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-              <Input id="charge-amount" v-model.number="form.amount" type="number" :min="currentAmount" step="0.01" class="pl-7" />
+              <AppInput id="charge-amount" v-model.number="form.amount" type="number" :min="currentAmount" step="0.01" class="pl-7" />
             </div>
             <p class="type-meta" :class="amountTooLow ? 'text-destructive' : 't-text-muted'">
               To lower it, Ask to Waive part of it.
@@ -150,7 +150,7 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
         </div>
         <div class="space-y-1.5">
           <Label for="charge-description">Description</Label>
-          <Input id="charge-description" v-model="form.description" placeholder="A note the member sees" />
+          <AppInput id="charge-description" v-model="form.description" placeholder="A note the member sees" />
         </div>
         <div class="space-y-1.5">
           <Label for="charge-notes">Notes</Label>
@@ -176,7 +176,7 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
           <Label for="waive-amount">Amount to waive</Label>
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-            <Input id="waive-amount" v-model.number="form.waiveAmount" type="number" min="0.01" :max="owed" step="0.01" class="pl-7" />
+            <AppInput id="waive-amount" v-model.number="form.waiveAmount" type="number" min="0.01" :max="owed" step="0.01" class="pl-7" />
           </div>
           <p class="type-meta t-text-muted">Less than {{ chargeCurrency(owed) }}. Its late fees stay owed.</p>
         </div>

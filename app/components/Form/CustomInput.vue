@@ -2,7 +2,6 @@
 import type { HTMLAttributes } from "vue";
 import { computed } from "vue";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 
 export interface CustomInputProps {
   id?: string;
@@ -66,7 +65,7 @@ const errorClasses = computed(() => {
       <slot name="label-end" />
     </div>
     <div :class="cn('relative', $slots.after ? 'pb-0' : 'pb-5')">
-      <Input
+      <AppInput
         :id="id"
         v-model="inputValue"
         v-bind="$attrs"

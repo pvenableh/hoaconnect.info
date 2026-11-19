@@ -82,7 +82,7 @@
                   <!-- First Name -->
                   <div class="space-y-2">
                     <Label for="firstName">First Name</Label>
-                    <Input
+                    <AppInput
                       id="firstName"
                       v-model="profileForm.first_name"
                       :disabled="isUpdating"
@@ -92,7 +92,7 @@
                   <!-- Last Name -->
                   <div class="space-y-2">
                     <Label for="lastName">Last Name</Label>
-                    <Input
+                    <AppInput
                       id="lastName"
                       v-model="profileForm.last_name"
                       :disabled="isUpdating"
@@ -103,7 +103,7 @@
                 <!-- Email (Read-only) -->
                 <div class="space-y-2">
                   <Label for="email">Email</Label>
-                  <Input
+                  <AppInput
                     id="email"
                     :modelValue="user?.email"
                     type="email"

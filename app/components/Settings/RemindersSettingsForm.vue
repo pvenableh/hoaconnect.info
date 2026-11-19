@@ -59,7 +59,7 @@
 
         <div v-if="RULE_GUIDE[rule].daysLabel" class="space-y-1.5 max-w-xs">
           <Label :for="`reminderDays-${rule}`">{{ RULE_GUIDE[rule].daysLabel }}</Label>
-          <Input :id="`reminderDays-${rule}`" v-model="form.rules[rule].days" type="number" min="1" max="60" inputmode="numeric" />
+          <AppInput :id="`reminderDays-${rule}`" v-model="form.rules[rule].days" type="number" min="1" max="60" inputmode="numeric" />
         </div>
 
         <label v-if="rule === 'dues'" class="flex items-center gap-2 text-sm">
@@ -72,11 +72,11 @@
           <div class="space-y-3 pt-3">
             <div class="space-y-1.5">
               <Label :for="`reminderSubject-${rule}`">Subject</Label>
-              <Input :id="`reminderSubject-${rule}`" v-model="form.rules[rule].subject" maxlength="300" placeholder="Leave empty for the standard subject" />
+              <AppInput :id="`reminderSubject-${rule}`" v-model="form.rules[rule].subject" maxlength="300" placeholder="Leave empty for the standard subject" />
             </div>
             <div class="space-y-1.5">
               <Label :for="`reminderIntro-${rule}`">First sentence</Label>
-              <Input :id="`reminderIntro-${rule}`" v-model="form.rules[rule].intro" maxlength="300" placeholder="Leave empty for the standard sentence" />
+              <AppInput :id="`reminderIntro-${rule}`" v-model="form.rules[rule].intro" maxlength="300" placeholder="Leave empty for the standard sentence" />
             </div>
             <p class="text-xs text-muted-foreground">
               Fill in details with

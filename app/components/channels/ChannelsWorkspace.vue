@@ -134,7 +134,7 @@ useCreateIntent("channel", () => {
             name="lucide:search"
             class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
           />
-          <Input v-model="searchQuery" placeholder="Search all channels…" class="pl-9" />
+          <AppInput v-model="searchQuery" placeholder="Search all channels…" class="pl-9" />
         </div>
         <div
           v-if="searchQuery.trim()"

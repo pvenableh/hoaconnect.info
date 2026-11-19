@@ -92,7 +92,7 @@ const noun = computed(() => ({ office: "office", member: "member", vendor: "vend
 
     <div v-if="modelValue.kind === 'label'" class="grid gap-2">
       <Label :for="id('label')">Name</Label>
-      <Input :id="id('label')" v-model="value" placeholder="City of Miami Beach" maxlength="200" />
+      <AppInput :id="id('label')" v-model="value" placeholder="City of Miami Beach" maxlength="200" />
       <p class="text-xs t-text-muted">For someone who is not in the community: an agency, an authority, "Nobody".</p>
     </div>
 

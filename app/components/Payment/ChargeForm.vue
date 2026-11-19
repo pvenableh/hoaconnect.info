@@ -131,14 +131,14 @@ const memberName = (m: HoaMember) =>
 
       <div class="space-y-1.5 md:col-span-2">
         <Label>Title</Label>
-        <Input v-model="form.title" placeholder="e.g. October Dues" />
+        <AppInput v-model="form.title" placeholder="e.g. October Dues" />
       </div>
 
       <div class="space-y-1.5">
         <Label>Amount</Label>
         <div class="relative">
           <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-          <Input v-model.number="form.amount" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
+          <AppInput v-model.number="form.amount" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
         </div>
       </div>
 
@@ -150,7 +150,7 @@ const memberName = (m: HoaMember) =>
 
       <div v-if="!recurring" class="space-y-1.5 md:col-span-2">
         <Label>Description (optional)</Label>
-        <Input v-model="form.description" placeholder="Add a note for the member…" />
+        <AppInput v-model="form.description" placeholder="Add a note for the member…" />
       </div>
     </div>
 

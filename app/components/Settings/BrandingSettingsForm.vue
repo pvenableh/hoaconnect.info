@@ -123,7 +123,7 @@
                     :disabled="isSaving"
                     @input="markPaletteDirty"
                   />
-                  <Input
+                  <AppInput
                     v-model="form.primaryColor"
                     class="font-mono"
                     :disabled="isSaving"
@@ -143,7 +143,7 @@
                     :disabled="isSaving"
                     @input="markPaletteDirty"
                   />
-                  <Input
+                  <AppInput
                     v-model="form.secondaryColor"
                     class="font-mono"
                     :disabled="isSaving"
@@ -163,7 +163,7 @@
                     :disabled="isSaving"
                     @input="markPaletteDirty"
                   />
-                  <Input
+                  <AppInput
                     v-model="form.accentColor"
                     class="font-mono"
                     :disabled="isSaving"
@@ -200,7 +200,7 @@
             <!-- Title -->
             <div class="space-y-2">
               <Label for="title">Site Title</Label>
-              <Input
+              <AppInput
                 id="title"
                 v-model="form.title"
                 placeholder="Welcome to Our Community"
@@ -231,7 +231,7 @@
             <!-- Header line -->
             <div class="space-y-2">
               <Label for="header_text">Header line</Label>
-              <Input
+              <AppInput
                 id="header_text"
                 v-model="form.headerText"
                 placeholder="Official Communication of {name}"
@@ -245,7 +245,7 @@
             <!-- CC/BCC threshold -->
             <div class="space-y-2">
               <Label for="cc_bcc_threshold">CC/BCC visibility cutoff</Label>
-              <Input
+              <AppInput
                 id="cc_bcc_threshold"
                 v-model.number="form.ccBccThreshold"
                 type="number"
@@ -262,7 +262,7 @@
             <!-- Homepage URL -->
             <div class="space-y-2">
               <Label for="homepage_url">Footer homepage link</Label>
-              <Input
+              <AppInput
                 id="homepage_url"
                 v-model="form.homepageUrl"
                 placeholder="https://yourbuilding.com"

@@ -12,11 +12,11 @@ const { site } = useLandingBuilderContext();
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div class="space-y-1.5">
         <Label>Phone</Label>
-        <Input v-model="site.phone" placeholder="(555) 555-5555" />
+        <AppInput v-model="site.phone" placeholder="(555) 555-5555" />
       </div>
       <div class="space-y-1.5">
         <Label>Email</Label>
-        <Input v-model="site.email" placeholder="info@yourbuilding.com" />
+        <AppInput v-model="site.email" placeholder="info@yourbuilding.com" />
       </div>
     </div>
   </div>

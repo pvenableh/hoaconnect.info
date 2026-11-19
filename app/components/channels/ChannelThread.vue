@@ -662,7 +662,7 @@ onBeforeUnmount(() => {
             v-if="showSearch"
             class="glass-surface glass-surface--strong absolute right-0 top-11 z-20 w-80 p-3"
           >
-            <Input v-model="searchQuery" placeholder="Search messages…" autofocus />
+            <AppInput v-model="searchQuery" placeholder="Search messages…" autofocus />
             <div class="mt-2 max-h-72 overflow-y-auto">
               <div v-if="searching" class="py-4 flex justify-center"><div class="spinner-ios" /></div>
               <template v-else-if="searchResults.length">

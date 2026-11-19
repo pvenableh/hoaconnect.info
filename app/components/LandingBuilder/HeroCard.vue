@@ -58,11 +58,11 @@ const eyebrow = computed(() =>
     <div v-if="open" class="border-t t-border px-3 py-3 t-bg-subtle/50 space-y-3">
       <div class="space-y-1.5">
         <Label>Title <span class="t-text-muted">(optional — defaults to community name)</span></Label>
-        <Input v-model="site.hero.title" placeholder="Welcome to…" />
+        <AppInput v-model="site.hero.title" placeholder="Welcome to…" />
       </div>
       <div class="space-y-1.5">
         <Label>Subtitle <span class="t-text-muted">(optional — a short tagline)</span></Label>
-        <Input v-model="site.hero.subtitle" placeholder="A boutique community in…" />
+        <AppInput v-model="site.hero.subtitle" placeholder="A boutique community in…" />
         <p v-if="!site.hero.subtitle && eyebrow" class="text-xs t-text-muted">
           Defaults to your address eyebrow: <span class="t-text">{{ eyebrow }}</span>
         </p>

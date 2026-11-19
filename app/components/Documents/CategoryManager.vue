@@ -398,7 +398,7 @@ async function createAllPredefinedCategories() {
         <!-- Name -->
         <div class="grid gap-2">
           <Label for="cat-name">Name</Label>
-          <Input
+          <AppInput
             id="cat-name"
             v-model="formData.name"
             placeholder="e.g., Meeting Minutes"

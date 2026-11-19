@@ -120,7 +120,7 @@ const showBody = ref(false);
           <div v-for="k in editableFields" :key="k" class="space-y-1">
             <Label class="text-[11px] t-text-muted capitalize">{{ k.replace(/_/g, " ") }}</Label>
             <textarea v-if="isLong(k)" v-model="draft[k]" rows="4" class="w-full rounded-lg glass-field p-2 text-xs" />
-            <Input v-else v-model="draft[k]" class="h-8 text-sm" />
+            <AppInput v-else v-model="draft[k]" class="h-8 text-sm" />
           </div>
         </div>
       </div>

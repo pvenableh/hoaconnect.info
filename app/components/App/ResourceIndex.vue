@@ -128,7 +128,7 @@ function rowClasses(row: Row) {
       <span v-if="!title" class="type-meta t-text-muted tabular-nums" aria-live="polite">{{ countLabel }}</span>
       <div class="resource-index__search">
         <Icon name="lucide:search" class="resource-index__search-icon" aria-hidden="true" />
-        <Input
+        <AppInput
           :model-value="view.query"
           type="search"
           :placeholder="placeholder"

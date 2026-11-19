@@ -105,7 +105,7 @@ async function send() {
 
       <div class="space-y-1.5">
         <Label for="support-subject">Subject</Label>
-        <Input id="support-subject" v-model="subject" :maxlength="SUBJECT_MAX" />
+        <AppInput id="support-subject" v-model="subject" :maxlength="SUBJECT_MAX" />
       </div>
       <div class="space-y-1.5">
         <Label for="support-body">Message</Label>

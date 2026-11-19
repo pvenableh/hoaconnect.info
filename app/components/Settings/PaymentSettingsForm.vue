@@ -23,7 +23,7 @@
               <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 $
               </span>
-              <Input
+              <AppInput
                 id="monthlyDues"
                 v-model.number="form.defaultMonthlyDues"
                 type="number"
@@ -76,7 +76,7 @@
                  overlap the value. -->
             <div class="flex items-center gap-1.5">
               <span class="text-muted-foreground">$</span>
-              <Input
+              <AppInput
                 id="openingBalance"
                 v-model.number="form.openingBalance"
                 type="number"
@@ -136,7 +136,7 @@
                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   $
                 </span>
-                <Input
+                <AppInput
                   id="lateFeeAmount"
                   v-model.number="form.lateFeeAmount"
                   type="number"
@@ -152,7 +152,7 @@
             <!-- Grace Period -->
             <div class="space-y-2">
               <Label for="gracePeriod">Grace Period (Days)</Label>
-              <Input
+              <AppInput
                 id="gracePeriod"
                 v-model.number="form.gracePeriodDays"
                 type="number"

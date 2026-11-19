@@ -482,7 +482,7 @@ const materials = [
                 <DialogTitle>Rename unit</DialogTitle>
                 <DialogDescription>Residents see the new name everywhere.</DialogDescription>
               </DialogHeader>
-              <Input placeholder="Unit 4B" />
+              <AppInput placeholder="Unit 4B" />
               <DialogFooter>
                 <DialogClose as-child>
                   <Button variant="outline">Cancel</Button>
@@ -926,7 +926,7 @@ const materials = [
           <div class="space-y-3">
             <div>
               <Label class="type-label">Email</Label>
-              <Input class="glass-field mt-1" placeholder="you@example.com" />
+              <AppInput class="glass-field mt-1" placeholder="you@example.com" />
             </div>
             <div>
               <Label class="type-label">Note</Label>
@@ -1130,7 +1130,7 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
       <div class="space-y-3 pt-1">
         <div>
           <Label class="type-label">Subject</Label>
-          <Input class="glass-field mt-1" placeholder="Pool closed Tuesday" />
+          <AppInput class="glass-field mt-1" placeholder="Pool closed Tuesday" />
         </div>
         <div>
           <Label class="type-label">Message</Label>

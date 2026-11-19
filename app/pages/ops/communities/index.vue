@@ -67,7 +67,7 @@ const columns = [
 <template>
   <OpsShell title="Communities" description="Every community on HOA Connect, with its band, status and contact.">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <Input v-model="q" type="search" placeholder="Search name or slug" class="sm:max-w-xs" aria-label="Search communities" />
+      <AppInput v-model="q" type="search" placeholder="Search name or slug" class="sm:max-w-xs" aria-label="Search communities" />
       <div class="flex items-center gap-2">
         <span class="type-meta t-text-muted">Sort</span>
         <AppSegmentedControl :items="sorts" :model-value="sort" size="sm" label="Sort" @update:model-value="(v: string) => setQuery({ sort: v === 'name' ? undefined : v, page: undefined })" />

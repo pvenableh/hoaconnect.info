@@ -38,10 +38,10 @@ const remove = (i: number) => landing.value.listings.splice(i, 1);
           <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
         </Button>
       </div>
-      <Input v-model="l.title" placeholder="Unit 4B — 2BR / 2BA" />
+      <AppInput v-model="l.title" placeholder="Unit 4B — 2BR / 2BA" />
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input v-model="l.url" placeholder="https://listing-url.com" class="font-mono text-xs" />
-        <Input v-model="l.price" placeholder="$650,000 or $3,200/mo" />
+        <AppInput v-model="l.url" placeholder="https://listing-url.com" class="font-mono text-xs" />
+        <AppInput v-model="l.price" placeholder="$650,000 or $3,200/mo" />
       </div>
       <LandingBuilderImageField v-model="l.image" thumb-class="h-14 w-20" title="Listing image" />
     </div>

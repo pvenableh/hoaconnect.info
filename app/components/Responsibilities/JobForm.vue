@@ -130,7 +130,7 @@ async function save() {
     <div class="grid gap-4 py-4">
       <div class="grid gap-2">
         <Label for="job-title">Job</Label>
-        <Input id="job-title" v-model="form.title" placeholder="Reconciles bank statements" maxlength="255" />
+        <AppInput id="job-title" v-model="form.title" placeholder="Reconciles bank statements" maxlength="255" />
       </div>
 
       <div class="grid grid-cols-2 gap-4">
@@ -158,7 +158,7 @@ async function save() {
         </div>
         <div class="grid gap-2">
           <Label for="job-basis-ref">Where</Label>
-          <Input id="job-basis-ref" v-model="form.basis_reference" placeholder="Bylaws art. 7, or the contract" maxlength="255" />
+          <AppInput id="job-basis-ref" v-model="form.basis_reference" placeholder="Bylaws art. 7, or the contract" maxlength="255" />
         </div>
       </div>
 

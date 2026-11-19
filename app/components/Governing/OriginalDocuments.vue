@@ -161,7 +161,7 @@ const remove = async (source: GovSource) => {
         <Checkbox v-model="isAuthoritative" class="mt-0.5" />
         <span>The published text was taken from this copy</span>
       </label>
-      <Input v-model="notes" placeholder="Notes (optional), e.g. where this copy came from" />
+      <AppInput v-model="notes" placeholder="Notes (optional), e.g. where this copy came from" />
       <div class="flex items-center justify-end gap-2">
         <Button type="button" variant="ghost" :disabled="saving" @click="reset">Cancel</Button>
         <Button type="submit" :disabled="!file || saving">

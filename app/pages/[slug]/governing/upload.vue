@@ -91,7 +91,7 @@ const submit = async () => {
 
         <div class="space-y-1.5">
           <Label for="governing-upload-title">Title</Label>
-          <Input id="governing-upload-title" v-model="title" placeholder="For example, Amendment to the Declaration (1995)" />
+          <AppInput id="governing-upload-title" v-model="title" placeholder="For example, Amendment to the Declaration (1995)" />
         </div>
 
         <div class="space-y-1.5">

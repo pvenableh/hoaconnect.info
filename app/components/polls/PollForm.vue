@@ -58,7 +58,7 @@ const submit = async () => {
   <div class="space-y-4">
     <div>
       <label class="block text-sm font-medium t-text-secondary mb-1.5">Question</label>
-      <Input v-model="title" placeholder="e.g. Should we repaint the lobby?" />
+      <AppInput v-model="title" placeholder="e.g. Should we repaint the lobby?" />
     </div>
 
     <div>
@@ -75,7 +75,7 @@ const submit = async () => {
       <label class="block text-sm font-medium t-text-secondary mb-1.5">Options</label>
       <div class="space-y-2">
         <div v-for="(opt, idx) in options" :key="opt.id" class="flex items-center gap-2">
-          <Input v-model="opt.label" :placeholder="`Option ${idx + 1}`" class="flex-1" />
+          <AppInput v-model="opt.label" :placeholder="`Option ${idx + 1}`" class="flex-1" />
           <button
             type="button"
             class="t-text-muted hover:text-red-600 disabled:opacity-30"

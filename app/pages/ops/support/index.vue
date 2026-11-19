@@ -44,7 +44,7 @@ const PRIORITY_TONE: Record<string, string> = { urgent: "text-destructive", high
         <option v-for="c in SUPPORT_CATEGORIES" :key="c.value" :value="c.value">{{ c.label }}</option>
       </select>
       <form class="min-w-0 flex-1" @submit.prevent="set({ q: q || undefined })">
-        <Input v-model="q" placeholder="Search subjects" class="h-8" />
+        <AppInput v-model="q" placeholder="Search subjects" class="h-8" />
       </form>
     </div>
 

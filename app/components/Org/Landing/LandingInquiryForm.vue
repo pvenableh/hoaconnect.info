@@ -34,16 +34,16 @@
 
         <div class="space-y-1.5">
           <Label for="inq-name">Name</Label>
-          <Input id="inq-name" v-model="form.name" required placeholder="Your name" />
+          <AppInput id="inq-name" v-model="form.name" required placeholder="Your name" />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="space-y-1.5">
             <Label for="inq-email">Email</Label>
-            <Input id="inq-email" v-model="form.email" type="email" required placeholder="you@example.com" />
+            <AppInput id="inq-email" v-model="form.email" type="email" required placeholder="you@example.com" />
           </div>
           <div class="space-y-1.5">
             <Label for="inq-phone">Phone <span class="t-text-muted">(optional)</span></Label>
-            <Input id="inq-phone" v-model="form.phone" placeholder="(555) 555-5555" />
+            <AppInput id="inq-phone" v-model="form.phone" placeholder="(555) 555-5555" />
           </div>
         </div>
         <div class="space-y-1.5">

@@ -105,11 +105,11 @@ const submit = () => {
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Rent (monthly)</label>
-        <Input v-model="rent" type="number" inputmode="decimal" placeholder="0.00" />
+        <AppInput v-model="rent" type="number" inputmode="decimal" placeholder="0.00" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Deposit</label>
-        <Input v-model="deposit" type="number" inputmode="decimal" placeholder="0.00" />
+        <AppInput v-model="deposit" type="number" inputmode="decimal" placeholder="0.00" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Status</label>

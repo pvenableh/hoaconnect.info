@@ -246,7 +246,7 @@ useSeoMeta({ title: "Public site" });
           <div v-if="externalMode" class="space-y-3">
             <div class="space-y-1.5">
               <Label for="ext-url">External site URL</Label>
-              <Input id="ext-url" v-model="externalUrlInput" placeholder="https://yourbuilding.com" class="font-mono" />
+              <AppInput id="ext-url" v-model="externalUrlInput" placeholder="https://yourbuilding.com" class="font-mono" />
               <p class="text-xs t-text-muted">
                 When set, the built-in landing is disabled — visitors at your HOA Connect address are
                 sent to the resident login.
@@ -287,7 +287,7 @@ useSeoMeta({ title: "Public site" });
         <div v-if="!hasDomain" class="ios-card p-6 space-y-4">
           <div class="space-y-1.5">
             <Label for="domain">Your domain</Label>
-            <Input id="domain" v-model="domainInput" placeholder="yourbuilding.com" class="font-mono" />
+            <AppInput id="domain" v-model="domainInput" placeholder="yourbuilding.com" class="font-mono" />
             <p class="text-xs t-text-muted">
               Use your root domain (<span class="font-mono">yourbuilding.com</span>) or a subdomain
               (<span class="font-mono">portal.yourbuilding.com</span>). You'll add a couple of DNS records next.

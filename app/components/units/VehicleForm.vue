@@ -79,23 +79,23 @@ const submit = () => {
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Make *</label>
-        <Input v-model="make" placeholder="e.g. Toyota" />
+        <AppInput v-model="make" placeholder="e.g. Toyota" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Model</label>
-        <Input v-model="model" placeholder="e.g. Camry" />
+        <AppInput v-model="model" placeholder="e.g. Camry" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Year</label>
-        <Input v-model="year" placeholder="e.g. 2021" />
+        <AppInput v-model="year" placeholder="e.g. 2021" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">License plate</label>
-        <Input v-model="licensePlate" placeholder="e.g. 7ABC123" />
+        <AppInput v-model="licensePlate" placeholder="e.g. 7ABC123" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Parking spot</label>
-        <Input v-model="parkingSpot" placeholder="e.g. P-14" />
+        <AppInput v-model="parkingSpot" placeholder="e.g. P-14" />
       </div>
       <div>
         <label class="block text-sm font-medium t-text-secondary mb-1.5">Responsible resident *</label>

@@ -13,7 +13,7 @@
             <!-- SEO Title -->
             <div class="space-y-2">
               <Label for="seoTitle">SEO Title</Label>
-              <Input
+              <AppInput
                 id="seoTitle"
                 v-model="form.title"
                 placeholder="Your HOA Name | Community Management"

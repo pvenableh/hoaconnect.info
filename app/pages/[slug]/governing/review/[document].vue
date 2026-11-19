@@ -344,7 +344,7 @@ const blockerText = computed(() => {
           </p>
           <div v-if="!isDraft" class="space-y-1.5">
             <Label for="governing-review-reason">Reason for the edit or for unpublishing</Label>
-            <Input id="governing-review-reason" v-model="reason" placeholder="For example, corrected against the recorded page" />
+            <AppInput id="governing-review-reason" v-model="reason" placeholder="For example, corrected against the recorded page" />
           </div>
         </div>
 
@@ -452,15 +452,15 @@ const blockerText = computed(() => {
               <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div class="space-y-1">
                   <Label :for="`label-${p.id}`" class="type-micro">Label as printed</Label>
-                  <Input :id="`label-${p.id}`" v-model="draftOf(p).original_label" placeholder=".5" />
+                  <AppInput :id="`label-${p.id}`" v-model="draftOf(p).original_label" placeholder=".5" />
                 </div>
                 <div class="space-y-1">
                   <Label :for="`citation-${p.id}`" class="type-micro">Citation</Label>
-                  <Input :id="`citation-${p.id}`" v-model="draftOf(p).citation" placeholder="By-Law 3.5" />
+                  <AppInput :id="`citation-${p.id}`" v-model="draftOf(p).citation" placeholder="By-Law 3.5" />
                 </div>
                 <div class="space-y-1">
                   <Label :for="`heading-${p.id}`" class="type-micro">Heading</Label>
-                  <Input :id="`heading-${p.id}`" v-model="draftOf(p).heading" placeholder="Proxies" />
+                  <AppInput :id="`heading-${p.id}`" v-model="draftOf(p).heading" placeholder="Proxies" />
                 </div>
               </div>
 

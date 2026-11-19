@@ -161,7 +161,7 @@ const createViolation = async () => {
         <div class="space-y-4">
           <div class="space-y-1.5">
             <Label>Title</Label>
-            <Input v-model="form.title" placeholder="e.g. Unauthorized exterior modification" />
+            <AppInput v-model="form.title" placeholder="e.g. Unauthorized exterior modification" />
           </div>
           <div class="space-y-1.5">
             <Label>Member (optional)</Label>

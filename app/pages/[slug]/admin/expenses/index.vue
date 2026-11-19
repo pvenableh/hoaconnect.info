@@ -290,17 +290,17 @@ const expenseColumns = [
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="space-y-1.5 md:col-span-2">
             <Label for="expense-title">Title</Label>
-            <Input id="expense-title" v-model="form.title" :disabled="paidLocked" placeholder="e.g. Landscaping — October" />
+            <AppInput id="expense-title" v-model="form.title" :disabled="paidLocked" placeholder="e.g. Landscaping — October" />
           </div>
           <div class="space-y-1.5">
             <Label for="expense-vendor">Vendor</Label>
-            <Input id="expense-vendor" v-model="form.vendor" :disabled="paidLocked" placeholder="Who is paid" />
+            <AppInput id="expense-vendor" v-model="form.vendor" :disabled="paidLocked" placeholder="Who is paid" />
           </div>
           <div class="space-y-1.5">
             <Label for="expense-amount">Amount</Label>
             <div class="relative">
               <span class="absolute left-3 top-1/2 -translate-y-1/2 t-text-muted">$</span>
-              <Input id="expense-amount" v-model.number="form.amount" :disabled="paidLocked" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
+              <AppInput id="expense-amount" v-model.number="form.amount" :disabled="paidLocked" type="number" min="0" step="0.01" placeholder="0.00" class="pl-7" />
             </div>
           </div>
           <div class="space-y-1.5">
@@ -322,11 +322,11 @@ const expenseColumns = [
           </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label for="expense-description">Description</Label>
-            <Input id="expense-description" v-model="form.description" :disabled="paidLocked" placeholder="What is this for?" />
+            <AppInput id="expense-description" v-model="form.description" :disabled="paidLocked" placeholder="What is this for?" />
           </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label for="expense-notes">Notes</Label>
-            <Input id="expense-notes" v-model="form.notes" placeholder="Invoice number, anything the board should know" />
+            <AppInput id="expense-notes" v-model="form.notes" placeholder="Invoice number, anything the board should know" />
           </div>
           <div class="space-y-1.5 md:col-span-2">
             <Label>Receipt / invoice</Label>

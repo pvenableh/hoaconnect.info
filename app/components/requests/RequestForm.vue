@@ -95,7 +95,7 @@ const submit = async () => {
     <!-- Title -->
     <div>
       <label class="block text-sm font-medium t-text-secondary mb-1.5">Title</label>
-      <Input v-model="form.title" placeholder="Brief summary" />
+      <AppInput v-model="form.title" placeholder="Brief summary" />
     </div>
 
     <!-- Description -->
@@ -150,7 +150,7 @@ const submit = async () => {
           rows="2"
           class="w-full px-3 py-2 border rounded-md bg-background text-sm resize-none"
         />
-        <Input
+        <AppInput
           v-else
           v-model="metadata[field.key]"
           :type="

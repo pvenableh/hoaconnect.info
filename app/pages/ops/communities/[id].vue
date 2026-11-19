@@ -538,16 +538,16 @@ async function onDone(res: any) {
         <div v-else-if="action === 'contact'" class="space-y-3">
           <div class="space-y-1.5">
             <Label for="ops-contact-email">Email</Label>
-            <Input id="ops-contact-email" v-model="contactEmail" type="email" autocomplete="off" />
+            <AppInput id="ops-contact-email" v-model="contactEmail" type="email" autocomplete="off" />
           </div>
           <div class="space-y-1.5">
             <Label for="ops-contact-name">Name (optional)</Label>
-            <Input id="ops-contact-name" v-model="contactName" autocomplete="off" />
+            <AppInput id="ops-contact-name" v-model="contactName" autocomplete="off" />
           </div>
         </div>
         <div v-else-if="action === 'receipt'" class="space-y-1.5">
           <Label for="ops-receipt-email">Send to</Label>
-          <Input id="ops-receipt-email" v-model="receiptEmail" type="email" autocomplete="off" placeholder="The billing contact" />
+          <AppInput id="ops-receipt-email" v-model="receiptEmail" type="email" autocomplete="off" placeholder="The billing contact" />
         </div>
         <div v-else-if="action === 'viewas'" class="space-y-3">
           <div class="space-y-1.5">

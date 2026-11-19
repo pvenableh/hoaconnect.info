@@ -48,7 +48,7 @@ function colorValue(v: any): string {
           class="h-8 w-10 rounded border t-border cursor-pointer bg-transparent"
           @input="emit('update', field.key, ($event.target as HTMLInputElement).value)"
         />
-        <Input
+        <AppInput
           :model-value="variables[field.key] ?? ''"
           placeholder="#000000 or transparent"
           class="h-8 text-xs font-mono"
@@ -73,7 +73,7 @@ function colorValue(v: any): string {
           :name="field.type === 'image' ? 'lucide:image' : 'lucide:link'"
           class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 t-text-muted"
         />
-        <Input
+        <AppInput
           :model-value="variables[field.key] ?? ''"
           :placeholder="field.description || (field.type === 'image' ? 'https://…/image.jpg' : field.type === 'url' ? 'https://…' : field.label)"
           class="h-8 text-sm"

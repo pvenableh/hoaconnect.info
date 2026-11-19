@@ -239,7 +239,7 @@ const resetForm = () => {
             <FormItem>
               <FormLabel>First Name *</FormLabel>
               <FormControl>
-                <Input v-model="form.firstName" placeholder="John" required />
+                <AppInput v-model="form.firstName" placeholder="John" required />
               </FormControl>
             </FormItem>
           </FormField>
@@ -248,7 +248,7 @@ const resetForm = () => {
             <FormItem>
               <FormLabel>Last Name *</FormLabel>
               <FormControl>
-                <Input v-model="form.lastName" placeholder="Doe" required />
+                <AppInput v-model="form.lastName" placeholder="Doe" required />
               </FormControl>
             </FormItem>
           </FormField>
@@ -258,7 +258,7 @@ const resetForm = () => {
           <FormItem>
             <FormLabel>Email *</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="form.email"
                 type="email"
                 placeholder="john@example.com"
@@ -275,7 +275,7 @@ const resetForm = () => {
           <FormItem>
             <FormLabel>Phone</FormLabel>
             <FormControl>
-              <Input
+              <AppInput
                 v-model="form.phone"
                 type="tel"
                 placeholder="(305) 555-1234"

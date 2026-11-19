@@ -181,15 +181,15 @@ watch(
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div class="space-y-1.5">
               <Label>Neighborhood</Label>
-              <Input v-model="landing.places.neighborhood" placeholder="e.g. Flamingo Park" />
+              <AppInput v-model="landing.places.neighborhood" placeholder="e.g. Flamingo Park" />
             </div>
             <div class="space-y-1.5">
               <Label>Walk score</Label>
-              <Input v-model.number="landing.places.walk_score" type="number" min="0" max="100" placeholder="94" />
+              <AppInput v-model.number="landing.places.walk_score" type="number" min="0" max="100" placeholder="94" />
             </div>
             <div class="space-y-1.5">
               <Label>Bike score</Label>
-              <Input v-model.number="landing.places.bike_score" type="number" min="0" max="100" placeholder="89" />
+              <AppInput v-model.number="landing.places.bike_score" type="number" min="0" max="100" placeholder="89" />
             </div>
           </div>
           <div class="flex items-center justify-between">
@@ -199,9 +199,9 @@ watch(
             </Button>
           </div>
           <div v-for="(p, i) in landing.places.items" :key="i" class="flex items-center gap-2">
-            <Input v-model="p.name" placeholder="The Beach" class="flex-1" />
-            <Input v-model="p.walk_time" placeholder="6 min" class="w-24" />
-            <Input v-model="p.distance" placeholder="0.5 mi" class="w-24" />
+            <AppInput v-model="p.name" placeholder="The Beach" class="flex-1" />
+            <AppInput v-model="p.walk_time" placeholder="6 min" class="w-24" />
+            <AppInput v-model="p.distance" placeholder="0.5 mi" class="w-24" />
             <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removePlace(i)">
               <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
             </Button>
@@ -247,7 +247,7 @@ watch(
             </div>
             <div v-if="inquiryMode === 'email'" class="space-y-1.5">
               <Label>Email address</Label>
-              <Input v-model="landing.inquiry.email" type="email" placeholder="info@yourbuilding.com" />
+              <AppInput v-model="landing.inquiry.email" type="email" placeholder="info@yourbuilding.com" />
               <p class="text-xs t-text-muted">Leave blank to use your community contact email.</p>
             </div>
             <div v-else class="space-y-1.5">

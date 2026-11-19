@@ -8,7 +8,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ChangeKind, ChangeAction, HouseholdLease } from "#core/app/composables/useChangeRequests";
 import { LEASE_DOCUMENT_MAX_BYTES, leaseDay, leaseRequestLine } from "#core/shared/units/lease-requests";
@@ -416,8 +415,8 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
           <!-- Name on file -->
           <template v-if="editor.kind === 'name'">
             <div class="grid grid-cols-2 gap-2">
-              <div class="space-y-1.5"><Label>First name</Label><Input v-model="editor.fields.first_name" autocomplete="given-name" /></div>
-              <div class="space-y-1.5"><Label>Last name</Label><Input v-model="editor.fields.last_name" autocomplete="family-name" /></div>
+              <div class="space-y-1.5"><Label>First name</Label><AppInput v-model="editor.fields.first_name" autocomplete="given-name" /></div>
+              <div class="space-y-1.5"><Label>Last name</Label><AppInput v-model="editor.fields.last_name" autocomplete="family-name" /></div>
             </div>
           </template>
 
@@ -425,37 +424,37 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
           <template v-else-if="editor.kind === 'contact'">
             <div class="space-y-1.5">
               <Label>Phone</Label>
-              <Input v-model="editor.fields.phone" type="tel" placeholder="(305) 555-0123" />
+              <AppInput v-model="editor.fields.phone" type="tel" placeholder="(305) 555-0123" />
             </div>
           </template>
 
           <!-- Mailing -->
           <template v-else-if="editor.kind === 'mailing_address'">
-            <div class="space-y-1.5"><Label>Address line 1</Label><Input v-model="editor.fields.line1" /></div>
-            <div class="space-y-1.5"><Label>Address line 2</Label><Input v-model="editor.fields.line2" /></div>
+            <div class="space-y-1.5"><Label>Address line 1</Label><AppInput v-model="editor.fields.line1" /></div>
+            <div class="space-y-1.5"><Label>Address line 2</Label><AppInput v-model="editor.fields.line2" /></div>
             <div class="grid grid-cols-3 gap-2">
-              <div class="space-y-1.5 col-span-2"><Label>City</Label><Input v-model="editor.fields.city" /></div>
-              <div class="space-y-1.5"><Label>State</Label><Input v-model="editor.fields.state" /></div>
+              <div class="space-y-1.5 col-span-2"><Label>City</Label><AppInput v-model="editor.fields.city" /></div>
+              <div class="space-y-1.5"><Label>State</Label><AppInput v-model="editor.fields.state" /></div>
             </div>
-            <div class="space-y-1.5"><Label>ZIP</Label><Input v-model="editor.fields.zip" /></div>
+            <div class="space-y-1.5"><Label>ZIP</Label><AppInput v-model="editor.fields.zip" /></div>
           </template>
 
           <!-- Vehicle -->
           <template v-else-if="editor.kind === 'vehicle'">
             <div class="grid grid-cols-3 gap-2">
-              <div class="space-y-1.5"><Label>Year</Label><Input v-model="editor.fields.year" /></div>
-              <div class="space-y-1.5"><Label>Make</Label><Input v-model="editor.fields.make" /></div>
-              <div class="space-y-1.5"><Label>Model</Label><Input v-model="editor.fields.model" /></div>
+              <div class="space-y-1.5"><Label>Year</Label><AppInput v-model="editor.fields.year" /></div>
+              <div class="space-y-1.5"><Label>Make</Label><AppInput v-model="editor.fields.make" /></div>
+              <div class="space-y-1.5"><Label>Model</Label><AppInput v-model="editor.fields.model" /></div>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <div class="space-y-1.5"><Label>License plate</Label><Input v-model="editor.fields.license_plate" /></div>
-              <div class="space-y-1.5"><Label>Parking spot</Label><Input v-model="editor.fields.parking_spot" /></div>
+              <div class="space-y-1.5"><Label>License plate</Label><AppInput v-model="editor.fields.license_plate" /></div>
+              <div class="space-y-1.5"><Label>Parking spot</Label><AppInput v-model="editor.fields.parking_spot" /></div>
             </div>
           </template>
 
           <!-- Pet -->
           <template v-else-if="editor.kind === 'pet'">
-            <div class="space-y-1.5"><Label>Name</Label><Input v-model="editor.fields.name" /></div>
+            <div class="space-y-1.5"><Label>Name</Label><AppInput v-model="editor.fields.name" /></div>
             <div class="grid grid-cols-2 gap-2">
               <div class="space-y-1.5">
                 <Label>Type</Label>
@@ -463,9 +462,9 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
                   <option v-for="t in PET_TYPES" :key="t" :value="t" class="capitalize">{{ t }}</option>
                 </select>
               </div>
-              <div class="space-y-1.5"><Label>Breed</Label><Input v-model="editor.fields.breed" /></div>
+              <div class="space-y-1.5"><Label>Breed</Label><AppInput v-model="editor.fields.breed" /></div>
             </div>
-            <div class="space-y-1.5"><Label>Weight</Label><Input v-model="editor.fields.weight" placeholder="e.g. 30 lbs" /></div>
+            <div class="space-y-1.5"><Label>Weight</Label><AppInput v-model="editor.fields.weight" placeholder="e.g. 30 lbs" /></div>
           </template>
 
           <!-- Lease -->
@@ -477,12 +476,12 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
               </select>
             </div>
             <div class="grid grid-cols-2 gap-2">
-              <div class="space-y-1.5"><Label>Tenant's first name</Label><Input v-model="editor.fields.tenant_first_name" autocomplete="off" /></div>
-              <div class="space-y-1.5"><Label>Last name</Label><Input v-model="editor.fields.tenant_last_name" autocomplete="off" /></div>
+              <div class="space-y-1.5"><Label>Tenant's first name</Label><AppInput v-model="editor.fields.tenant_first_name" autocomplete="off" /></div>
+              <div class="space-y-1.5"><Label>Last name</Label><AppInput v-model="editor.fields.tenant_last_name" autocomplete="off" /></div>
             </div>
             <div class="space-y-1.5">
               <Label>Tenant's email</Label>
-              <Input v-model="editor.fields.tenant_email" type="email" autocomplete="off" placeholder="We'll invite them to join" />
+              <AppInput v-model="editor.fields.tenant_email" type="email" autocomplete="off" placeholder="We'll invite them to join" />
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div class="space-y-1.5"><Label>Starts</Label><DateInput v-model="editor.fields.start_date" /></div>

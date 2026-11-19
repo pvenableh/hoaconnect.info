@@ -25,7 +25,7 @@
         <!-- Organization Name -->
         <div class="space-y-2">
           <Label for="name">Organization Name</Label>
-          <Input
+          <AppInput
             id="name"
             v-model="form.name"
             placeholder="Sunset Heights HOA"
@@ -36,7 +36,7 @@
         <!-- Legal Name -->
         <div class="space-y-2">
           <Label for="legal_name">Legal Name</Label>
-          <Input
+          <AppInput
             id="legal_name"
             v-model="form.legal_name"
             placeholder="Sunset Heights Homeowners Association, Inc."
@@ -69,7 +69,7 @@
         <div class="space-y-2">
           <Label for="slug">URL Slug</Label>
           <div class="flex items-center gap-2">
-            <Input
+            <AppInput
               id="slug"
               :modelValue="organization.slug"
               disabled
@@ -93,7 +93,7 @@
         <!-- Contact Email -->
         <div class="space-y-2">
           <Label for="email">Contact Email</Label>
-          <Input
+          <AppInput
             id="email"
             v-model="form.email"
             type="email"
@@ -105,7 +105,7 @@
         <!-- Phone -->
         <div class="space-y-2">
           <Label for="phone">Phone Number</Label>
-          <Input
+          <AppInput
             id="phone"
             v-model="form.phone"
             type="tel"
@@ -122,7 +122,7 @@
             <!-- Street Address -->
             <div class="space-y-2">
               <Label for="street_address">Street Address</Label>
-              <Input
+              <AppInput
                 id="street_address"
                 v-model="form.street_address"
                 placeholder="123 Main Street"
@@ -134,7 +134,7 @@
             <div class="grid grid-cols-6 gap-4">
               <div class="col-span-3 space-y-2">
                 <Label for="city">City</Label>
-                <Input
+                <AppInput
                   id="city"
                   v-model="form.city"
                   placeholder="Los Angeles"
@@ -143,7 +143,7 @@
               </div>
               <div class="col-span-1 space-y-2">
                 <Label for="state">State</Label>
-                <Input
+                <AppInput
                   id="state"
                   v-model="form.state"
                   placeholder="CA"
@@ -153,7 +153,7 @@
               </div>
               <div class="col-span-2 space-y-2">
                 <Label for="zip">ZIP Code</Label>
-                <Input
+                <AppInput
                   id="zip"
                   v-model="form.zip"
                   placeholder="90001"

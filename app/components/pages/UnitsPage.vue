@@ -281,7 +281,7 @@ const handleDelete = async (id: string) => {
             <div class="grid gap-4 py-4">
               <div class="grid gap-2">
                 <Label for="unit-number">Unit Number *</Label>
-                <Input id="unit-number" v-model="form.unit_number" placeholder="101" />
+                <AppInput id="unit-number" v-model="form.unit_number" placeholder="101" />
               </div>
 
               <div class="grid gap-2">

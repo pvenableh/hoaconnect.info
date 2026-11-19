@@ -279,7 +279,7 @@ watch(isOpen, (open) => {
 
       <!-- Invite picker -->
       <div v-if="canManage" class="border-t t-border pt-3 space-y-2">
-        <Input v-model="query" placeholder="Search members to add…" />
+        <AppInput v-model="query" placeholder="Search members to add…" />
         <div class="space-y-1 max-h-48 overflow-y-auto">
           <button
             v-for="om in invitable"

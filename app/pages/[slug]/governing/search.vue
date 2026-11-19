@@ -136,7 +136,7 @@ const relationshipsOf = (r: GoverningSearchResult) => [...new Set(r.flags.map((f
         back-label="Governing documents"
       />
 
-      <Input
+      <AppInput
         v-model="query"
         type="search"
         class="glass-field"

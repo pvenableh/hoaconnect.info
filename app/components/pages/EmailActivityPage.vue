@@ -512,7 +512,7 @@ useSeoMeta({
 
           <!-- Filters -->
           <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <Input
+            <AppInput
               v-model="searchQuery"
               placeholder="Search by email or name..."
               class="flex-1 max-w-md"
@@ -520,7 +520,7 @@ useSeoMeta({
               <template #leading>
                 <Icon name="lucide:search" class="w-4 h-4 t-text-muted" />
               </template>
-            </Input>
+            </AppInput>
             <Select v-model="eventFilter">
               <AppSelectTrigger class="w-40">
                 <SelectValue placeholder="Filter by event" />

@@ -1126,7 +1126,7 @@ useSeoMeta({
               <CardContent class="space-y-4">
                 <div class="space-y-2">
                   <Label for="subject">Subject *</Label>
-                  <Input
+                  <AppInput
                     id="subject"
                     v-model="form.subject"
                     placeholder="Enter email subject..."
@@ -1136,7 +1136,7 @@ useSeoMeta({
 
                 <div class="space-y-2">
                   <Label for="greeting">Greeting</Label>
-                  <Input
+                  <AppInput
                     id="greeting"
                     v-model="form.greeting"
                     :placeholder="greetingPlaceholder"
@@ -1243,7 +1243,7 @@ useSeoMeta({
               <CardContent class="space-y-4">
                 <div class="space-y-2">
                   <Label for="header-line">Header line (under logo)</Label>
-                  <Input
+                  <AppInput
                     id="header-line"
                     v-model="form.headerText"
                     placeholder="Official Communication of {name}"
@@ -1257,7 +1257,7 @@ useSeoMeta({
 
                 <div class="space-y-2">
                   <Label for="salutation">Custom Salutation</Label>
-                  <Input
+                  <AppInput
                     id="salutation"
                     v-model="form.salutation"
                     :placeholder="defaultSalutation"
@@ -1565,7 +1565,7 @@ useSeoMeta({
 
                     <!-- Free-form email entry -->
                     <div class="flex gap-2">
-                      <Input
+                      <AppInput
                         v-model="newEmail[field]"
                         type="email"
                         placeholder="name@example.com"
@@ -1855,11 +1855,11 @@ useSeoMeta({
             <div class="space-y-4">
               <div class="space-y-2">
                 <Label for="tpl-name">Template name *</Label>
-                <Input id="tpl-name" v-model="newTemplate.name" placeholder="e.g. Monthly Newsletter" />
+                <AppInput id="tpl-name" v-model="newTemplate.name" placeholder="e.g. Monthly Newsletter" />
               </div>
               <div class="space-y-2">
                 <Label for="tpl-desc">Description</Label>
-                <Input id="tpl-desc" v-model="newTemplate.description" placeholder="Optional — when to use this" />
+                <AppInput id="tpl-desc" v-model="newTemplate.description" placeholder="Optional — when to use this" />
               </div>
             </div>
 
@@ -1947,7 +1947,7 @@ useSeoMeta({
                 name="lucide:search"
                 class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
               />
-              <Input
+              <AppInput
                 v-model="attachmentSearchQuery"
                 placeholder="Search files..."
                 class="pl-9"

@@ -44,7 +44,7 @@ const runSearch = async () => {
       />
 
       <form class="flex items-center gap-2" role="search" @submit.prevent="runSearch">
-        <Input
+        <AppInput
           v-model="query"
           type="search"
           class="glass-field flex-1"

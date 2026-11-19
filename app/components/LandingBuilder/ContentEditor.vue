@@ -82,22 +82,22 @@ function moveFeature(i: number, dir: -1 | 1) {
       <div class="grid grid-cols-2 gap-3">
         <div class="space-y-1.5">
           <Label>Number</Label>
-          <Input v-model="b.number_label" placeholder="01" />
+          <AppInput v-model="b.number_label" placeholder="01" />
         </div>
         <div class="space-y-1.5">
           <Label>Category</Label>
-          <Input v-model="b.category" placeholder="Philosophy" />
+          <AppInput v-model="b.category" placeholder="Philosophy" />
         </div>
       </div>
     </div>
 
     <div class="space-y-1.5">
       <Label>Eyebrow</Label>
-      <Input v-model="b.eyebrow" placeholder="Fully renovated — turnkey" />
+      <AppInput v-model="b.eyebrow" placeholder="Fully renovated — turnkey" />
     </div>
     <div class="space-y-1.5">
       <Label>Title</Label>
-      <Input v-model="b.title" placeholder="The Anti-High-Rise" />
+      <AppInput v-model="b.title" placeholder="The Anti-High-Rise" />
     </div>
     <div class="space-y-1.5">
       <Label>Body</Label>
@@ -110,7 +110,7 @@ function moveFeature(i: number, dir: -1 | 1) {
     </div>
     <div class="space-y-1.5">
       <Label>Tagline</Label>
-      <Input v-model="b.tagline" placeholder="Boutique scale. Big beach lifestyle." />
+      <AppInput v-model="b.tagline" placeholder="Boutique scale. Big beach lifestyle." />
     </div>
 
     <!-- Menu link -->
@@ -128,7 +128,7 @@ function moveFeature(i: number, dir: -1 | 1) {
           <span class="inline-flex items-center justify-center w-9 h-9 rounded-md border t-border shrink-0">
             <Icon :name="b.menu_icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
           </span>
-          <Input v-model="b.menu_icon" placeholder="lucide:sparkles" />
+          <AppInput v-model="b.menu_icon" placeholder="lucide:sparkles" />
         </div>
         <div class="flex flex-wrap gap-1.5">
           <button
@@ -162,8 +162,8 @@ function moveFeature(i: number, dir: -1 | 1) {
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
           </Button>
         </div>
-        <Input v-model="img.caption_title" placeholder="Caption title (optional)" />
-        <Input v-model="img.caption_body" placeholder="Caption description (optional)" />
+        <AppInput v-model="img.caption_title" placeholder="Caption title (optional)" />
+        <AppInput v-model="img.caption_body" placeholder="Caption description (optional)" />
         <label class="text-xs t-text-muted inline-flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -188,10 +188,10 @@ function moveFeature(i: number, dir: -1 | 1) {
         <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
           <Icon :name="s.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
         </span>
-        <Input v-model="s.icon" placeholder="lucide: (optional)" class="w-32" />
-        <Input v-model="s.value" placeholder="6" class="w-16" />
-        <Input v-model="s.unit" placeholder="min" class="w-20" />
-        <Input v-model="s.label" placeholder="Beach" class="flex-1" />
+        <AppInput v-model="s.icon" placeholder="lucide: (optional)" class="w-32" />
+        <AppInput v-model="s.value" placeholder="6" class="w-16" />
+        <AppInput v-model="s.unit" placeholder="min" class="w-20" />
+        <AppInput v-model="s.label" placeholder="Beach" class="flex-1" />
         <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
           <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
         </Button>
@@ -243,7 +243,7 @@ function moveFeature(i: number, dir: -1 | 1) {
           <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
             <Icon :name="f.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
           </span>
-          <Input v-model="f.icon" placeholder="lucide:sparkles" class="w-40" />
+          <AppInput v-model="f.icon" placeholder="lucide:sparkles" class="w-40" />
           <label class="ml-auto flex items-center gap-1.5 text-xs t-text-muted whitespace-nowrap">
             <input type="checkbox" :checked="f.wide" @change="f.wide = ($event.target as HTMLInputElement).checked" />
             Wide
@@ -252,8 +252,8 @@ function moveFeature(i: number, dir: -1 | 1) {
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
           </Button>
         </div>
-        <Input v-model="f.title" placeholder="Title (optional — used by cards & tiles)" />
-        <Input v-model="f.text" placeholder="Feature text" />
+        <AppInput v-model="f.title" placeholder="Title (optional — used by cards & tiles)" />
+        <AppInput v-model="f.text" placeholder="Feature text" />
       </div>
       <p class="text-xs t-text-muted">
         Icons use any

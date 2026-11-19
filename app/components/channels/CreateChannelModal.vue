@@ -107,7 +107,7 @@ watch(isOpen, (open) => {
         <FieldContent>
           <div class="flex items-center">
             <span class="t-text-muted mr-1">#</span>
-            <Input
+            <AppInput
               v-bind="field"
               placeholder="general"
               class="flex-1"

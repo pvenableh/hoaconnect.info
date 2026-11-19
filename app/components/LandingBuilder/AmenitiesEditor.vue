@@ -26,13 +26,13 @@ function remove(i: number) {
     <div v-for="(a, i) in site.amenities" :key="i" class="rounded-xl border t-border p-3 space-y-2">
       <div class="flex items-center gap-2">
         <Icon :name="a.icon || 'lucide:sparkles'" class="w-5 h-5 shrink-0 t-text-accent" />
-        <Input v-model="a.title" placeholder="Title (e.g. Rooftop Pool)" class="flex-1" />
+        <AppInput v-model="a.title" placeholder="Title (e.g. Rooftop Pool)" class="flex-1" />
         <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="remove(i)">
           <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
         </Button>
       </div>
-      <Input v-model="a.icon" placeholder="Icon name (e.g. lucide:waves)" class="font-mono text-xs" />
-      <Input v-model="a.description" placeholder="Short description" />
+      <AppInput v-model="a.icon" placeholder="Icon name (e.g. lucide:waves)" class="font-mono text-xs" />
+      <AppInput v-model="a.description" placeholder="Short description" />
     </div>
   </div>
 </template>

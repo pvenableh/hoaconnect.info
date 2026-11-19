@@ -278,7 +278,7 @@ useSeoMeta({
                 <!-- Unit Number -->
                 <div class="space-y-2">
                   <Label for="unit-number">Unit Number (Optional)</Label>
-                  <Input
+                  <AppInput
                     id="unit-number"
                     v-model="form.unitNumber"
                     placeholder="e.g., 101, A-5, etc."

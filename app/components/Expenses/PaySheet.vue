@@ -65,7 +65,7 @@ const save = async () => {
       </div>
       <div class="grid gap-2">
         <Label for="pay-reference">Check number or transfer reference</Label>
-        <Input id="pay-reference" v-model="form.reference" maxlength="120" placeholder="e.g. Check 1042" />
+        <AppInput id="pay-reference" v-model="form.reference" maxlength="120" placeholder="e.g. Check 1042" />
       </div>
       <p v-if="early" class="rounded-lg bg-warning/10 p-3 text-sm text-warning">
         This expense isn't approved yet. Recording it paid marks it "Paid before approval" for good, and every board

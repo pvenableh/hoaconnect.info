@@ -277,11 +277,11 @@ const fmtDate = (v?: string | null) =>
           <div class="grid grid-cols-3 gap-3">
             <div class="col-span-2">
               <label class="block text-sm font-medium t-text-secondary mb-1.5">Title *</label>
-              <Input v-model="form.title" placeholder="e.g. Pet policy" />
+              <AppInput v-model="form.title" placeholder="e.g. Pet policy" />
             </div>
             <div>
               <label class="block text-sm font-medium t-text-secondary mb-1.5">Section #</label>
-              <Input v-model="form.section_number" placeholder="4.2.1" />
+              <AppInput v-model="form.section_number" placeholder="4.2.1" />
             </div>
             <div>
               <label class="block text-sm font-medium t-text-secondary mb-1.5">Category</label>
@@ -317,7 +317,7 @@ const fmtDate = (v?: string | null) =>
 
           <div>
             <label class="block text-sm font-medium t-text-secondary mb-1.5">Tags <span class="t-text-muted font-normal">(comma-separated)</span></label>
-            <Input v-model="tagsInput" placeholder="pets, noise, parking" />
+            <AppInput v-model="tagsInput" placeholder="pets, noise, parking" />
           </div>
 
           <div class="flex justify-end gap-2 pt-1">

@@ -12,7 +12,7 @@
         <div class="space-y-2 max-w-md">
           <Label for="from_name">Display name</Label>
           <div class="flex gap-2">
-            <Input
+            <AppInput
               id="from_name"
               v-model="fromName"
               :placeholder="orgName || 'Your HOA'"
@@ -45,7 +45,7 @@
         <div v-if="!domain" class="space-y-2 max-w-md">
           <Label for="email_domain">Domain</Label>
           <div class="flex gap-2">
-            <Input
+            <AppInput
               id="email_domain"
               v-model="domainInput"
               placeholder="yourbuilding.com"
@@ -112,7 +112,7 @@
           <div v-if="verified" class="space-y-2 max-w-md">
             <Label for="from_local">From address</Label>
             <div class="flex items-center gap-2">
-              <Input id="from_local" v-model="fromLocal" placeholder="board" class="max-w-[180px]" :disabled="savingFrom" />
+              <AppInput id="from_local" v-model="fromLocal" placeholder="board" class="max-w-[180px]" :disabled="savingFrom" />
               <span class="text-sm t-text-muted">@{{ domain }}</span>
               <Button @click="saveFromEmail" :disabled="savingFrom">
                 <Icon v-if="savingFrom" name="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />

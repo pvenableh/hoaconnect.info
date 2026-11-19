@@ -23,7 +23,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { promptTextOk } from "#core/app/composables/useConfirm";
 
@@ -117,7 +116,7 @@ function onFieldKeydown(e: KeyboardEvent) {
           rows="3"
           @keydown="onFieldKeydown"
         />
-        <Input
+        <AppInput
           v-else
           :id="`confirm-field-${shown.id}`"
           v-model="text"

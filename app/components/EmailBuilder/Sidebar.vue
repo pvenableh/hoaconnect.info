@@ -40,7 +40,7 @@ const filtered = computed(() => {
     <div class="p-3 border-b t-border">
       <div class="relative">
         <Icon name="lucide:search" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 t-text-muted" />
-        <Input v-model="search" placeholder="Search blocks…" class="h-9 pl-8 text-sm" />
+        <AppInput v-model="search" placeholder="Search blocks…" class="h-9 pl-8 text-sm" />
       </div>
     </div>
 

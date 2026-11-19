@@ -635,40 +635,40 @@ watch(orgId, () => {
             </div>
             <div v-if="editing.category === 'other'" class="space-y-1.5">
               <Label>Custom category</Label>
-              <Input v-model="editing.category_other" placeholder="e.g. Roofing" />
+              <AppInput v-model="editing.category_other" placeholder="e.g. Roofing" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Company / firm</Label>
-              <Input v-model="editing.company" placeholder="Acme Property Mgmt" />
+              <AppInput v-model="editing.company" placeholder="Acme Property Mgmt" />
             </div>
             <div class="space-y-1.5">
               <Label>Contact person</Label>
-              <Input v-model="editing.name" placeholder="Jane Smith" />
+              <AppInput v-model="editing.name" placeholder="Jane Smith" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Email</Label>
-              <Input v-model="editing.email" type="email" placeholder="name@company.com" />
+              <AppInput v-model="editing.email" type="email" placeholder="name@company.com" />
             </div>
             <div class="space-y-1.5">
               <Label>Phone</Label>
-              <Input v-model="editing.phone" placeholder="(555) 123-4567" />
+              <AppInput v-model="editing.phone" placeholder="(555) 123-4567" />
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>Website</Label>
-              <Input v-model="editing.website" placeholder="https://…" />
+              <AppInput v-model="editing.website" placeholder="https://…" />
             </div>
             <div class="space-y-1.5">
               <Label>Address</Label>
-              <Input v-model="editing.address" placeholder="123 Main St" />
+              <AppInput v-model="editing.address" placeholder="123 Main St" />
             </div>
           </div>
 
@@ -744,16 +744,16 @@ watch(orgId, () => {
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>First name</Label>
-              <Input v-model="invite.firstName" />
+              <AppInput v-model="invite.firstName" />
             </div>
             <div class="space-y-1.5">
               <Label>Last name</Label>
-              <Input v-model="invite.lastName" />
+              <AppInput v-model="invite.lastName" />
             </div>
           </div>
           <div class="space-y-1.5">
             <Label>Email</Label>
-            <Input v-model="invite.email" type="email" placeholder="name@company.com" />
+            <AppInput v-model="invite.email" type="email" placeholder="name@company.com" />
           </div>
           <div class="space-y-2">
             <Label>What should they be able to do?</Label>

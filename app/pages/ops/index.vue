@@ -231,7 +231,7 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
         <template v-if="codeAction === 'create'">
           <div class="space-y-1.5">
             <Label for="ops-code">Code</Label>
-            <Input id="ops-code" v-model="form.code" autocomplete="off" autocapitalize="characters" class="font-mono uppercase" placeholder="SPRING25" />
+            <AppInput id="ops-code" v-model="form.code" autocomplete="off" autocapitalize="characters" class="font-mono uppercase" placeholder="SPRING25" />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
@@ -240,7 +240,7 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
             </div>
             <div class="space-y-1.5">
               <Label for="ops-code-value">{{ form.kind === "percent" ? "Percent" : "Dollars" }}</Label>
-              <Input id="ops-code-value" v-model="form.value" inputmode="decimal" autocomplete="off" />
+              <AppInput id="ops-code-value" v-model="form.value" inputmode="decimal" autocomplete="off" />
             </div>
           </div>
           <div class="space-y-1.5">
@@ -255,11 +255,11 @@ const subStatuses = computed(() => Object.entries(o.value?.revenue?.byStatus ?? 
           <div class="grid grid-cols-2 gap-3">
             <div v-if="form.duration === 'repeating'" class="space-y-1.5">
               <Label for="ops-code-months">Months</Label>
-              <Input id="ops-code-months" v-model="form.months" type="number" min="1" max="36" />
+              <AppInput id="ops-code-months" v-model="form.months" type="number" min="1" max="36" />
             </div>
             <div class="space-y-1.5">
               <Label for="ops-code-max">Uses (optional)</Label>
-              <Input id="ops-code-max" v-model="form.maxRedemptions" type="number" min="1" placeholder="Unlimited" />
+              <AppInput id="ops-code-max" v-model="form.maxRedemptions" type="number" min="1" placeholder="Unlimited" />
             </div>
             <div class="space-y-1.5">
               <Label for="ops-code-expires">Expires (optional)</Label>

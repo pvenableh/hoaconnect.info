@@ -424,7 +424,7 @@ const doPromote = async () => {
               v-else-if="field.type === 'date'"
               v-model="metaEdit[field.key]"
             />
-            <Input
+            <AppInput
               v-else
               v-model="metaEdit[field.key]"
               :type="field.type === 'number' || field.type === 'currency' ? 'number' : 'text'"

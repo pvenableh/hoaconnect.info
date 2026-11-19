@@ -253,7 +253,7 @@ function thumbUrl(f: StorageFile, size = 160) {
       <div v-if="tab !== 'upload'" class="space-y-2">
         <div class="relative">
           <Icon name="lucide:search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="search" placeholder="Search files" class="h-9 pl-8" />
+          <AppInput v-model="search" placeholder="Search files" class="h-9 pl-8" />
         </div>
         <nav v-if="tab === 'library' && breadcrumb.length" class="flex items-center gap-1 text-xs text-muted-foreground">
           <template v-for="(c, i) in breadcrumb" :key="c.id">

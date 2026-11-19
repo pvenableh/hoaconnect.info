@@ -1601,27 +1601,27 @@ useSeoMeta({
             <div class="grid grid-cols-2 gap-4">
               <div class="grid gap-2">
                 <Label for="first-name">First Name</Label>
-                <Input id="first-name" v-model="form.first_name" required />
+                <AppInput id="first-name" v-model="form.first_name" required />
               </div>
               <div class="grid gap-2">
                 <Label for="last-name">Last Name</Label>
-                <Input id="last-name" v-model="form.last_name" required />
+                <AppInput id="last-name" v-model="form.last_name" required />
               </div>
             </div>
 
             <div class="grid gap-2">
               <Label for="email">Email</Label>
-              <Input id="email" v-model="form.email" type="email" required />
+              <AppInput id="email" v-model="form.email" type="email" required />
             </div>
 
             <div class="grid gap-2">
               <Label for="phone">Phone</Label>
-              <Input id="phone" v-model="form.phone" type="tel" />
+              <AppInput id="phone" v-model="form.phone" type="tel" />
             </div>
 
             <div class="grid gap-2">
               <Label for="company">Company</Label>
-              <Input id="company" v-model="form.company" placeholder="Optional - for property managers" />
+              <AppInput id="company" v-model="form.company" placeholder="Optional - for property managers" />
             </div>
 
             <div class="grid grid-cols-2 gap-4">

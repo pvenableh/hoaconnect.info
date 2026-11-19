@@ -27,7 +27,7 @@ function move(i: number, dir: -1 | 1) {
       <div class="flex items-start gap-2">
         <span class="mt-2 text-sm font-medium t-text-muted w-5 text-right">{{ i + 1 }}.</span>
         <div class="flex-1 space-y-3">
-          <Input v-model="f.question" placeholder="How do I reserve the rooftop?" />
+          <AppInput v-model="f.question" placeholder="How do I reserve the rooftop?" />
           <textarea
             v-model="f.answer"
             rows="3"

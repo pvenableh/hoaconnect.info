@@ -32,20 +32,20 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div class="space-y-1.5">
         <Label>Heading</Label>
-        <Input v-model="landing.location.heading" placeholder="The Flamingo Park Neighborhood" />
+        <AppInput v-model="landing.location.heading" placeholder="The Flamingo Park Neighborhood" />
       </div>
       <div class="grid grid-cols-3 gap-3">
         <div class="space-y-1.5">
           <Label>Walk</Label>
-          <Input v-model.number="landing.location.walk_score" type="number" min="0" max="100" placeholder="94" />
+          <AppInput v-model.number="landing.location.walk_score" type="number" min="0" max="100" placeholder="94" />
         </div>
         <div class="space-y-1.5">
           <Label>Bike</Label>
-          <Input v-model.number="landing.location.bike_score" type="number" min="0" max="100" placeholder="89" />
+          <AppInput v-model.number="landing.location.bike_score" type="number" min="0" max="100" placeholder="89" />
         </div>
         <div class="space-y-1.5">
           <Label>Transit</Label>
-          <Input v-model.number="landing.location.transit_score" type="number" min="0" max="100" placeholder="72" />
+          <AppInput v-model.number="landing.location.transit_score" type="number" min="0" max="100" placeholder="72" />
         </div>
       </div>
     </div>
@@ -66,9 +66,9 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
       </Button>
     </div>
     <div v-for="(p, j) in landing.location.highlights" :key="j" class="flex items-center gap-2">
-      <Input v-model="p.name" placeholder="The Beach" class="flex-1" />
-      <Input v-model="p.walk_time" placeholder="6 min" class="w-24" />
-      <Input v-model="p.distance" placeholder="0.5 mi" class="w-24" />
+      <AppInput v-model="p.name" placeholder="The Beach" class="flex-1" />
+      <AppInput v-model="p.walk_time" placeholder="6 min" class="w-24" />
+      <AppInput v-model="p.distance" placeholder="0.5 mi" class="w-24" />
       <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeHighlight(j)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
       </Button>
@@ -81,9 +81,9 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
       </Button>
     </div>
     <div v-for="(s, k) in landing.location.stats" :key="k" class="flex items-center gap-2">
-      <Input v-model="s.value" placeholder="12" class="w-20" />
-      <Input v-model="s.unit" placeholder="min" class="w-24" />
-      <Input v-model="s.label" placeholder="to the beach" class="flex-1" />
+      <AppInput v-model="s.value" placeholder="12" class="w-20" />
+      <AppInput v-model="s.unit" placeholder="min" class="w-24" />
+      <AppInput v-model="s.label" placeholder="to the beach" class="flex-1" />
       <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeStat(k)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
       </Button>
@@ -100,8 +100,8 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
       </Button>
     </div>
     <div v-for="(w, k) in landing.location.walk_times" :key="`wt-${k}`" class="flex items-center gap-2">
-      <Input v-model="w.minutes" placeholder="6" class="w-20" />
-      <Input v-model="w.label" placeholder="to the Ocean" class="flex-1" />
+      <AppInput v-model="w.minutes" placeholder="6" class="w-20" />
+      <AppInput v-model="w.label" placeholder="to the Ocean" class="flex-1" />
       <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeWalkTime(k)">
         <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
       </Button>
@@ -119,8 +119,8 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
         </Button>
       </div>
       <div v-if="landing.location.lifestyle" class="grid grid-cols-2 gap-2">
-        <Input v-model="landing.location.lifestyle.eyebrow" placeholder="Eyebrow — The Flamingo Park Lifestyle" />
-        <Input v-model="landing.location.lifestyle.heading" placeholder="Heading — Active Living, Steps Away" />
+        <AppInput v-model="landing.location.lifestyle.eyebrow" placeholder="Eyebrow — The Flamingo Park Lifestyle" />
+        <AppInput v-model="landing.location.lifestyle.heading" placeholder="Heading — Active Living, Steps Away" />
       </div>
       <div
         v-for="(it, k) in landing.location.lifestyle?.items || []"
@@ -131,13 +131,13 @@ const removeLifestyleItem = (i: number) => loc.value.lifestyle?.items.splice(i, 
           <span class="inline-flex items-center justify-center w-8 h-8 rounded-md border t-border shrink-0">
             <Icon :name="it.icon || 'lucide:minus'" class="w-4 h-4 t-text-muted" />
           </span>
-          <Input v-model="it.icon" placeholder="lucide:sun" class="w-36" />
-          <Input v-model="it.title" placeholder="BEACH MORNING" class="flex-1" />
+          <AppInput v-model="it.icon" placeholder="lucide:sun" class="w-36" />
+          <AppInput v-model="it.title" placeholder="BEACH MORNING" class="flex-1" />
           <Button variant="ghost" size="sm" class="w-8 h-8 p-0" @click="removeLifestyleItem(k)">
             <Icon name="lucide:trash-2" class="w-4 h-4 text-red-500" />
           </Button>
         </div>
-        <Input v-model="it.desc" placeholder="Sunrise run on the sand" />
+        <AppInput v-model="it.desc" placeholder="Sunrise run on the sand" />
         <LandingBuilderImageField v-model="it.image" thumb-class="h-12 w-12" title="Lifestyle image" />
       </div>
     </div>

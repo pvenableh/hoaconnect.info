@@ -493,7 +493,7 @@ async function loadFolderSize(id: string) {
       <template #actions>
         <div class="relative">
           <Icon name="lucide:search" class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="search" placeholder="Search this folder" class="h-9 w-44 pl-8 sm:w-56" />
+          <AppInput v-model="search" placeholder="Search this folder" class="h-9 w-44 pl-8 sm:w-56" />
         </div>
         <AppSegmentedControl v-model="viewMode" :items="VIEW_MODES" size="sm" label="File view" />
         <Button v-if="canManage" variant="outline" size="sm" class="h-9" @click="showSweep = true">
@@ -791,7 +791,7 @@ async function loadFolderSize(id: string) {
           <DialogTitle>New folder</DialogTitle>
           <DialogDescription>Create a folder in the current location.</DialogDescription>
         </DialogHeader>
-        <Input v-model="newFolderName" placeholder="Folder name" autofocus @keyup.enter="createFolder" />
+        <AppInput v-model="newFolderName" placeholder="Folder name" autofocus @keyup.enter="createFolder" />
         <DialogFooter>
           <Button variant="ghost" @click="showNewFolder = false">Cancel</Button>
           <Button :disabled="busy || !newFolderName.trim()" @click="createFolder">Create</Button>
@@ -805,7 +805,7 @@ async function loadFolderSize(id: string) {
         <DialogHeader>
           <DialogTitle>Rename {{ renameTarget?.type }}</DialogTitle>
         </DialogHeader>
-        <Input v-model="renameValue" autofocus @keyup.enter="confirmRename" />
+        <AppInput v-model="renameValue" autofocus @keyup.enter="confirmRename" />
         <DialogFooter>
           <Button variant="ghost" @click="renameTarget = null">Cancel</Button>
           <Button :disabled="busy || !renameValue.trim()" @click="confirmRename">Save</Button>

@@ -97,7 +97,7 @@ const reset = () => {
       </div>
 
       <form class="mt-3 flex items-center gap-2" @submit.prevent="ask()">
-        <Input
+        <AppInput
           v-model="question"
           :disabled="asking"
           placeholder="e.g. When did the board change managers?"
