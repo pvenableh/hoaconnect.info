@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { PaginationListItemProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
-import type { ButtonVariants } from '~/components/ui/button'
+import type { ButtonVariants } from "~/components/ui/button"
 import { reactiveOmit } from "@vueuse/core"
+import { cn } from "~/lib/utils"
 import { PaginationListItem } from "reka-ui"
-import { cn } from '~/lib/utils'
-import { buttonVariants } from '~/components/ui/button'
+import { buttonVariants } from "~/components/ui/button"
 
 const props = withDefaults(defineProps<PaginationListItemProps & {
   size?: ButtonVariants["size"]
@@ -19,21 +19,15 @@ const delegatedProps = reactiveOmit(props, "class", "size", "isActive")
 </script>
 
 <template>
-  <!-- The current page takes the active thumb rather than a filled button:
-       "one filled button per view", and the current page is a state, not an
-       action. -->
   <PaginationListItem
     data-slot="pagination-item"
     v-bind="delegatedProps"
     :class="cn(
       buttonVariants({
-        variant: 'ghost',
+        variant: isActive ? 'outline' : 'ghost',
         size,
       }),
-      'tabular-nums',
-      isActive && 'glass-active-thumb text-foreground hover:bg-transparent',
       props.class)"
-    :aria-current="isActive ? 'page' : undefined"
   >
     <slot />
   </PaginationListItem>

@@ -2,11 +2,13 @@
 import type { ComboboxItemIndicatorProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
 import { reactiveOmit } from "@vueuse/core"
+import { cn } from "~/lib/utils"
 import { ComboboxItemIndicator, useForwardProps } from "reka-ui"
-import { cn } from '~/lib/utils'
 
 const props = defineProps<ComboboxItemIndicatorProps & { class?: HTMLAttributes["class"] }>()
+
 const delegatedProps = reactiveOmit(props, "class")
+
 const forwarded = useForwardProps(delegatedProps)
 </script>
 
@@ -14,10 +16,8 @@ const forwarded = useForwardProps(delegatedProps)
   <ComboboxItemIndicator
     data-slot="combobox-item-indicator"
     v-bind="forwarded"
-    :class="cn('absolute right-2 flex size-3.5 items-center justify-center', props.class)"
+    :class="cn('ml-auto', props.class)"
   >
-    <slot>
-      <Icon name="lucide:check" class="size-4" />
-    </slot>
+    <slot />
   </ComboboxItemIndicator>
 </template>

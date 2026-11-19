@@ -967,42 +967,24 @@ const materials = [
           <section class="form-section">
             <h3 class="form-section__title type-card">Pickers</h3>
             <div class="flex flex-wrap items-center gap-4">
-              <Combobox v-model="comboValue">
-                <ComboboxAnchor class="w-64" data-kit="combobox">
-                  <ComboboxInput placeholder="Assign to…" />
-                  <ComboboxTrigger />
-                </ComboboxAnchor>
-                <ComboboxList>
-                  <ComboboxEmpty>No one by that name.</ComboboxEmpty>
-                  <ComboboxGroup>
-                    <ComboboxItem v-for="name in comboOptions" :key="name" :value="name">
-                      {{ name }}
-                      <ComboboxItemIndicator />
-                    </ComboboxItem>
-                  </ComboboxGroup>
-                </ComboboxList>
-              </Combobox>
-              <ToggleGroup v-model="visibleColumns" type="multiple" size="sm" data-kit="toggle-group">
-                <ToggleGroupItem value="unit" aria-label="Unit column">Unit</ToggleGroupItem>
-                <ToggleGroupItem value="type" aria-label="Type column">Type</ToggleGroupItem>
-                <ToggleGroupItem value="balance" aria-label="Balance column">Balance</ToggleGroupItem>
-              </ToggleGroup>
+              <AppCombobox
+                v-model="comboValue"
+                :options="comboOptions"
+                placeholder="Assign to…"
+                empty-text="No one by that name."
+                class="w-64"
+                data-kit="combobox"
+              />
+              <AppToggleGroup v-model="visibleColumns" type="multiple" size="sm" data-kit="toggle-group">
+                <AppToggleGroupItem value="unit" aria-label="Unit column">Unit</AppToggleGroupItem>
+                <AppToggleGroupItem value="type" aria-label="Type column">Type</AppToggleGroupItem>
+                <AppToggleGroupItem value="balance" aria-label="Balance column">Balance</AppToggleGroupItem>
+              </AppToggleGroup>
             </div>
           </section>
           <section class="form-section">
             <h3 class="form-section__title type-card">Pagination</h3>
-            <Pagination v-slot="{ page }" v-model:page="kitPage" :items-per-page="20" :total="180" :sibling-count="1" show-edges>
-              <PaginationContent v-slot="{ items }">
-                <PaginationPrevious />
-                <template v-for="(item, index) in items" :key="index">
-                  <PaginationItem v-if="item.type === 'page'" :value="item.value" :is-active="item.value === page">
-                    {{ item.value }}
-                  </PaginationItem>
-                  <PaginationEllipsis v-else :index="index" />
-                </template>
-                <PaginationNext />
-              </PaginationContent>
-            </Pagination>
+            <AppPagination v-model:page="kitPage" :items-per-page="20" :total="180" :sibling-count="1" show-edges />
           </section>
         </div>
       </section>

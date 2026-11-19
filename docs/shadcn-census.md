@@ -5,7 +5,7 @@ at their stock defaults; project changes live in a wrapper outside `ui/`. Sessio
 Card (`ui/card/Card.vue` restored, `<AppCard>` in `app/components/App/Card.vue`, 39 users switched).
 This is the census for everything else._
 
-**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Step 2 done the same day. Steps 3–5 not started.
+**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Steps 2 and 3 done the same day. Steps 4–5 not started.
 
 ## How it was counted
 
@@ -47,9 +47,9 @@ files depend on the change.
 | `tabs/TabsList.vue`, `TabsTrigger.vue` | Pill track (`rounded-full`, `p-1`, `gap-0.5`), wider trigger padding | ✅ Restored to stock — 0 users (views use `AppSegmentedControl` / `App/TabPanels`). | 0 | done |
 | `checkbox/Checkbox.vue` | `lucide-vue-next` `<Check>` → Nuxt `<Icon name="lucide:check">` | ✅ Restored to stock (`lucide-vue-next` `<Check>`). | 7 | done |
 | `chart/ChartContainer.vue` | Adds `--vis-axis-tick-label-font-size` / `--vis-axis-label-font-size: 10px` | ✅ Vars moved to the one caller, `AdminActivityPage` (inline `style` on `<ChartContainer>`). | 1 | done |
-| `combobox/*` (9 files) | Born as an Earnest port: `glass-field` pill anchor that owns the rim, bare input, glass `ComboboxList`, `type-micro` group label, `helper-text` empty, `<Icon>` glyphs | `<AppCombobox>` (anchor + input + list composed) over a fresh `shadcn-vue add combobox` | 1 (ui-kit only) | **L** — no app users yet |
-| `pagination/*` (8 files) | Earnest port: active page wears `glass-active-thumb`; `<Icon>` glyphs | `<AppPagination>` | 1 (ui-kit only) | **L** |
-| `toggle-group/*` (3 files) | Earnest port: `glass-field` track, `glass-active-thumb` ON state, `glass-btn-soft` outline variant | `<AppToggleGroup>` | 1 (ui-kit only) | **L** |
+| `combobox/*` (9 files) | Born as an Earnest port: `glass-field` pill anchor that owns the rim, bare input, glass `ComboboxList`, `type-micro` group label, `helper-text` empty, `<Icon>` glyphs | ✅ Stock (new-york-v4 registry, adds `ComboboxSeparator` / `ComboboxViewport`). `<AppCombobox v-model :options>` composes it; the bare input is reka's, since the stock input is palette-shaped. | 1 (ui-kit) | done |
+| `pagination/*` (8 files) | Earnest port: active page wears `glass-active-thumb`; `<Icon>` glyphs | ✅ Stock. `<AppPagination>` composes the whole row (reka root props pass through). | 1 (ui-kit) | done |
+| `toggle-group/*` (3 files) | Earnest port: `glass-field` track, `glass-active-thumb` ON state, `glass-btn-soft` outline variant | ✅ Stock, plus the stock `ui/toggle` it now depends on. `<AppToggleGroup>` + `<AppToggleGroupItem>`; the ON background moved out of `@layer` in earnest-ui.css (keyed on the stock data-slot) so it beats the stock `data-[state=on]:bg-accent`. Only the default variant is dressed. | 1 (ui-kit) | done |
 | `calendar/*` (13 files) | Earnest port of stock new-york **minus** the month/year `NativeSelect` layouts; no material changes | Deferred — a re-pull brings the `layout` prop and a new `native-select` primitive from the registry. The material is stock; only an unused feature is missing. Re-pull when someone wants the year dropdown. | 0 (DateInput) | L |
 
 **Version drift, not customisation** (no wrapper; a re-pull just updates them): `sheet/Sheet.vue`,
@@ -83,11 +83,12 @@ Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Ses
 2. ✅ **Fold into wrappers that already exist** (done): `AlertDialogContent` → `ConfirmDialog`,
    `CommandDialog` → `Spotlight`, `SheetContent` → the two `*/Sheet.vue` + StorageManager.
    Proves the floating-glass restatement on three callers before the big ones.
-3. **Earnest ports with no app users**: Combobox, Pagination, Toggle Group → `App*` wrappers
+3. ✅ **Earnest ports with no app users** (done): Combobox, Pagination, Toggle Group → `App*` wrappers
    over fresh stock. Cheap now; expensive once features adopt them.
 4. **Floating chrome** (Popover, Tooltip, Dropdown, Select, Dialog — ~60 users): decide
    one primitive per commit. Overlays are settled (below); the content surfaces get wrappers.
 5. **Badge**, then **Textarea**, then **Input**, then **Button** last — Button touches 170
    files and three other `ui/` primitives; do it once the pattern is boring.
 
-**Next: step 3**, the Earnest ports with no app users (Combobox, Pagination, Toggle Group).
+**Next: step 4**, floating chrome: one primitive per commit, smallest first (Tooltip 2, Popover 3,
+Dropdown 10, Select 12, Dialog 34). Overlays already come from data-slot CSS.

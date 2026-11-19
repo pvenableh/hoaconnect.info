@@ -322,9 +322,6 @@ select,
 	   control, tab bar, or sub-nav. ONE material for all of them, so "this is
 	   the selected one" looks identical everywhere in the app — which is most
 	   of what makes a control feel learned rather than merely present. */
-	/* A toggle-group item that is ON wears the thumb too (ui/toggle-group).
-	   Named here rather than as a `data-[state=on]:` utility because Tailwind
-	   variants only apply to utilities, never to a component class. */
 	.glass-active-thumb,
 	[data-slot='toggle-group-item'][data-state='on'] {
 		background: color-mix(in srgb, var(--theme-bg-elevated, #fff) 92%, transparent);
@@ -339,6 +336,18 @@ select,
 	.dark [data-slot='toggle-group-item'][data-state='on'] {
 		background: color-mix(in srgb, var(--theme-bg-tertiary, #22262b) 88%, transparent);
 	}
+}
+/* A toggle-group item that is ON wears the thumb too. ui/toggle-group is stock
+   shadcn-vue, whose `data-[state=on]:bg-accent` is a utility and would beat the
+   layered rule above, so the item's background is restated here, unlayered
+   (the rim and lift above still apply). Named by its stock data-slot because
+   Tailwind variants only apply to utilities, never to a component class.
+   (docs/shadcn-census.md, step 3.) */
+[data-slot='toggle-group-item'][data-state='on'] {
+	background: color-mix(in srgb, var(--theme-bg-elevated) 92%, transparent);
+}
+.dark [data-slot='toggle-group-item'][data-state='on'] {
+	background: color-mix(in srgb, var(--theme-bg-tertiary) 88%, transparent);
 }
 
 /* Focus keeps the rim and ADDS the accent ring. Deliberately OUTSIDE @layer so it

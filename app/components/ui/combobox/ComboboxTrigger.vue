@@ -2,11 +2,13 @@
 import type { ComboboxTriggerProps } from "reka-ui"
 import type { HTMLAttributes } from "vue"
 import { reactiveOmit } from "@vueuse/core"
+import { cn } from "~/lib/utils"
 import { ComboboxTrigger, useForwardProps } from "reka-ui"
-import { cn } from '~/lib/utils'
 
 const props = defineProps<ComboboxTriggerProps & { class?: HTMLAttributes["class"] }>()
+
 const delegatedProps = reactiveOmit(props, "class")
+
 const forwarded = useForwardProps(delegatedProps)
 </script>
 
@@ -14,11 +16,9 @@ const forwarded = useForwardProps(delegatedProps)
   <ComboboxTrigger
     data-slot="combobox-trigger"
     v-bind="forwarded"
-    :class="cn('text-muted-foreground hover:bg-muted hover:text-foreground grid size-8 shrink-0 place-items-center rounded-full transition-colors', props.class)"
-    tabindex="-1"
+    :class="cn('', props.class)"
+    tabindex="0"
   >
-    <slot>
-      <Icon name="lucide:chevrons-up-down" class="size-4" />
-    </slot>
+    <slot />
   </ComboboxTrigger>
 </template>
