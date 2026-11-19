@@ -4,10 +4,14 @@
 import { isMarketingHost } from "#core/shared/domains/host";
 import { sessionOrgRedirect } from "#core/shared/domains/org-routes";
 
-export default defineNuxtRouteMiddleware(async (to, from) => {
-  // Only run on client side
-  if (!import.meta.client) return;
-
+export default defineNuxtRouteMiddleware(async (to) => {
+  // Runs during SSR as well as on the client, so a cold request for a page that
+  // moves (`/dashboard` → `/{slug}`) is answered with a server redirect. When
+  // this was client-only, the server rendered `/dashboard` (inside the `auth`
+  // layout) and the client then redirected to `/{slug}` (a `layout: false` page)
+  // before hydrating, so it hydrated one page's markup against another's and Vue
+  // logged a hydration node mismatch. The client-only guard dated from when this
+  // middleware redirected across domains via `window.location`; it no longer does.
   const { loggedIn } = useUserSession();
 
   // Skip if not logged in
