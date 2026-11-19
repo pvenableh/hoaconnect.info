@@ -118,5 +118,13 @@ Left over, none of it urgent:
 - **Stock with no users:** `AlertDialogAction` (ConfirmDialog uses an AppButton so a destructive
   confirm reads destructive), `PaginationFirst` / `PaginationLast`. Dress them with
   `appButtonClasses()` from the wrapper that first uses them.
-- **Project-authored files still in `ui/`** (`ActionButton`, `BackLink`, `PageContainer`,
-  `date-input/`, `loading-overlay/`, `tiptap/`) — a rename out of `ui/`, not a wrapper.
+- ✅ **Project-authored files moved out of `ui/`** (after step 5): `ActionButton`, `BackLink`,
+  `PageContainer`, `DateInput`, `DateTimeInput`, `LoadingOverlay` and `TiptapEditor` now sit in
+  `app/components/` (same tag names, no caller changes); DateInput's value helpers are
+  `app/lib/date-input-value.ts`. `ui/` is now only vendored shadcn-vue. Out of the `ui/`
+  exclusion, the audits saw them for the first time: ten findings, each tagged `allow-*` with its
+  reason rather than restyled (BackLink's 11px caps and the file picker's amber folder glyph would
+  change look on the nearest token — candidates for a polish pass).
+- **Sheet version drift** — `ui/sheet/` is an older generation in every file (current registry
+  adds `data-slot`s, `ring-3` and a separate `SheetOverlay`). An upgrade, not a customisation;
+  re-pull with a look at the overlay's data-slot rule and AppSheetContent.

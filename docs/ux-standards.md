@@ -16,7 +16,7 @@ long-form source; this is what you need while writing a component._
 | **Headings** | `<h1-6>` for the document outline only. | A `<h3 class="text-xs uppercase tracking-wide">` dressed as a label — use `<p class="type-micro">`. | `heading-labels` |
 | **Buttons** | `<AppButton>` (T1 primary / T2 outline) and `<ActionButton>` (T3 28px pill, T4 micro) — they carry focus ring, press state, haptic, disabled. | A bare `<button>` re-doing all of that. | `raw-buttons` |
 | **Dialogs** | `useConfirm()` (an options **object**), toasts for notices. | `confirm()` / `alert()` / `prompt()`. | `native-dialogs` |
-| **Dates** | The shared `DateInput` / `DateTimeInput` (`app/components/ui/date-input/`). | `<input type="date">` / `datetime-local` / `month` / `week`. | `raw-date-inputs` |
+| **Dates** | The shared `DateInput` / `DateTimeInput` (`app/components/DateInput.vue`, `DateTimeInput.vue`). | `<input type="date">` / `datetime-local` / `month` / `week`. | `raw-date-inputs` |
 | **Empty states** | `<AppEmptyState title description>` (+ an action). Search "No results" is not an empty state. | A naked `<p>No requests yet</p>`. | `empty-states` |
 | **Theme classes** | Only `t-*` / `glass-*` / `ios-*` / `type-*` classes that exist in `core/app/assets/css/`. | A typo or renamed token — Tailwind ignores it and the element renders unstyled. | `dead-theme-classes` |
 | **Components** | Nuxt names a component from its path and **de-duplicates a repeated prefix**: `feed/FeedItem.vue` → `<FeedItem>`, not `<FeedFeedItem>`. | A tag that resolves to nothing — Vue renders an unknown element, silently. | `unresolved-components` |

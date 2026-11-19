@@ -4,7 +4,7 @@ import {
   toCalendarDateTime,
   fromDateValue,
   fromDateTimeValue,
-} from "~/components/ui/date-input/value";
+} from "~/lib/date-input-value";
 
 describe("DateInput v-model contract (same strings as the raw inputs)", () => {
   it("round-trips a date", () => {

@@ -2,8 +2,9 @@
 /**
  * Raw-buttons audit — a bare `<button>` outside the shared button tiers.
  *
- * The tiers carry the focus ring, press state, haptic and disabled treatment. A RATCHET. The vendored `ui/button` and the shared action-button
- * primitives are exempt by path.
+ * The tiers carry the focus ring, press state, haptic and disabled treatment. A RATCHET. The vendored `ui/`
+ * is skipped, the shell primitives below are exempt by path, and ActionButton (the T3/T4 primitive)
+ * carries an `allow-raw-button` marker.
  *
  * Usage:
  *   pnpm audit:raw-buttons           # report (always exits 0)

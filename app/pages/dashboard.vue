@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import LoadingOverlay from "~/components/LoadingOverlay.vue";
 
 definePageMeta({
   middleware: ["auth", "subscription"],

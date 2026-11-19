@@ -620,7 +620,7 @@ const getFileIcon = (file: DirectusFile): string => {
     <!-- Editor Content -->
     <EditorContent :editor="editor" class="tiptap-content" />
 
-    <!-- Link Dialog -->
+    <!-- Link Dialog — allow-form-dialog: a one-field link prompt over the editor, not a record form -->
     <Dialog v-model:open="showLinkDialog">
       <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
@@ -649,7 +649,7 @@ const getFileIcon = (file: DirectusFile): string => {
       </AppDialogContent>
     </Dialog>
 
-    <!-- File Browser Dialog -->
+    <!-- File Browser Dialog — allow-form-dialog: a file picker (its search box filters), not a record form -->
     <Dialog v-model:open="showFileBrowser">
       <AppDialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
@@ -663,6 +663,7 @@ const getFileIcon = (file: DirectusFile): string => {
         <!-- Breadcrumb Navigation -->
         <div class="flex items-center gap-1 text-sm border-b pb-2">
           <template v-for="(folder, index) in folderPath" :key="folder.id">
+            <!-- allow-raw-button: a breadcrumb segment, styled as a link -->
             <button
               type="button"
               class="hover:text-primary hover:underline"
@@ -709,6 +710,7 @@ const getFileIcon = (file: DirectusFile): string => {
             class="flex flex-col items-center justify-center h-full t-text-muted"
           >
             <Icon name="lucide:folder-x" class="w-12 h-12 mb-2" />
+            <!-- allow-bare-empty: an empty folder inside the file-picker dialog, not a page's collection -->
             <p>No files found in this folder</p>
           </div>
 
@@ -716,7 +718,7 @@ const getFileIcon = (file: DirectusFile): string => {
             v-else
             class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-1"
           >
-            <!-- Folders -->
+            <!-- Folders — allow-raw-button: a folder tile in the picker grid -->
             <button
               v-for="folder in browseFolders"
               :key="folder.id"
@@ -724,16 +726,14 @@ const getFileIcon = (file: DirectusFile): string => {
               class="flex flex-col items-center p-3 rounded-lg border hover:t-bg-alt hover:t-border-accent transition-colors"
               @click="navigateToFolder(folder.id, folder.name || 'Folder')"
             >
-              <Icon
-                name="lucide:folder"
-                class="w-10 h-10 text-amber-500 mb-2"
-              />
+              <!-- allow-color-literal: the folder glyph's conventional amber (text-warning is darker) -->
+              <Icon name="lucide:folder" class="w-10 h-10 text-amber-500 mb-2" />
               <span class="text-sm text-center truncate w-full">
                 {{ folder.name || "Folder" }}
               </span>
             </button>
 
-            <!-- Files -->
+            <!-- Files — allow-raw-button: a file tile in the picker grid -->
             <button
               v-for="file in filteredFiles"
               :key="file.id"

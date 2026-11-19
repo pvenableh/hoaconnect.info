@@ -23,7 +23,7 @@ import { cn } from "~/lib/utils";
 import { Calendar } from "~/components/ui/calendar";
 import { Popover, PopoverTrigger } from "~/components/ui/popover";
 import AppPopoverContent from "~/components/App/PopoverContent.vue";
-import { fromDateTimeValue, fromDateValue, toCalendarDate, toCalendarDateTime } from "./value";
+import { fromDateTimeValue, fromDateValue, toCalendarDate, toCalendarDateTime } from "~/lib/date-input-value";
 
 defineOptions({ inheritAttrs: false });
 
@@ -122,6 +122,7 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
 
     <Popover v-model:open="open">
       <PopoverTrigger as-child>
+        <!-- allow-raw-button: the field's own calendar glyph, inside the glass field -->
         <button
           type="button"
           class="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none"

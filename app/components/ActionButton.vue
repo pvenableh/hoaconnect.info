@@ -91,6 +91,7 @@ const labelClass = computed(() => {
 </script>
 
 <template>
+  <!-- allow-raw-button: this IS the T3/T4 button primitive -->
   <button
     :type="type"
     data-slot="action-button"
