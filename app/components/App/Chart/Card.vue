@@ -5,7 +5,7 @@
  * states a chart actually has: loading, empty, and drawn.
  *
  * The charts written before this (dashboard/EmailActivityChart and friends)
- * each rolled their own `<Card>` with `text-muted-foreground`, which is the
+ * each rolled their own `<AppCard>` with `text-muted-foreground`, which is the
  * shadcn palette rather than the workspace theme, so they didn't follow
  * light/dark with the rest of the app. This frame is `ios-card` and `t-*` like
  * every other surface.

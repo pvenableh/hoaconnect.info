@@ -277,7 +277,7 @@ async function createAllPredefinedCategories() {
 </script>
 
 <template>
-  <Card>
+  <AppCard>
     <CardHeader>
       <div class="flex items-center justify-between">
         <div>
@@ -383,7 +383,7 @@ async function createAllPredefinedCategories() {
         </div>
       </div>
     </CardContent>
-  </Card>
+  </AppCard>
 
   <!-- Add/Edit Dialog -->
   <Dialog v-model:open="showDialog">

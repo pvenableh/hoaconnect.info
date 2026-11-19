@@ -28,7 +28,7 @@ const { list: listBoard } = useDirectusItems("hoa_board_members");
 
 const orgId = computed(() => selectedOrgId.value);
 
-const { data, pending } = await useAsyncData(
+const { data, status } = await useAsyncData(
   `people-glance-${orgId.value}`,
   async () => {
     if (!orgId.value) return null;
@@ -95,6 +95,12 @@ const { data, pending } = await useAsyncData(
   { watch: [orgId], server: false },
 );
 
+// The server never fetches (`server: false`), so it renders `idle`; the
+// client hydrates while `pending`. Both mean "not loaded yet", so both draw
+// the skeleton, and the two renders agree (the Members page's hydration
+// warnings came from the server drawing the empty state here).
+const loading = computed(() => status.value === "idle" || status.value === "pending");
+
 // Occupancy is null until somebody records it (only the migrated 1033 units
 // carry it today). An "unknown: 28" donut is worse than no donut, so the card
 // says what to do instead.
@@ -135,14 +141,14 @@ const memberTypeSeries = computed(() =>
         label="Members"
         icon="lucide:users-round"
         :value="data?.members ?? 0"
-        :loading="pending"
+        :loading="loading"
         description="Active records in the directory"
       />
       <AppStatCard
         label="Units"
         icon="lucide:door-closed"
         :value="data?.units ?? 0"
-        :loading="pending"
+        :loading="loading"
         :description="
           ownerOccupiedPct == null
             ? 'Occupancy not recorded yet'
@@ -153,7 +159,7 @@ const memberTypeSeries = computed(() =>
         label="Board seats filled"
         icon="lucide:award"
         :value="data && !data.boardReadable ? '—' : (data?.boardSeats ?? 0)"
-        :loading="pending"
+        :loading="loading"
         :description="data && !data.boardReadable ? 'Board roster unavailable' : 'Terms running today'"
       />
     </div>
@@ -163,7 +169,7 @@ const memberTypeSeries = computed(() =>
       title="Members by type"
       hint="Who is on the directory"
       icon="lucide:pie-chart"
-      :loading="pending"
+      :loading="loading"
       :empty="!data?.members"
       empty-title="No members yet"
       empty-hint="Add or invite residents and this fills in."
@@ -182,7 +188,7 @@ const memberTypeSeries = computed(() =>
       title="Homes by occupancy"
       hint="Who lives in them"
       icon="lucide:house"
-      :loading="pending"
+      :loading="loading"
       :empty="!occupancyRecorded"
       empty-title="Occupancy not recorded"
       empty-hint="Set owner, tenant, or vacant on a unit and this chart appears."

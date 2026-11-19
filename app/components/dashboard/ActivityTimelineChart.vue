@@ -2,7 +2,7 @@
 /**
  * Dashboard widget — what happened in the community, by day.
  *
- * Was a raw shadcn <Card> with its own axes and a hand-rolled legend on the
+ * Was a raw shadcn <AppCard> with its own axes and a hand-rolled legend on the
  * shadcn palette rather than the workspace theme. Now it's AppChartCard +
  * AppChartBars, stacked: the three counts are parts of "how busy was Tuesday",
  * and the total is the thing worth reading.

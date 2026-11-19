@@ -1010,7 +1010,7 @@ useSeoMeta({
           <!-- Email Content (Left) -->
           <div class="lg:col-span-2 space-y-6 order-2 lg:order-1">
             <!-- Email Type -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>Email Type</CardTitle>
                 <CardDescription>
@@ -1063,10 +1063,10 @@ useSeoMeta({
                   </p>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Subject & Content -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <div class="flex items-center justify-between gap-3 flex-wrap">
                   <div class="flex items-center gap-3 flex-wrap">
@@ -1234,10 +1234,10 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Footer Options -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>Footer Options</CardTitle>
               </CardHeader>
@@ -1279,10 +1279,10 @@ useSeoMeta({
                   </Label>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Attachments -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle class="flex items-center gap-2">
                   <Icon name="lucide:paperclip" class="w-5 h-5" />
@@ -1373,13 +1373,13 @@ useSeoMeta({
                   description="Attach a document from your files, and recipients get it with the email."
                 />
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
 
           <!-- Recipients & Actions (Right) - Sticky on md+ -->
           <div class="order-1 lg:order-2 lg:sticky lg:top-[calc(var(--app-chrome-h,4rem)+1.5rem)] lg:self-start space-y-6">
             <!-- Recipients Card -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>Recipients</CardTitle>
                 <CardDescription>
@@ -1507,10 +1507,10 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- CC / BCC -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>Copy others</CardTitle>
                 <CardDescription>
@@ -1584,10 +1584,10 @@ useSeoMeta({
                   <Icon name="lucide:info" class="w-3 h-3 inline mr-1" />{{ ccBccModeHint }}
                 </p>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Actions -->
-            <Card>
+            <AppCard>
               <CardContent class="pt-6 space-y-3">
                 <Button
                   class="w-full"
@@ -1686,10 +1686,10 @@ useSeoMeta({
                   Cancel
                 </Button>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Test Email -->
-            <Card>
+            <AppCard>
               <CardHeader class="pb-3">
                 <button
                   type="button"
@@ -1757,7 +1757,7 @@ useSeoMeta({
                   Send Test Email{{ testEmails.length > 1 ? 's' : '' }}
                 </Button>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
         </div>
 

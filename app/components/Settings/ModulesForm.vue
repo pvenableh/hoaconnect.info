@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6">
-    <Card v-for="group in GROUPS" :key="group.label">
+    <AppCard v-for="group in GROUPS" :key="group.label">
       <CardHeader>
         <CardTitle>{{ group.label }}</CardTitle>
         <CardDescription>{{ group.description }}</CardDescription>
@@ -20,7 +20,7 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Save Button -->
     <div class="flex justify-end">

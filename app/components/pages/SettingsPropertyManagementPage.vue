@@ -450,7 +450,7 @@ watch(orgId, () => {
 
         <!-- ───────── Vendors ───────── -->
         <div v-if="activeTab === 'vendors'" class="space-y-6">
-          <Card>
+          <AppCard>
             <CardHeader class="flex flex-row items-start justify-between gap-3">
               <div>
                 <CardTitle>Vendor directory</CardTitle>
@@ -498,12 +498,12 @@ watch(orgId, () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- ───────── Managers ───────── -->
         <div v-if="activeTab === 'managers'" class="space-y-6">
-          <Card>
+          <AppCard>
             <CardHeader class="flex flex-row items-start justify-between gap-3">
               <div>
                 <CardTitle>Property managers</CardTitle>
@@ -565,7 +565,7 @@ watch(orgId, () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- ───────── Transition ───────── -->
@@ -580,7 +580,7 @@ watch(orgId, () => {
 
         <!-- ───────── Routing ───────── -->
         <div v-if="activeTab === 'routing'" class="space-y-6">
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>Inquiry routing</CardTitle>
               <CardDescription>Decide which management vendor is notified for each kind of inquiry.</CardDescription>
@@ -614,7 +614,7 @@ watch(orgId, () => {
                 </div>
               </template>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
       </AppTabPanels>
     </PageContainer>

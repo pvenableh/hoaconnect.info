@@ -139,7 +139,7 @@ onMounted(load);
       description="Everything your community creates here belongs to your community. Export it whenever you want — to keep a copy, to move to another provider, or to hand to a new manager. No approval, no waiting on us."
     />
 
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle class="flex items-center gap-2">
           <Icon name="lucide:download" class="h-5 w-5" />
@@ -212,9 +212,9 @@ onMounted(load);
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle class="text-base">Recent exports</CardTitle>
         <CardDescription>
@@ -287,6 +287,6 @@ onMounted(load);
           </li>
         </ul>
       </CardContent>
-    </Card>
+    </AppCard>
   </div>
 </template>

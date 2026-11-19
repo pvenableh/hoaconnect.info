@@ -27,7 +27,7 @@ import { findRawTypeSizes } from "./lib/audit-matchers";
  * 2026-11-18 (Phase 4, Session 16) — **282**: the floating View bar is one
  * small button on the public preview.
  */
-const BASELINE = 279;
+const BASELINE = 278;
 
 runFileAudit({
   name: "type-scale",

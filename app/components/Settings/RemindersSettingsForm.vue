@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-6" data-testid="reminders-settings">
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>When reminders go out</CardTitle>
         <CardDescription>
@@ -26,9 +26,9 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
-    <Card v-for="rule in REMINDER_RULES" :key="rule" :data-testid="`reminder-rule-${rule}`">
+    <AppCard v-for="rule in REMINDER_RULES" :key="rule" :data-testid="`reminder-rule-${rule}`">
       <CardHeader>
         <div class="flex items-start justify-between gap-4">
           <div class="space-y-1">
@@ -86,7 +86,7 @@
           </div>
         </details>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <div class="flex items-center justify-end gap-3" data-testid="reminders-save-bar">
       <p v-if="hasChanges" class="text-sm text-muted-foreground">Unsaved changes</p>
@@ -96,7 +96,7 @@
       </Button>
     </div>
 
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>See it, and try it</CardTitle>
         <CardDescription>
@@ -167,7 +167,7 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
   </div>
 </template>
 

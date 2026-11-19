@@ -510,14 +510,14 @@ useSeoMeta({
         <!-- Main Content -->
         <div v-else class="space-y-6">
           <!-- Organization Info -->
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>{{ organization.name }}</CardTitle>
               <CardDescription v-if="organization.street_address">
                 {{ organization.street_address }}
               </CardDescription>
             </CardHeader>
-          </Card>
+          </AppCard>
 
           <AppSegmentedControl v-model="activeTab" :items="tabItems" label="User views" />
 
@@ -544,7 +544,7 @@ useSeoMeta({
               </div>
 
               <!-- Users Table -->
-              <Card>
+              <AppCard>
                 <CardContent class="pt-6">
                   <AppDataTable
                     :columns="accountColumns"
@@ -623,13 +623,13 @@ useSeoMeta({
                     </template>
                   </AppDataTable>
                 </CardContent>
-              </Card>
+              </AppCard>
             </div>
 
             <!-- Join Requests Tab -->
             <div v-if="activeTab === 'requests'" class="space-y-4">
               <!-- Info Box -->
-              <Card class="bg-info/10">
+              <AppCard class="bg-info/10">
                 <CardContent class="pt-6">
                   <p class="text-sm t-text">
                     <strong>Join Requests:</strong>
@@ -637,10 +637,10 @@ useSeoMeta({
                     Review their details and approve or reject their request.
                   </p>
                 </CardContent>
-              </Card>
+              </AppCard>
 
               <!-- Requests List -->
-              <Card>
+              <AppCard>
                 <CardHeader>
                   <CardTitle>Pending Join Requests</CardTitle>
                   <CardDescription>
@@ -720,13 +720,13 @@ useSeoMeta({
                     description="Residents asking to join this community land here for your review."
                   />
                 </CardContent>
-              </Card>
+              </AppCard>
             </div>
 
             <!-- Connect Users Tab -->
             <div v-if="activeTab === 'connect'" class="space-y-4">
               <!-- Info Box -->
-              <Card class="bg-info/10">
+              <AppCard class="bg-info/10">
                 <CardContent class="pt-6">
                   <p class="text-sm t-text">
                     <strong>Connect Users:</strong>
@@ -734,10 +734,10 @@ useSeoMeta({
                     You can connect them to existing user accounts so members can log in.
                   </p>
                 </CardContent>
-              </Card>
+              </AppCard>
 
               <!-- Members without accounts list -->
-              <Card>
+              <AppCard>
                 <CardHeader>
                   <CardTitle>Members Without Accounts</CardTitle>
                   <CardDescription>
@@ -786,7 +786,7 @@ useSeoMeta({
                     description="Every member record is already linked to a login."
                   />
                 </CardContent>
-              </Card>
+              </AppCard>
             </div>
           </AppTabPanels>
 

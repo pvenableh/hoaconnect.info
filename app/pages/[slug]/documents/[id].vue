@@ -158,7 +158,7 @@ const downloadDocument = async () => {
         </div>
 
         <!-- Not found -->
-        <Card v-else-if="!doc">
+        <AppCard v-else-if="!doc">
           <CardContent class="py-16 text-center">
             <div
               class="w-16 h-16 rounded-full t-bg-subtle flex items-center justify-center mx-auto mb-4"
@@ -172,7 +172,7 @@ const downloadDocument = async () => {
               This document may have been removed or is no longer available.
             </p>
           </CardContent>
-        </Card>
+        </AppCard>
 
         <!-- Document detail -->
         <template v-else>

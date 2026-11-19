@@ -2,7 +2,7 @@
 /**
  * Dashboard widget — sends, deliveries and opens over the last week.
  *
- * Was a raw shadcn <Card> with its own axes, crosshair template and a
+ * Was a raw shadcn <AppCard> with its own axes, crosshair template and a
  * hand-rolled legend, on the shadcn palette rather than the workspace theme.
  * Now it's AppChartCard + AppChartTrend; the frame owns loading / empty / drawn
  * and the ClientOnly that unovis needs, so none of that is repeated here.

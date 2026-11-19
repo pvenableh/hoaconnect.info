@@ -167,7 +167,7 @@ const handleManageBilling = async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-6 py-8">
+  <PageContainer class="[&>*]:max-w-3xl">
     <AppPageHeader title="Subscription" description="One flat price per building, set by its number of units." />
 
     <!-- One surface: status, your band, the band ladder, help — grouped by dividers. -->
@@ -327,5 +327,5 @@ const handleManageBilling = async () => {
         />
       </DialogContent>
     </Dialog>
-  </div>
+  </PageContainer>
 </template>

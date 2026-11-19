@@ -18,7 +18,7 @@ import { findBareEmptyStates } from "./lib/audit-matchers";
  *
  * 2026-11-05 (Phase 8) — measured **55**. 55 bare "No X yet" lines outside `AppEmptyState`.
  */
-const BASELINE = 55;
+const BASELINE = 54;
 
 runFileAudit({
   name: "empty-states",

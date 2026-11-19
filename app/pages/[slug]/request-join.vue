@@ -152,7 +152,7 @@ useSeoMeta({
             <h1 class="text-2xl font-bold mb-2">Request to Join</h1>
             <p class="t-text-secondary">{{ organization.name }}</p>
           </div>
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>Create an account to continue</CardTitle>
               <CardDescription>
@@ -169,7 +169,7 @@ useSeoMeta({
                 I already have an account
               </Button>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- Already a member -->
@@ -239,7 +239,7 @@ useSeoMeta({
           </div>
 
           <!-- Form -->
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>Membership Request</CardTitle>
               <CardDescription>
@@ -314,7 +314,7 @@ useSeoMeta({
                 </Button>
               </form>
             </CardContent>
-          </Card>
+          </AppCard>
 
           <!-- Back Link -->
           <div class="text-center mt-6">

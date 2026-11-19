@@ -135,7 +135,7 @@ const fmtTime = (d?: string | null) =>
       </div>
 
       <!-- Trend chart -->
-      <Card>
+      <AppCard>
         <CardHeader class="pb-2">
           <CardTitle class="text-base">Activity over time</CardTitle>
           <CardDescription>Events per day, last {{ rangeDays }} days</CardDescription>
@@ -153,14 +153,14 @@ const fmtTime = (d?: string | null) =>
             <template #fallback><div class="h-[200px] w-full" /></template>
           </ClientOnly>
         </CardContent>
-      </Card>
+      </AppCard>
 
       <!-- Type filter -->
       <AppSegmentedControl v-model="eventType" :items="TYPE_FILTERS" size="sm" label="Event type" />
 
       <!-- Top lists -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <Card>
+        <AppCard>
           <CardHeader class="pb-2"><CardTitle class="text-sm">Top documents</CardTitle></CardHeader>
           <CardContent class="space-y-2">
             <AppEmptyState
@@ -175,8 +175,8 @@ const fmtTime = (d?: string | null) =>
               <span class="t-text-muted tabular-nums">{{ t.count }}</span>
             </div>
           </CardContent>
-        </Card>
-        <Card>
+        </AppCard>
+        <AppCard>
           <CardHeader class="pb-2"><CardTitle class="text-sm">Top pages</CardTitle></CardHeader>
           <CardContent class="space-y-2">
             <AppEmptyState
@@ -191,8 +191,8 @@ const fmtTime = (d?: string | null) =>
               <span class="t-text-muted tabular-nums">{{ p.count }}</span>
             </div>
           </CardContent>
-        </Card>
-        <Card>
+        </AppCard>
+        <AppCard>
           <CardHeader class="pb-2"><CardTitle class="text-sm">Most active residents</CardTitle></CardHeader>
           <CardContent class="space-y-2">
             <AppEmptyState
@@ -207,11 +207,11 @@ const fmtTime = (d?: string | null) =>
               <span class="t-text-muted tabular-nums">{{ m.count }}</span>
             </div>
           </CardContent>
-        </Card>
+        </AppCard>
       </div>
 
       <!-- Timeline -->
-      <Card>
+      <AppCard>
         <CardHeader class="pb-2"><CardTitle class="text-base">Recent activity</CardTitle></CardHeader>
         <CardContent class="p-0">
           <WidgetRowSkeleton v-if="loading" :rows="8" :lines="1" class="p-2" />
@@ -234,7 +234,7 @@ const fmtTime = (d?: string | null) =>
             </li>
           </ul>
         </CardContent>
-      </Card>
+      </AppCard>
     </template>
   </div>
 </template>

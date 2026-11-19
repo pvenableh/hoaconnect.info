@@ -410,7 +410,7 @@ useSeoMeta({
         <template v-else>
           <!-- Stats Cards with Total Counts -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <Card class="text-center relative overflow-hidden">
+            <AppCard class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
                 <div class="text-2xl font-bold">
                   {{ totalCounts.total.toLocaleString() }}
@@ -430,9 +430,9 @@ useSeoMeta({
                 class="absolute bottom-0 left-0 h-1 bg-muted-foreground/30 transition-all duration-500"
                 :style="{ width: `${getPercentage(activities.length, totalCounts.total)}%` }"
               ></div>
-            </Card>
+            </AppCard>
 
-            <Card class="text-center relative overflow-hidden">
+            <AppCard class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
                 <div class="text-2xl font-bold text-success">
                   {{ totalCounts.delivered.toLocaleString() }}
@@ -452,9 +452,9 @@ useSeoMeta({
                 class="absolute bottom-0 left-0 h-1 bg-success transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.delivered, totalCounts.total)}%` }"
               ></div>
-            </Card>
+            </AppCard>
 
-            <Card class="text-center relative overflow-hidden">
+            <AppCard class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
                 <div class="text-2xl font-bold text-blue-700 dark:text-blue-200">
                   {{ totalCounts.open.toLocaleString() }}
@@ -469,9 +469,9 @@ useSeoMeta({
                 class="absolute bottom-0 left-0 h-1 bg-blue-500 transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.open, totalCounts.total)}%` }"
               ></div>
-            </Card>
+            </AppCard>
 
-            <Card class="text-center relative overflow-hidden">
+            <AppCard class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
                 <div class="text-2xl font-bold text-purple-700 dark:text-purple-200">
                   {{ totalCounts.click.toLocaleString() }}
@@ -486,9 +486,9 @@ useSeoMeta({
                 class="absolute bottom-0 left-0 h-1 bg-purple-500 transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.click, totalCounts.total)}%` }"
               ></div>
-            </Card>
+            </AppCard>
 
-            <Card class="text-center relative overflow-hidden">
+            <AppCard class="text-center relative overflow-hidden">
               <CardContent class="pt-6 relative z-10">
                 <div class="text-2xl font-bold text-warning">
                   {{ totalCounts.bounce.toLocaleString() }}
@@ -507,7 +507,7 @@ useSeoMeta({
                 class="absolute bottom-0 left-0 h-1 bg-warning transition-all duration-500"
                 :style="{ width: `${getPercentage(totalCounts.bounce, totalCounts.total)}%` }"
               ></div>
-            </Card>
+            </AppCard>
           </div>
 
           <!-- Filters -->
@@ -552,7 +552,7 @@ useSeoMeta({
           </div>
 
           <!-- Activity Table with Infinite Scroll -->
-          <Card>
+          <AppCard>
             <CardContent class="p-0">
               <div
                 ref="scrollContainer"
@@ -624,7 +624,7 @@ useSeoMeta({
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
 
           <!-- Pagination Info -->
           <div class="mt-4 flex items-center justify-between text-sm t-text-muted">

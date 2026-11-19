@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
+  <PageContainer class="space-y-6 [&>*]:max-w-4xl">
     <AppPageHeader
       eyebrow="Your account"
       title="My Profile"
@@ -11,7 +11,7 @@
     <!-- ONE surface for the page (docs/ux-standards.md: a settings tab is one
          surface). Each group is a flat `.form-section` — a heading and a hairline
          from the group above — never a card of its own. -->
-    <Card>
+    <AppCard>
       <CardContent>
         <AppTabPanels :value="activeTab" :items="tabItems">
           <!-- Profile Tab -->
@@ -479,8 +479,8 @@
           </template>
         </section>
       </CardContent>
-    </Card>
-  </div>
+    </AppCard>
+  </PageContainer>
 </template>
 
 <script setup lang="ts">

@@ -257,7 +257,7 @@ const documentsLoading = computed(
         <WidgetRowSkeleton :rows="6" avatar-shape="square" />
       </div>
 
-      <Card v-else-if="documentsByCategory.size > 0">
+      <AppCard v-else-if="documentsByCategory.size > 0">
         <CardContent class="p-0">
           <Accordion type="multiple" :default-value="defaultOpenCategories" class="w-full">
             <AccordionItem
@@ -336,10 +336,10 @@ const documentsLoading = computed(
             </AccordionItem>
           </Accordion>
         </CardContent>
-      </Card>
+      </AppCard>
 
       <!-- Empty state -->
-      <Card v-else>
+      <AppCard v-else>
         <CardContent class="p-0">
           <AppEmptyState
             icon="lucide:file-text"
@@ -347,7 +347,7 @@ const documentsLoading = computed(
             description="Community documents appear here once your board publishes them."
           />
         </CardContent>
-      </Card>
+      </AppCard>
     </PageContainer>
   </div>
 </template>

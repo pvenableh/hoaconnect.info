@@ -1,5 +1,5 @@
 <template>
-  <Card>
+  <AppCard>
     <CardHeader>
       <CardTitle class="flex items-center gap-2">
         <Icon name="lucide:banknote" class="h-5 w-5" />
@@ -69,7 +69,7 @@
         </div>
       </div>
     </CardContent>
-  </Card>
+  </AppCard>
 </template>
 
 <script setup lang="ts">

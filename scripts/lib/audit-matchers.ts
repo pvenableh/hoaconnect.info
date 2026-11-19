@@ -502,7 +502,8 @@ export function findDetachedPromises(src: string) {
 /**
  * Card-in-card detection for the overlay-boxes and settings-boxes audits.
  * A "box" is anything that paints its own surface: `ios-card`, `glass-edge`,
- * a `<Card>`, a tinted `bg-muted … rounded-xl p-4`, or a hand-bordered one.
+ * a `<Card>` (or `<AppCard>`, the project's wrapper of it, Session 18), a
+ * tinted `bg-muted … rounded-xl p-4`, or a hand-bordered one.
  * Inside an overlay (sheet, modal, slide-over) the overlay IS the card, and on
  * a settings tab the page is — a second box is a card in a card.
  */
@@ -513,7 +514,7 @@ export interface BoxHit extends Hit {
 
 const IOS_CARD = /(?<![\w-])ios-card(?![\w-])/;
 const THING = /(?<![\w-])ios-card--thing(?![\w-])/;
-const CARD_TAG = /<Card\b/;
+const CARD_TAG = /<(?:App)?Card\b/;
 const GLASS_EDGE = /(?<![\w-])glass-edge(?![\w-])/;
 const TINT = /(?<![:\w-])(?:bg-(?:muted|secondary|accent)(?![\w-]*-foreground)|t-bg-(?:subtle|secondary|tertiary))(?![\w-])/;
 const FULL_BORDER = /(?<![:\w-])border(?![\w-])/;

@@ -433,7 +433,7 @@ useSeoMeta({
           <!-- Left Column - Email Preview (max 600px) -->
           <div class="w-full lg:w-[600px] lg:flex-shrink-0 space-y-6">
             <!-- Email Header -->
-            <Card>
+            <AppCard>
               <CardHeader class="pb-4">
                 <div class="flex justify-between items-start">
                   <div class="space-y-2">
@@ -478,43 +478,43 @@ useSeoMeta({
                   </div>
                 </div>
               </CardHeader>
-            </Card>
+            </AppCard>
 
             <!-- Delivery Stats -->
             <div
               v-if="email.status === 'sent' || email.status === 'failed'"
               class="grid grid-cols-4 gap-2"
             >
-              <Card class="p-3">
+              <AppCard class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold">{{ email.recipient_count || 0 }}</p>
                   <p class="text-xs t-text-muted">Recipients</p>
                 </div>
-              </Card>
-              <Card class="p-3">
+              </AppCard>
+              <AppCard class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold text-success">{{ email.delivered_count || 0 }}</p>
                   <p class="text-xs t-text-muted">Delivered</p>
                 </div>
-              </Card>
-              <Card class="p-3">
+              </AppCard>
+              <AppCard class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold text-destructive">{{ email.failed_count || 0 }}</p>
                   <p class="text-xs t-text-muted">Failed</p>
                 </div>
-              </Card>
-              <Card class="p-3">
+              </AppCard>
+              <AppCard class="p-3">
                 <div class="text-center">
                   <p class="text-xl font-bold text-success">
                     {{ email.recipient_count ? Math.round(((email.delivered_count || 0) / email.recipient_count) * 100) : 0 }}%
                   </p>
                   <p class="text-xs t-text-muted">Rate</p>
                 </div>
-              </Card>
+              </AppCard>
             </div>
 
             <!-- Why it failed, and trying again -->
-            <Card v-if="failureReasons.length" data-testid="detail-failure-reasons">
+            <AppCard v-if="failureReasons.length" data-testid="detail-failure-reasons">
               <CardContent class="py-4 space-y-3">
                 <div class="flex flex-wrap items-start gap-3">
                   <div class="min-w-0 flex-1 text-sm">
@@ -555,10 +555,10 @@ useSeoMeta({
                   Retry makes a draft addressed to just {{ retryPlan.memberIds.length === 1 ? "this person" : "these people" }}. Nothing is sent until you review it and press Send.
                 </p>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Email Content Preview -->
-            <Card>
+            <AppCard>
               <CardHeader class="pb-2">
                 <CardTitle class="text-sm font-medium t-text-secondary">Email Preview</CardTitle>
               </CardHeader>
@@ -577,10 +577,10 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Attachments -->
-            <Card v-if="email.attachments && email.attachments.length > 0">
+            <AppCard v-if="email.attachments && email.attachments.length > 0">
               <CardHeader class="py-3">
                 <CardTitle class="text-sm font-medium flex items-center gap-2">
                   <Icon name="lucide:paperclip" class="w-4 h-4" />
@@ -604,10 +604,10 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Send progress (the send queue) -->
-            <Card v-if="isQueuedSend && sendProgress.progress.value" data-testid="detail-send-progress">
+            <AppCard v-if="isQueuedSend && sendProgress.progress.value" data-testid="detail-send-progress">
               <CardContent class="py-4">
                 <CommunicationsSendProgress
                   :progress="sendProgress.progress.value"
@@ -616,10 +616,10 @@ useSeoMeta({
                   @resume="sendProgress.resume()"
                 />
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Resend to the unknown (after an hour with no SendGrid event) -->
-            <Card v-if="resendPlan" data-testid="detail-resend-unknown">
+            <AppCard v-if="resendPlan" data-testid="detail-resend-unknown">
               <CardContent class="py-4 flex flex-wrap items-center gap-3">
                 <div class="min-w-0 flex-1 text-sm">
                   <p class="font-medium">
@@ -646,10 +646,10 @@ useSeoMeta({
                   Resend to {{ resendPlan.memberIds.length }}
                 </Button>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Recipients List -->
-            <Card v-if="email.recipients && email.recipients.length > 0">
+            <AppCard v-if="email.recipients && email.recipients.length > 0">
               <CardHeader class="py-3">
                 <CardTitle class="text-sm font-medium">
                   Recipients ({{ email.recipients.length }})
@@ -690,12 +690,12 @@ useSeoMeta({
                   </AppDataTable>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
 
           <!-- Right Column - Activity Tabs -->
           <div class="flex-1 min-w-0">
-            <Card class="h-full">
+            <AppCard class="h-full">
               <CardHeader class="pb-2">
                 <CardTitle class="flex items-center gap-2">
                   <Icon name="lucide:activity" class="w-5 h-5" />
@@ -911,7 +911,7 @@ useSeoMeta({
                   </div>
                 </AppTabPanels>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
         </div>
 

@@ -211,7 +211,7 @@ const handleDelete = async (id: string) => {
 
           <!-- Units Grid -->
           <div v-if="units?.length" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card v-for="unit in units" :key="unit.id" class="stagger-item relative">
+            <AppCard v-for="unit in units" :key="unit.id" class="stagger-item relative">
               <NuxtLink :to="buildOrgPath(`/admin/units/${unit.id}`)" class="block hover:opacity-80 transition-opacity">
                 <CardHeader>
                   <CardTitle class="text-center text-2xl">{{
@@ -247,7 +247,7 @@ const handleDelete = async (id: string) => {
                   </Button>
                 </div>
               </CardFooter>
-            </Card>
+            </AppCard>
           </div>
 
           <div v-else class="ios-card">

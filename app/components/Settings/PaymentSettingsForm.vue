@@ -7,7 +7,7 @@
     />
 
     <!-- Monthly Dues -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Monthly Dues</CardTitle>
         <CardDescription>
@@ -56,10 +56,10 @@
           </div>
         </form>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Opening balance -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Opening Balance</CardTitle>
         <CardDescription>
@@ -105,10 +105,10 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Late Fees -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Late Fee Settings</CardTitle>
         <CardDescription>
@@ -168,10 +168,10 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Payment Summary Preview -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Payment Preview</CardTitle>
         <CardDescription>
@@ -196,7 +196,7 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Save Button -->
     <div class="flex justify-end">

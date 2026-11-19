@@ -23,7 +23,7 @@ const { items, pending } = await useUpNextGlance(() => props.orgId, {
 <template>
   <section v-if="items.length" aria-labelledby="up-next-heading" data-testid="up-next">
     <h2 id="up-next-heading" class="t-eyebrow mb-3">Up next</h2>
-    <Card class="overflow-hidden py-0">
+    <AppCard class="overflow-hidden py-0">
       <ul class="divide-y">
         <li v-for="item in items" :key="item.key">
           <button
@@ -46,7 +46,7 @@ const { items, pending } = await useUpNextGlance(() => props.orgId, {
           </button>
         </li>
       </ul>
-    </Card>
+    </AppCard>
   </section>
   <div v-else-if="pending" class="h-0" aria-hidden="true" />
 </template>

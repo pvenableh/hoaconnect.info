@@ -176,7 +176,7 @@ const resetForm = () => {
 </script>
 
 <template>
-  <Card>
+  <AppCard>
     <CardHeader>
       <CardTitle>Invite New Member</CardTitle>
       <CardDescription>
@@ -354,5 +354,5 @@ const resetForm = () => {
         {{ loading ? "Sending..." : "Send Invitation" }}
       </Button>
     </CardFooter>
-  </Card>
+  </AppCard>
 </template>

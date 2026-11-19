@@ -3,7 +3,7 @@
     <!-- ONE surface for the tab (docs/ux-standards.md: a settings tab is one
          surface). Each group is a flat `.form-section` — a heading and a
          hairline from the group above — never a card of its own. -->
-    <Card>
+    <AppCard>
       <CardContent>
         <!-- Logo & Icon -->
         <section class="form-section">
@@ -382,7 +382,7 @@
           </div>
         </section>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Save Button -->
     <div class="flex justify-end">

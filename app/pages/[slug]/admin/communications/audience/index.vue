@@ -86,29 +86,29 @@ const composeTo = (audience: "all" | "owners" | "tenants") =>
       <template v-else>
         <!-- Reach summary -->
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-          <Card>
+          <AppCard>
             <CardContent class="pt-6">
               <p class="text-2xl font-bold t-text">{{ all.length }}</p>
               <p class="text-sm t-text-secondary">Total members</p>
             </CardContent>
-          </Card>
-          <Card>
+          </AppCard>
+          <AppCard>
             <CardContent class="pt-6">
               <p class="text-2xl font-bold t-text">{{ withEmail }}</p>
               <p class="text-sm t-text-secondary">Reachable by email</p>
             </CardContent>
-          </Card>
-          <Card>
+          </AppCard>
+          <AppCard>
             <CardContent class="pt-6">
               <p class="text-2xl font-bold t-text">{{ withLogin }}</p>
               <p class="text-sm t-text-secondary">Have portal login</p>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- Groups -->
         <StaggerList :items="groups" class="space-y-3" v-slot="{ item: g }">
-          <Card class="p-5">
+          <AppCard class="p-5">
             <div class="flex items-center gap-4">
               <span class="flex h-11 w-11 items-center justify-center rounded-xl t-bg-accent/15 t-text-accent shrink-0">
                 <Icon :name="g.icon" class="h-5 w-5" />
@@ -125,7 +125,7 @@ const composeTo = (audience: "all" | "owners" | "tenants") =>
                 Compose
               </Button>
             </div>
-          </Card>
+          </AppCard>
         </StaggerList>
 
         <p class="text-xs t-text-muted mt-4">

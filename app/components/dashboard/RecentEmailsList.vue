@@ -47,7 +47,7 @@ const formatDate = (dateString: string | null | undefined) => {
 </script>
 
 <template>
-  <Card>
+  <AppCard>
     <CardHeader class="pb-3">
       <div class="flex items-center justify-between">
         <div>
@@ -98,5 +98,5 @@ const formatDate = (dateString: string | null | undefined) => {
         <p class="text-sm">No emails sent yet</p>
       </div>
     </CardContent>
-  </Card>
+  </AppCard>
 </template>

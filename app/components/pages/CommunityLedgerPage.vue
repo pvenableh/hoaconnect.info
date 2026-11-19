@@ -140,7 +140,7 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
 </script>
 
 <template>
-  <div class="space-y-6 p-4 sm:p-6 max-w-4xl mx-auto">
+  <PageContainer class="space-y-6 [&>*]:max-w-4xl">
     <AppPageHeader :eyebrow="props.eyebrow" title="Ledger" :description="props.subtitle" />
 
     <!-- The owner surface only. A board member has the whole feed and the admin
@@ -289,5 +289,5 @@ const isBoardOnly = (entry: StoredLedgerEntry) => entry.visibility === "board";
         </template>
       </p>
     </template>
-  </div>
+  </PageContainer>
 </template>

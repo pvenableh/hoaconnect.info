@@ -205,7 +205,7 @@ const handleSubmit = async () => {
         />
 
         <!-- Upload Form -->
-        <Card>
+        <AppCard>
           <CardContent class="pt-6 space-y-4">
             <div>
               <label class="text-sm font-medium mb-2 block">Title *</label>
@@ -348,7 +348,7 @@ const handleSubmit = async () => {
               {{ loading ? "Uploading..." : "Upload Document" }}
             </Button>
           </CardContent>
-        </Card>
+        </AppCard>
       </PageContainer>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- Display name -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Sender name</CardTitle>
         <CardDescription>
@@ -29,10 +29,10 @@
           </p>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- White-label sending domain -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Sending domain (white-label)</CardTitle>
         <CardDescription>
@@ -136,7 +136,7 @@
           </div>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
   </div>
 </template>
 

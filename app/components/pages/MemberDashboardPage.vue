@@ -544,7 +544,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Recent Announcements -->
-          <Card>
+          <AppCard>
             <CardHeader>
               <div class="flex items-center justify-between">
                 <div>
@@ -609,10 +609,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <p class="text-sm">No announcements yet.</p>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
 
           <!-- Recent Documents -->
-          <Card>
+          <AppCard>
             <CardHeader>
               <div class="flex items-center justify-between">
                 <div>
@@ -656,7 +656,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                 <p class="text-sm">No documents published yet.</p>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- Portal sections — where to go next, AFTER what is happening.
@@ -697,7 +697,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
         </section>
 
         <!-- My Household summary -->
-        <Card>
+        <AppCard>
           <CardHeader>
             <div class="flex items-center justify-between">
               <div>
@@ -733,10 +733,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               changes are sent to your community manager for review.
             </p>
           </CardContent>
-        </Card>
+        </AppCard>
 
         <!-- Board Member Status (only shown if user is a board member) -->
-        <Card v-if="isBoardMember && activeBoardTerms.length > 0">
+        <AppCard v-if="isBoardMember && activeBoardTerms.length > 0">
           <CardHeader>
             <div class="flex items-center gap-3">
               <div class="w-10 h-10 rounded-full t-bg-accent/20 flex items-center justify-center">
@@ -775,10 +775,10 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </div>
           </CardContent>
-        </Card>
+        </AppCard>
 
         <!-- Contact Information -->
-        <Card v-if="organization?.phone || organization?.email">
+        <AppCard v-if="organization?.phone || organization?.email">
           <CardHeader>
             <CardTitle>Contact Management</CardTitle>
             <CardDescription>Get in touch with your HOA management team</CardDescription>
@@ -813,7 +813,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </a>
             </div>
           </CardContent>
-        </Card>
+        </AppCard>
 
         <!-- Admin Link (only for admins previewing the member view) -->
         <div v-if="isAdmin" class="text-center">

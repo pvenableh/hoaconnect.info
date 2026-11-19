@@ -107,7 +107,7 @@ const signOut = async () => {
 </script>
 
 <template>
-  <Card class="w-full max-w-md mx-auto">
+  <AppCard class="w-full max-w-md mx-auto">
     <CardHeader>
       <CardTitle>Join {{ community }}</CardTitle>
       <CardDescription v-if="details">
@@ -181,5 +181,5 @@ const signOut = async () => {
         </Button>
       </form>
     </CardContent>
-  </Card>
+  </AppCard>
 </template>

@@ -1,5 +1,5 @@
 <template>
-  <Card>
+  <AppCard>
     <CardHeader>
       <CardTitle>Organization Information</CardTitle>
       <CardDescription>
@@ -198,7 +198,7 @@
         </div>
       </form>
     </CardContent>
-  </Card>
+  </AppCard>
 </template>
 
 <script setup lang="ts">

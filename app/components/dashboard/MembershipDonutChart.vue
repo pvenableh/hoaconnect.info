@@ -2,7 +2,7 @@
 /**
  * Dashboard widget — owners vs tenants.
  *
- * Was a raw shadcn <Card> with text-muted-foreground and a hand-rolled legend,
+ * Was a raw shadcn <AppCard> with text-muted-foreground and a hand-rolled legend,
  * which is the shadcn palette rather than the workspace theme, so it didn't
  * follow light/dark with the rest of the app. Now it's AppChartCard like every
  * other chart, and the donut, the legend, the tooltip and the empty state all

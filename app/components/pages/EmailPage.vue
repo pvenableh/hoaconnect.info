@@ -233,18 +233,18 @@ useSeoMeta({
         <!-- Main Content -->
         <div v-else class="space-y-6">
           <!-- Organization Info -->
-          <Card>
+          <AppCard>
             <CardHeader>
               <CardTitle>{{ organization.name }}</CardTitle>
               <CardDescription v-if="organization.street_address">
                 {{ organization.street_address }}
               </CardDescription>
             </CardHeader>
-          </Card>
+          </AppCard>
 
           <!-- Quick Stats -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
+            <AppCard>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
                   <div class="p-2 bg-primary/15 rounded-lg">
@@ -256,8 +256,8 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
-            <Card>
+            </AppCard>
+            <AppCard>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
                   <div class="p-2 bg-success/15 rounded-lg">
@@ -271,8 +271,8 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
-            <Card>
+            </AppCard>
+            <AppCard>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
                   <div class="p-2 t-bg-subtle rounded-lg">
@@ -286,8 +286,8 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
-            <Card>
+            </AppCard>
+            <AppCard>
               <CardContent class="pt-6">
                 <div class="flex items-center gap-3">
                   <div class="p-2 bg-destructive/15 rounded-lg">
@@ -301,13 +301,13 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
 
           <AppSegmentedControl v-model="activeTab" :items="tabItems" label="Email views" />
 
           <!-- Emails List -->
-          <Card>
+          <AppCard>
             <CardContent class="pt-6">
               <!-- Loading — content-shaped skeleton -->
               <WidgetRowSkeleton v-if="fetchStatus === 'pending'" :rows="6" :avatar="false" />
@@ -437,7 +437,7 @@ useSeoMeta({
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AppCard>
         </div>
 
         <!-- Delete Confirmation Dialog -->

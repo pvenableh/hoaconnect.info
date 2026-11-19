@@ -220,7 +220,7 @@ const titleCase = (s: string | null) =>
 <template>
   <div class="space-y-6">
     <!-- ───────── Intro ───────── -->
-    <Card v-if="!started">
+    <AppCard v-if="!started">
       <CardHeader>
         <CardTitle>Change management company</CardTitle>
         <CardDescription>
@@ -246,7 +246,7 @@ const titleCase = (s: string | null) =>
           Plan a transition
         </Button>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <template v-else>
       <!-- ───────── Progress ───────── -->
@@ -269,7 +269,7 @@ const titleCase = (s: string | null) =>
       </div>
 
       <!-- ───────── 1. Who is leaving ───────── -->
-      <Card v-if="stage === 'who'">
+      <AppCard v-if="stage === 'who'">
         <CardHeader>
           <CardTitle>Who is leaving?</CardTitle>
           <CardDescription>
@@ -325,10 +325,10 @@ const titleCase = (s: string | null) =>
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </AppCard>
 
       <!-- ───────── 2. Who takes over ───────── -->
-      <Card v-if="stage === 'successor'">
+      <AppCard v-if="stage === 'successor'">
         <CardHeader>
           <CardTitle>Who takes over the account?</CardTitle>
           <CardDescription>
@@ -401,10 +401,10 @@ const titleCase = (s: string | null) =>
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </AppCard>
 
       <!-- ───────── 3. Review ───────── -->
-      <Card v-if="stage === 'review'">
+      <AppCard v-if="stage === 'review'">
         <CardHeader>
           <CardTitle>What will happen</CardTitle>
           <CardDescription>In this order. Nothing has been written yet.</CardDescription>
@@ -496,10 +496,10 @@ const titleCase = (s: string | null) =>
             </div>
           </template>
         </CardContent>
-      </Card>
+      </AppCard>
 
       <!-- ───────── 4. What actually ran ───────── -->
-      <Card v-if="stage === 'done' && result">
+      <AppCard v-if="stage === 'done' && result">
         <CardHeader>
           <CardTitle class="flex items-center gap-2">
             <Icon
@@ -554,7 +554,7 @@ const titleCase = (s: string | null) =>
             <Button variant="outline" class="rounded-full" @click="restart">Done</Button>
           </div>
         </CardContent>
-      </Card>
+      </AppCard>
     </template>
   </div>
 </template>

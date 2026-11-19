@@ -57,7 +57,7 @@ const newChannel = () => router.replace({ query: { ...route.query, new: "channel
           <div class="py-16 flex justify-center"><div class="spinner-ios" /></div>
         </template>
 
-        <Card class="overflow-hidden p-0">
+        <AppCard class="overflow-hidden p-0">
           <ChannelsWorkspace
             v-if="orgId"
             embedded
@@ -65,7 +65,7 @@ const newChannel = () => router.replace({ query: { ...route.query, new: "channel
             :org-name="orgName"
             :is-admin="isAdmin"
           />
-        </Card>
+        </AppCard>
       </ClientOnly>
 
     </PageContainer>

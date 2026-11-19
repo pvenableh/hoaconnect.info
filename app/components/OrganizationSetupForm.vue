@@ -418,7 +418,7 @@ const isLastVisibleStep = (step: number) => {
 </script>
 
 <template>
-  <Card class="w-full max-w-2xl mx-auto">
+  <AppCard class="w-full max-w-2xl mx-auto">
     <CardHeader>
       <CardTitle>{{ title }}</CardTitle>
       <CardDescription>{{ description }}</CardDescription>
@@ -841,5 +841,5 @@ const isLastVisibleStep = (step: number) => {
         {{ loading ? "Setting up..." : (paymentIsNext ? "Continue to Payment" : "Continue") }}
       </Button>
     </CardFooter>
-  </Card>
+  </AppCard>
 </template>

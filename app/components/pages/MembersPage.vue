@@ -992,7 +992,7 @@ useSeoMeta({
             <AdminPeopleGlance />
 
             <!-- Info Box — theme-aware accent tint (adapts to light/dark + theme) -->
-            <Card class="t-bg-accent/10 t-border-accent">
+            <AppCard class="t-bg-accent/10 t-border-accent">
               <CardContent class="pt-6">
                 <p class="text-sm t-text">
                   <strong>Two ways to add members:</strong>
@@ -1010,7 +1010,7 @@ useSeoMeta({
                   </li>
                 </ul>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Action Buttons -->
             <div class="flex justify-between items-center">
@@ -1033,7 +1033,7 @@ useSeoMeta({
             </div>
 
             <!-- Members Table -->
-            <Card>
+            <AppCard>
               <CardContent class="pt-6 space-y-4">
                 <!--
                   Archived used to be unreachable from this page entirely. The
@@ -1296,7 +1296,7 @@ useSeoMeta({
                   </template>
                 </AppDataTable>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
 
           <!-- Invite Tab -->
@@ -1311,7 +1311,7 @@ useSeoMeta({
 
           <!-- Pending Invitations Tab -->
           <div v-if="activeTab === 'pending'" class="space-y-4">
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>Pending Invitations</CardTitle>
                 <CardDescription>
@@ -1410,13 +1410,13 @@ useSeoMeta({
                   </AppEmptyState>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
 
           <!-- Board Tab -->
           <div v-if="activeTab === 'board'" class="space-y-6">
             <!-- Info Box -->
-            <Card class="bg-info/10">
+            <AppCard class="bg-info/10">
               <CardContent class="pt-6">
                 <p class="text-sm t-text">
                   <strong>Manage your HOA Board:</strong>
@@ -1424,7 +1424,7 @@ useSeoMeta({
                   When the board changes, end the term or change the office rather than editing it: the history stays.
                 </p>
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- As of · Add -->
             <div class="flex flex-wrap items-end justify-between gap-3">
@@ -1444,7 +1444,7 @@ useSeoMeta({
             </div>
 
             <!-- Current Board Members -->
-            <Card>
+            <AppCard>
               <CardHeader>
                 <CardTitle>{{ boardAsOfIsToday ? "Current Board Members" : `Board on ${formatDay(boardDay)}` }}</CardTitle>
                 <CardDescription>
@@ -1521,10 +1521,10 @@ useSeoMeta({
                   "
                 />
               </CardContent>
-            </Card>
+            </AppCard>
 
             <!-- Past Board Members -->
-            <Card v-if="pastBoardTerms?.length">
+            <AppCard v-if="pastBoardTerms?.length">
               <CardHeader>
                 <CardTitle>{{ boardAsOfIsToday ? "Past Board Members" : "Other terms" }}</CardTitle>
                 <CardDescription>
@@ -1587,7 +1587,7 @@ useSeoMeta({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AppCard>
           </div>
         </AppTabPanels>
 

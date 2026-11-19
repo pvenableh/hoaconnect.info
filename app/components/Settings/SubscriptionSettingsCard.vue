@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- Current Plan -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <div class="flex items-center justify-between">
           <div>
@@ -111,10 +111,10 @@
           Manage Billing
         </Button>
       </CardFooter>
-    </Card>
+    </AppCard>
 
     <!-- Add-ons -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Add-ons</CardTitle>
         <CardDescription>
@@ -154,10 +154,10 @@
           Add-ons require an active paid subscription. Changes are prorated on your next invoice.
         </p>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Billing History -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Billing History</CardTitle>
         <CardDescription>
@@ -173,10 +173,10 @@
           </p>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Payment Method -->
-    <Card>
+    <AppCard>
       <CardHeader>
         <CardTitle>Payment Method</CardTitle>
         <CardDescription>
@@ -205,10 +205,10 @@
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
 
     <!-- Danger Zone -->
-    <Card class="border-destructive/50">
+    <AppCard class="border-destructive/50">
       <CardHeader>
         <CardTitle class="text-destructive">Danger Zone</CardTitle>
         <CardDescription>
@@ -228,7 +228,7 @@
           </Button>
         </div>
       </CardContent>
-    </Card>
+    </AppCard>
   </div>
 </template>
 
