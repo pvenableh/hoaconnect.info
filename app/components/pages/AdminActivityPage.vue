@@ -142,7 +142,12 @@ const fmtTime = (d?: string | null) =>
         </CardHeader>
         <CardContent>
           <ClientOnly>
-            <ChartContainer :config="chartConfig" class="h-[200px] w-full">
+            <!-- Small axis labels: set here, not in ui/chart (kept stock). -->
+            <ChartContainer
+              :config="chartConfig"
+              class="h-[200px] w-full"
+              style="--vis-axis-tick-label-font-size: 10px; --vis-axis-label-font-size: 10px"
+            >
               <VisXYContainer :data="series" :margin="{ top: 8, right: 12, bottom: 24, left: 32 }">
                 <VisArea :x="x" :y="y" color="var(--chart-1)" :opacity="0.1" />
                 <VisLine :x="x" :y="y" color="var(--chart-1)" :lineWidth="2" />
