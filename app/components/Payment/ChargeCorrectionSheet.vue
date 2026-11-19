@@ -186,12 +186,12 @@ const memberName = (m: HoaMember) => [m.first_name, m.last_name].filter(Boolean)
         <div class="space-y-1.5">
           <Label for="move-member">The household it belongs to</Label>
           <Select v-model="form.member">
-            <SelectTrigger id="move-member" class="w-full">
+            <AppSelectTrigger id="move-member" class="w-full">
               <SelectValue placeholder="Choose a household…" />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="m in members" :key="m.id" :value="m.id">{{ memberName(m) }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <p v-if="(charge.late_fees_open ?? 0) > 0" class="type-meta t-text-muted">
             Its late fees ({{ chargeCurrency(charge.late_fees_open) }}) are canceled when it moves.

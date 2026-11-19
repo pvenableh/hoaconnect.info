@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -257,14 +256,14 @@ const { buildOrgPath } = useOrgNavigation();
 
       <!-- Add/Edit modal -->
       <Dialog v-model:open="showModal">
-        <DialogContent class="sm:max-w-[560px]">
+        <AppDialogContent class="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle class="capitalize">{{ modalTitle }}</DialogTitle>
           </DialogHeader>
           <UnitsPetForm v-if="formKind === 'pet'" :members="members" :record="editing" @submit="onSubmit" @cancel="showModal = false" />
           <UnitsVehicleForm v-else-if="formKind === 'vehicle'" :members="members" :record="editing" @submit="onSubmit" @cancel="showModal = false" />
           <UnitsLeaseForm v-else :members="members" :record="editing" :upload="uploadLeaseDocument" @submit="onSubmit" @cancel="showModal = false" />
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </PageContainer>
   </div>

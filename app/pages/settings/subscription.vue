@@ -8,7 +8,7 @@
 // Stripe customer — so a paid subscription never activated the org.)
 import { toast } from "vue-sonner";
 import { describeGrace } from "#core/shared/transition/grace";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 definePageMeta({
   middleware: ["auth"],
@@ -311,7 +311,7 @@ const handleManageBilling = async () => {
 
     <!-- Stripe checkout: the dialog is the card. -->
     <Dialog v-model:open="checkoutOpen">
-      <DialogContent class="max-w-lg max-h-[90vh] overflow-y-auto">
+      <AppDialogContent class="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Complete your subscription</DialogTitle>
           <DialogDescription>{{ checkout?.planName }}</DialogDescription>
@@ -325,7 +325,7 @@ const handleManageBilling = async () => {
           :return-url="returnUrl"
           @error="onCheckoutError"
         />
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </PageContainer>
 </template>

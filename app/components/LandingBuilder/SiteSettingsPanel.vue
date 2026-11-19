@@ -6,7 +6,6 @@
 // from the builder context. Ported from the old Widgets/Inquiries tabs.
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -60,7 +59,7 @@ watch(
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+    <AppDialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Site settings</DialogTitle>
         <DialogDescription>Theme, hero widgets, inquiries, and the property-management callout.</DialogDescription>
@@ -292,6 +291,6 @@ watch(
           </div>
         </section>
       </div>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -104,7 +103,7 @@ async function purchase(packId: string) {
 
     <!-- Prompt dialog -->
     <Dialog v-model:open="showPrompt">
-      <DialogContent class="sm:max-w-lg">
+      <AppDialogContent class="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{{ isRewrite ? "Rewrite with AI" : "Draft with AI" }}</DialogTitle>
           <DialogDescription>
@@ -138,12 +137,12 @@ async function purchase(packId: string) {
             {{ generating ? "Drafting…" : "Generate" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Buy-credits dialog -->
     <Dialog v-model:open="showBuy">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Buy AI credits</DialogTitle>
           <DialogDescription>
@@ -167,7 +166,7 @@ async function purchase(packId: string) {
             </Button>
           </div>
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

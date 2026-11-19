@@ -7,7 +7,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -379,7 +378,7 @@ useSeoMeta({ title: "Public site" });
 
     <!-- Disconnect confirmation -->
     <Dialog v-model:open="showDisconnectConfirm">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Disconnect this domain?</DialogTitle>
           <DialogDescription>
@@ -401,7 +400,7 @@ useSeoMeta({ title: "Public site" });
             Disconnect
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

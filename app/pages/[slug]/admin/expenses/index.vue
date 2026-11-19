@@ -353,14 +353,14 @@ const expenseColumns = [
       <!-- Category filter: a Select, as plan §2.3 asks of any filter but the one status filter -->
       <div>
         <Select v-model="categoryFilter">
-          <SelectTrigger class="w-44 rounded-full" aria-label="Category">
+          <AppSelectTrigger class="w-44 rounded-full" aria-label="Category">
             <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
+          </AppSelectTrigger>
+          <AppSelectContent>
             <SelectItem v-for="opt in [{ value: 'all', label: 'All categories' }, ...EXPENSE_CATEGORIES]" :key="opt.value" :value="opt.value">
               {{ opt.label }}
             </SelectItem>
-          </SelectContent>
+          </AppSelectContent>
         </Select>
       </div>
 

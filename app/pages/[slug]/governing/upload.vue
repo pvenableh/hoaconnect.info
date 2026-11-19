@@ -97,10 +97,10 @@ const submit = async () => {
         <div class="space-y-1.5">
           <Label for="governing-upload-kind">Kind of document</Label>
           <Select v-model="kind">
-            <SelectTrigger id="governing-upload-kind" class="w-full sm:w-64"><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger id="governing-upload-kind" class="w-full sm:w-64"><SelectValue /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="k in DOCUMENT_KINDS" :key="k" :value="k">{{ kindLabel(k) }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </div>
 

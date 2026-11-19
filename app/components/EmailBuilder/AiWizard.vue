@@ -5,7 +5,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -71,7 +70,7 @@ async function generate() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-lg">
+    <AppDialogContent class="sm:max-w-lg">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           <Icon name="lucide:sparkles" class="w-4 h-4 text-primary" />
@@ -104,6 +103,6 @@ async function generate() {
           {{ generating ? "Generating…" : "Generate" }}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -614,7 +613,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
 
     <!-- Batch Upload Dialog -->
     <Dialog v-model:open="showBatchUploadDialog">
-      <DialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <AppDialogContent class="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Upload Documents</DialogTitle>
           <DialogDescription>
@@ -626,7 +625,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
           @complete="handleBatchUploadComplete"
           @close="showBatchUploadDialog = false"
         />
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Batch Edit Dialog -->
@@ -638,7 +637,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
 
     <!-- Delete Confirmation Dialog -->
     <Dialog v-model:open="showDeleteConfirmDialog">
-      <DialogContent class="sm:max-w-[425px]">
+      <AppDialogContent class="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Delete Documents</DialogTitle>
           <DialogDescription>
@@ -657,7 +656,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
             }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

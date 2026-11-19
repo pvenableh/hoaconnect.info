@@ -522,10 +522,10 @@ useSeoMeta({
               </template>
             </Input>
             <Select v-model="eventFilter">
-              <SelectTrigger class="w-40">
+              <AppSelectTrigger class="w-40">
                 <SelectValue placeholder="Filter by event" />
-              </SelectTrigger>
-              <SelectContent>
+              </AppSelectTrigger>
+              <AppSelectContent>
                 <SelectItem
                   v-for="option in eventOptions"
                   :key="option.value"
@@ -533,13 +533,13 @@ useSeoMeta({
                 >
                   {{ option.label }}
                 </SelectItem>
-              </SelectContent>
+              </AppSelectContent>
             </Select>
             <Select v-model="emailFilter">
-              <SelectTrigger class="w-60">
+              <AppSelectTrigger class="w-60">
                 <SelectValue placeholder="Filter by email" />
-              </SelectTrigger>
-              <SelectContent>
+              </AppSelectTrigger>
+              <AppSelectContent>
                 <SelectItem
                   v-for="option in emailOptions"
                   :key="option.value"
@@ -547,7 +547,7 @@ useSeoMeta({
                 >
                   {{ option.label }}
                 </SelectItem>
-              </SelectContent>
+              </AppSelectContent>
             </Select>
           </div>
 

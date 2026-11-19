@@ -8,7 +8,6 @@ import { requestTypeList, getWorkflow, getStateMeta } from "#core/app/config/req
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -154,7 +153,7 @@ const createViolation = async () => {
     </PageContainer>
 
     <Dialog v-model:open="showNew">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>New violation</DialogTitle>
           <DialogDescription>Record a violation for a member.</DialogDescription>
@@ -191,7 +190,7 @@ const createViolation = async () => {
             {{ creating ? "Creating…" : "Create violation" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

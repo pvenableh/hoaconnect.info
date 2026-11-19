@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -270,7 +269,7 @@ const fmtDate = (v?: string | null) =>
 
     <!-- Admin editor -->
     <Dialog v-model:open="showEditor">
-      <DialogContent class="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+      <AppDialogContent class="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ form.id ? "Edit rule" : "New rule" }}</DialogTitle>
         </DialogHeader>
@@ -329,7 +328,7 @@ const fmtDate = (v?: string | null) =>
             </Button>
           </div>
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

@@ -116,11 +116,11 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
             <Icon name="lucide:chevron-down" class="w-3.5 h-3.5 ml-1" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-for="h in openHolders" :key="h.id" @click="startHandOver(h)">
             {{ h.name }} <span class="t-text-muted ml-1">{{ roleLabel(h.role).toLowerCase() }}</span>
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </AppDropdownMenuContent>
       </DropdownMenu>
       <Button v-else-if="openHolders.length === 1" size="sm" class="rounded-full" @click="startHandOver(openHolders[0]!)">
         <Icon name="lucide:repeat" class="w-4 h-4 mr-1.5" />
@@ -136,7 +136,7 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
             <Icon name="lucide:more-horizontal" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-if="openHolders.length" @click="startAssign">
             <Icon name="lucide:user-plus" class="w-4 h-4 mr-2" />
             Add a Holder
@@ -153,7 +153,7 @@ const termSpan = (t: { from: string | null; to: string | null }) =>
             <Icon name="lucide:archive" class="w-4 h-4 mr-2" />
             Retire Job
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </AppDropdownMenuContent>
       </DropdownMenu>
     </template>
     <template v-else-if="viewer.canEdit && job && retired" #actions>

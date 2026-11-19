@@ -10,7 +10,7 @@ long-form source; this is what you need while writing a component._
 | Concern | Do | Don't | Audit |
 |---|---|---|---|
 | **Cards** | `ios-card` (refracted rim). `glass-edge` on a quieter surface that keeps its own background. `ios-card--thing` for an _object_ (a receipt, a preview). | A hand-rolled `rounded-xl border t-border t-bg-subtle` — it keeps the pre-glass 1px line. | `hairline-surfaces` |
-| **Nesting** | An overlay (`AppBottomSheet`, `AppSlideOverShell`, `DialogContent`) **is** the card; a settings tab **is** one surface. Group with spacing, dividers and `t-text-*` hierarchy. | A card in an overlay; a stack of cards per settings section (glass on glass turns to mud). | `overlay-boxes`, `settings-boxes` |
+| **Nesting** | An overlay (`AppBottomSheet`, `AppSlideOverShell`, `AppDialogContent`, `AppSheetContent`) **is** the card; a settings tab **is** one surface. Group with spacing, dividers and `t-text-*` hierarchy. | A card in an overlay; a stack of cards per settings section (glass on glass turns to mud). | `overlay-boxes`, `settings-boxes` |
 | **Colour** | Theme tokens: `t-text-primary/secondary/muted`, `t-bg-subtle`, `text-destructive`, `bg-success/15`, `text-warning`, `text-info`. In CSS: `var(--theme-*)`, `var(--primary)`. | Palette classes (`text-gray-500`, `bg-emerald-600`, `bg-white`) and `#hex` / `rgb()` in a rule — they ignore dark mode, the org accent and the contrast audit. | `color-literals`, `css-colors`, `contrast-pairs` |
 | **Type** | `type-display / section / card / body / meta / label / micro`, or Tailwind's scale. Meta-labels are UPPERCASE via `type-micro`. | `text-[13px]`, `leading-[15px]`, `font-size: 13px`. | `type-scale` |
 | **Headings** | `<h1-6>` for the document outline only. | A `<h3 class="text-xs uppercase tracking-wide">` dressed as a label — use `<p class="type-micro">`. | `heading-labels` |
@@ -68,6 +68,8 @@ Example: `<!-- allow-raw-button: calendar day cell, 42 per month, its own materi
 ## Scope notes
 
 - **Excluded everywhere**: `app/components/ui/**` (vendored shadcn-vue — it _is_ the primitives).
+  Those files stay stock; the app uses the `App*` wrappers that dress them (`AppCard`,
+  `AppDialogContent`, `AppSelectTrigger`, … — see `docs/shadcn-census.md`).
 - **Public surfaces** (`Marketing/`, `Org/Landing*/`, `LandingBuilder/` and the marketing pages)
   keep their own palette; `color-literals` skips them. The public landing is not the workspace.
 - **Token definition files** (`theme.css`, `theme-app.css`, `variables.css`, `tailwind.css`):

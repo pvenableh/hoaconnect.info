@@ -3,7 +3,6 @@ import { useDirectusItems } from "#imports";
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -586,7 +585,7 @@ useSeoMeta({
                             <Icon name="lucide:more-horizontal" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <AppDropdownMenuContent align="end">
                           <DropdownMenuItem v-if="row.status !== 'active'" @click="handleUpdateStatus(row, 'active')">
                             <Icon name="lucide:check" class="w-4 h-4 mr-2" />
                             Activate
@@ -600,7 +599,7 @@ useSeoMeta({
                             <Icon name="lucide:edit" class="w-4 h-4 mr-2" />
                             Edit Member
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
+                        </AppDropdownMenuContent>
                       </DropdownMenu>
                     </template>
 
@@ -792,7 +791,7 @@ useSeoMeta({
 
           <!-- Approve Join Request Modal -->
           <Dialog v-model:open="showApproveModal">
-            <DialogContent class="sm:max-w-[500px]">
+            <AppDialogContent class="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Approve Join Request</DialogTitle>
                 <DialogDescription>
@@ -884,12 +883,12 @@ useSeoMeta({
                   Approve & Create Member
                 </Button>
               </DialogFooter>
-            </DialogContent>
+            </AppDialogContent>
           </Dialog>
 
           <!-- Connect User Modal -->
           <Dialog v-model:open="showConnectModal">
-            <DialogContent class="sm:max-w-[500px]">
+            <AppDialogContent class="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Connect User Account</DialogTitle>
                 <DialogDescription>
@@ -972,7 +971,7 @@ useSeoMeta({
                   Cancel
                 </Button>
               </DialogFooter>
-            </DialogContent>
+            </AppDialogContent>
           </Dialog>
         </div>
       </PageContainer>

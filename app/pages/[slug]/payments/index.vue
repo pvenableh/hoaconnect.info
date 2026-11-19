@@ -280,7 +280,7 @@ const TYPE_LABEL: Record<string, string> = {
 
       <!-- Payment modal -->
       <Dialog v-model:open="showPaymentModal">
-        <DialogContent class="max-w-2xl">
+        <AppDialogContent class="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Make Payment</DialogTitle>
             <DialogDescription>{{ selectedRequest?.title }}</DialogDescription>
@@ -301,7 +301,7 @@ const TYPE_LABEL: Record<string, string> = {
               @error="handlePaymentError"
             />
           </div>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </PageContainer>
   </div>

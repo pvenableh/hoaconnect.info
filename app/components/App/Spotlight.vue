@@ -37,7 +37,7 @@
 import { useDebounceFn } from "@vueuse/core";
 import { ListboxFilter } from "reka-ui";
 import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SearchGroupResult } from "#core/shared/search";
 import { MIN_QUERY, looksLikeQuestion } from "#core/shared/search";
 import type { VerbId } from "#core/shared/create-verbs";
@@ -275,7 +275,7 @@ const placeholder = computed(() =>
     <!-- The Command sits transparent on the glass DialogContent; its own
          bg-popover would paint an opaque slab over the material. Esc closes,
          so the corner X is dropped (it collided with the search row). -->
-    <DialogContent class="overflow-hidden p-0" :show-close-button="false">
+    <AppDialogContent class="overflow-hidden p-0" :show-close-button="false">
       <DialogHeader class="sr-only">
         <DialogTitle>Search</DialogTitle>
         <DialogDescription>
@@ -396,6 +396,6 @@ const placeholder = computed(() =>
           <p v-else-if="query.trim().length === 1" class="helper-text px-3 py-6 text-center">Keep typing…</p>
         </CommandList>
       </Command>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

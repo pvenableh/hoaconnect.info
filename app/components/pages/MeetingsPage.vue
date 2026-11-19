@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -172,7 +171,7 @@ useMarkItemRead("hoa_meetings", () =>
       </PageContainer>
 
     <Dialog v-model:open="showDetail">
-      <DialogContent v-if="selected" class="ui-kit max-w-2xl max-h-[90vh] overflow-y-auto">
+      <AppDialogContent v-if="selected" class="ui-kit max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ selected.title }}</DialogTitle>
           <DialogDescription>{{ formatDateTime(selected.meeting_date) }}</DialogDescription>
@@ -219,7 +218,7 @@ useMarkItemRead("hoa_meetings", () =>
             </ul>
           </div>
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

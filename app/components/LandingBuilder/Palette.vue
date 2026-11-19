@@ -5,7 +5,6 @@
 // "Added" once present. Emits the new block id so the page can expand + scroll to it.
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -50,7 +49,7 @@ function addBuiltin(type: LandingBlockType) {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+    <AppDialogContent class="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
       <DialogHeader>
         <DialogTitle>Add a section</DialogTitle>
         <DialogDescription>
@@ -105,6 +104,6 @@ function addBuiltin(type: LandingBlockType) {
           </div>
         </div>
       </div>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

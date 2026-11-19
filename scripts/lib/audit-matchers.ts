@@ -563,9 +563,11 @@ export function findBoxes(src: string, region?: Set<number>): { findings: BoxHit
   return { findings, things };
 }
 
-/** Overlay primitives — a box inside one of these is a card in an overlay. */
+/** Overlay primitives — a box inside one of these is a card in an overlay.
+ *  `AppDialogContent` / `AppSheetContent` are the project's wrappers of the stock
+ *  parts (docs/shadcn-census.md); the app uses them, `ui/` the stock ones. */
 const OVERLAY_TAG =
-  /<(SheetContent|DialogContent|AlertDialogContent|AppSlideOver|AppSlideOverShell|AppBottomSheet|AppDrawer|Drawer|DrawerContent)(?![\w-])/;
+  /<(SheetContent|DialogContent|AlertDialogContent|AppDialogContent|AppSheetContent|AppSlideOver|AppSlideOverShell|AppBottomSheet|AppDrawer|Drawer|DrawerContent)(?![\w-])/;
 
 /** The template lines inside an overlay primitive's element (indent-matched). */
 export function overlayRegion(src: string): Set<number> {

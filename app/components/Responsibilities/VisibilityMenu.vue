@@ -66,7 +66,7 @@ async function toggle(which: "published" | "showUnassigned", on: boolean) {
         </span>
       </Button>
     </PopoverTrigger>
-    <PopoverContent align="end" class="w-80 space-y-4">
+    <AppPopoverContent align="end" class="w-80 space-y-4">
       <label class="flex items-start justify-between gap-4">
         <span class="grid gap-0.5">
           <span class="text-sm font-medium t-text">Published to owners</span>
@@ -88,6 +88,6 @@ async function toggle(which: "published" | "showUnassigned", on: boolean) {
         <Switch :model-value="visibility.showUnassigned" :disabled="busy" @update:model-value="(v: boolean) => toggle('showUnassigned', v)" />
       </label>
       <p class="text-xs t-text-muted">Only an admin can change these. Each change is written to the activity log.</p>
-    </PopoverContent>
+    </AppPopoverContent>
   </Popover>
 </template>

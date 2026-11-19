@@ -223,7 +223,7 @@ function thumbUrl(f: StorageFile, size = 160) {
 
 <template>
   <Dialog :open="open" @update:open="(v) => emit('update:open', v)">
-    <DialogContent class="max-w-2xl">
+    <AppDialogContent class="max-w-2xl">
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>Attach a file from your organization, or upload a new one.</DialogDescription>
@@ -341,6 +341,6 @@ function thumbUrl(f: StorageFile, size = 160) {
           </Button>
         </div>
       </DialogFooter>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

@@ -369,7 +369,7 @@ const doPromote = async () => {
 
     <!-- Spawn channel dialog -->
     <Dialog v-model:open="showSpawnDialog">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Start a discussion channel</DialogTitle>
           <DialogDescription>
@@ -401,7 +401,7 @@ const doPromote = async () => {
             Create channel
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Metadata -->

@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -490,7 +489,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 
             <!-- Buy-credits dialog -->
             <Dialog v-model:open="showBuy">
-              <DialogContent class="sm:max-w-md">
+              <AppDialogContent class="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Buy AI credits</DialogTitle>
                   <DialogDescription>
@@ -513,7 +512,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
                     </Button>
                   </div>
                 </div>
-              </DialogContent>
+              </AppDialogContent>
             </Dialog>
           </aside>
         </Transition>

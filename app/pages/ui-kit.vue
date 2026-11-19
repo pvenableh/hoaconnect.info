@@ -471,7 +471,7 @@ const materials = [
             <DialogTrigger as-child>
               <Button variant="outline" data-kit-open="dialog">Dialog</Button>
             </DialogTrigger>
-            <DialogContent>
+            <AppDialogContent>
               <DialogHeader>
                 <DialogTitle>Rename unit</DialogTitle>
                 <DialogDescription>Residents see the new name everywhere.</DialogDescription>
@@ -483,7 +483,7 @@ const materials = [
                 </DialogClose>
                 <Button>Save</Button>
               </DialogFooter>
-            </DialogContent>
+            </AppDialogContent>
           </Dialog>
 
           <Sheet>
@@ -502,22 +502,22 @@ const materials = [
             <PopoverTrigger as-child>
               <Button variant="outline" data-kit-open="popover">Popover</Button>
             </PopoverTrigger>
-            <PopoverContent class="w-64">
+            <AppPopoverContent class="w-64">
               <p class="type-card">Unit 4B</p>
               <p class="helper-text">Two owners, one vehicle on file.</p>
-            </PopoverContent>
+            </AppPopoverContent>
           </Popover>
 
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="outline" data-kit-open="dropdown">Menu</Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <AppDropdownMenuContent>
               <DropdownMenuLabel>Unit 4B</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Edit</DropdownMenuItem>
               <DropdownMenuItem>Archive</DropdownMenuItem>
-            </DropdownMenuContent>
+            </AppDropdownMenuContent>
           </DropdownMenu>
 
           <TooltipProvider :delay-duration="0">
@@ -525,18 +525,18 @@ const materials = [
               <TooltipTrigger as-child>
                 <Button variant="outline" data-kit-open="tooltip">Tooltip</Button>
               </TooltipTrigger>
-              <TooltipContent>Shown on hover and on focus</TooltipContent>
+              <AppTooltipContent>Shown on hover and on focus</AppTooltipContent>
             </Tooltip>
           </TooltipProvider>
 
           <Select v-model="kitSelect">
-            <SelectTrigger class="w-36" data-kit-open="select">
+            <AppSelectTrigger class="w-36" data-kit-open="select">
               <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="owner">Owner</SelectItem>
               <SelectItem value="tenant">Tenant</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
 
           <Button variant="destructive" data-kit-open="confirm" @click="askDelete">Delete Unit…</Button>
@@ -718,14 +718,14 @@ const materials = [
           >
             <template #filters>
               <Select v-model="kitResource.filters.balance">
-                <SelectTrigger class="w-36 rounded-full" aria-label="Balance">
+                <AppSelectTrigger class="w-36 rounded-full" aria-label="Balance">
                   <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+                </AppSelectTrigger>
+                <AppSelectContent>
                   <SelectItem value="any">Any balance</SelectItem>
                   <SelectItem value="owing">Owing</SelectItem>
                   <SelectItem value="settled">Settled</SelectItem>
-                </SelectContent>
+                </AppSelectContent>
               </Select>
             </template>
             <template #cell-balance="{ value }">

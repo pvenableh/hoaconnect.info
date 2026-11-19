@@ -175,7 +175,7 @@
 
     <!-- Payment Modal -->
     <Dialog v-model:open="showPaymentModal">
-      <DialogContent class="max-w-2xl">
+      <AppDialogContent class="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Make Payment</DialogTitle>
           <DialogDescription>
@@ -198,7 +198,7 @@
             @error="handlePaymentError"
           />
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

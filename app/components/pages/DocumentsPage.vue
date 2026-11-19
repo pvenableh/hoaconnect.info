@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -631,7 +630,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:bars-3" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>All Categories</TooltipContent>
+                      <AppTooltipContent>All Categories</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -648,7 +647,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:scale" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Bylaws</TooltipContent>
+                      <AppTooltipContent>Bylaws</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -665,7 +664,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:currency-dollar" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Financials</TooltipContent>
+                      <AppTooltipContent>Financials</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -682,7 +681,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:user-group" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Meeting Minutes</TooltipContent>
+                      <AppTooltipContent>Meeting Minutes</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -699,7 +698,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:bell" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Notices</TooltipContent>
+                      <AppTooltipContent>Notices</AppTooltipContent>
                     </Tooltip>
                   </div>
                 </div>
@@ -722,7 +721,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:check" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Published</TooltipContent>
+                      <AppTooltipContent>Published</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -739,7 +738,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:pencil-square" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Draft</TooltipContent>
+                      <AppTooltipContent>Draft</AppTooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -756,7 +755,7 @@ const handleBatchUploadComplete = async () => {
                           <Icon name="heroicons:archive-box" class="h-5 w-5" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent>Archived</TooltipContent>
+                      <AppTooltipContent>Archived</AppTooltipContent>
                     </Tooltip>
                   </div>
                 </div>
@@ -840,7 +839,7 @@ const handleBatchUploadComplete = async () => {
 
     <!-- Create Folder Dialog -->
     <Dialog v-model:open="showCreateFolderDialog">
-      <DialogContent class="sm:max-w-[425px]">
+      <AppDialogContent class="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New Folder</DialogTitle>
           <DialogDescription>
@@ -870,7 +869,7 @@ const handleBatchUploadComplete = async () => {
             {{ creatingFolder ? "Creating..." : "Create Folder" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Batch Upload Dialog -->

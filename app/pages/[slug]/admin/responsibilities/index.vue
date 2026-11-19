@@ -247,40 +247,40 @@ const emptyDescription = computed(() =>
 
         <template #filters>
           <Select v-model="register.filters.category">
-            <SelectTrigger class="w-44 rounded-full" aria-label="Section">
+            <AppSelectTrigger class="w-44 rounded-full" aria-label="Section">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="all">All sections</SelectItem>
               <SelectItem v-for="c in CATEGORIES" :key="c.key" :value="c.key">{{ c.label }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <Select v-model="register.filters.holder">
-            <SelectTrigger class="w-44 rounded-full" aria-label="Holder">
+            <AppSelectTrigger class="w-44 rounded-full" aria-label="Holder">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="any">Any holder</SelectItem>
               <SelectItem v-for="h in holders" :key="h.value" :value="h.value">{{ h.label }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <Select v-model="register.filters.basis">
-            <SelectTrigger class="w-40 rounded-full" aria-label="Basis">
+            <AppSelectTrigger class="w-40 rounded-full" aria-label="Basis">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="any">Any basis</SelectItem>
               <SelectItem value="unknown">Basis unknown</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <Select v-model="register.filters.review">
-            <SelectTrigger class="w-40 rounded-full" aria-label="Review">
+            <AppSelectTrigger class="w-40 rounded-full" aria-label="Review">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="any">Any review</SelectItem>
               <SelectItem value="overdue">Review overdue</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <div class="flex items-center gap-2">
             <Label for="register-as-of" class="type-meta t-text-muted">As of</Label>

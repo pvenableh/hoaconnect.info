@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -244,7 +243,7 @@ const goToAgency = async (accountId: string) => {
       />
     </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="start" class="w-72">
+    <AppDropdownMenuContent align="start" class="w-72">
       <!-- Active org identity -->
       <DropdownMenuLabel class="flex items-center gap-2.5 py-2">
         <span
@@ -364,6 +363,6 @@ const goToAgency = async (accountId: string) => {
         <Icon name="i-lucide-settings-2" class="size-4" />
         Manage all organizations
       </DropdownMenuItem>
-    </DropdownMenuContent>
+    </AppDropdownMenuContent>
   </DropdownMenu>
 </template>

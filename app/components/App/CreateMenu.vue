@@ -9,7 +9,6 @@
 <script setup lang="ts">
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
@@ -29,7 +28,7 @@ const { verbs, run } = useCreateVerbs();
       <Icon name="lucide:plus" class="size-4" />
       <span>New</span>
     </DropdownMenuTrigger>
-    <DropdownMenuContent align="end" class="w-56">
+    <AppDropdownMenuContent align="end" class="w-56">
       <DropdownMenuLabel class="type-micro">Create</DropdownMenuLabel>
       <DropdownMenuItem
         v-for="v in verbs"
@@ -41,6 +40,6 @@ const { verbs, run } = useCreateVerbs();
         <Icon :name="v.icon" class="size-4 text-muted-foreground" />
         {{ v.label }}
       </DropdownMenuItem>
-    </DropdownMenuContent>
+    </AppDropdownMenuContent>
   </DropdownMenu>
 </template>

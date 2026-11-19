@@ -5,7 +5,7 @@
 -->
 <template>
   <Dialog :open="open" @update:open="(v) => emit('update:open', v)">
-    <DialogContent class="sm:max-w-md rounded-3xl sm:rounded-3xl border t-border">
+    <AppDialogContent class="sm:max-w-md rounded-3xl sm:rounded-3xl border t-border">
       <DialogHeader>
         <p class="landing-eyebrow mb-1">{{ organizationName || "Inquiries" }}</p>
         <DialogTitle class="landing-heading text-3xl">Get in touch</DialogTitle>
@@ -78,7 +78,7 @@
           </Button>
         </DialogFooter>
       </form>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>
 
@@ -86,7 +86,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,

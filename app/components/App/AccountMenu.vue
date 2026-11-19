@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 
 const props = defineProps<{
   user: { firstName?: string | null; lastName?: string | null; email?: string | null } | null;
@@ -83,13 +83,13 @@ const bodyProps = computed(() => ({ ...props }));
         <span v-if="waiting > 0" class="account-trigger__badge text-[0.625rem]" aria-hidden="true">{{ badgeText }}</span>
       </button>
     </PopoverTrigger>
-    <PopoverContent
+    <AppPopoverContent
       align="end"
       :side-offset="6"
       class="w-[23rem] max-h-[min(85vh,46rem)] overflow-y-auto rounded-2xl p-2"
     >
       <AppAccountMenuBody v-bind="bodyProps" @close="open = false" @logout="emit('logout')" />
-    </PopoverContent>
+    </AppPopoverContent>
   </Popover>
 
   <AppBottomSheet

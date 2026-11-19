@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -188,7 +187,7 @@ const onDateChange = () => {
 
 <template>
   <Dialog v-model:open="dialogOpen">
-    <DialogContent class="sm:max-w-[500px]">
+    <AppDialogContent class="sm:max-w-[500px]">
       <DialogHeader>
         <DialogTitle>
           {{
@@ -288,6 +287,6 @@ const onDateChange = () => {
           {{ saving ? "Saving..." : "Save Changes" }}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

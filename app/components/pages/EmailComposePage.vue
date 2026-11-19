@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -1763,7 +1762,7 @@ useSeoMeta({
 
         <!-- Template Picker -->
         <Dialog v-model:open="showTemplatePicker">
-          <DialogContent class="sm:max-w-2xl max-h-[80vh] flex flex-col">
+          <AppDialogContent class="sm:max-w-2xl max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Start from a template</DialogTitle>
               <DialogDescription>
@@ -1815,12 +1814,12 @@ useSeoMeta({
             <DialogFooter>
               <Button variant="outline" @click="showTemplatePicker = false">Cancel</Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
 
         <!-- Send progress (the send queue) -->
         <Dialog :open="showSendProgress" @update:open="(v: boolean) => { if (!v) closeSendProgress(); }">
-          <DialogContent class="sm:max-w-md" data-testid="send-progress-dialog">
+          <AppDialogContent class="sm:max-w-md" data-testid="send-progress-dialog">
             <DialogHeader>
               <DialogTitle>{{ sendProgress.done.value ? "Sent" : "Sending" }} “{{ form.subject }}”</DialogTitle>
               <DialogDescription>
@@ -1840,12 +1839,12 @@ useSeoMeta({
                 {{ sendProgress.done.value ? "Done" : "Close" }}
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
 
         <!-- Save as Template -->
         <Dialog v-model:open="showSaveTemplate">
-          <DialogContent class="sm:max-w-md">
+          <AppDialogContent class="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Save as template</DialogTitle>
               <DialogDescription>
@@ -1872,12 +1871,12 @@ useSeoMeta({
                 Save template
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
 
         <!-- Preview Modal -->
         <Dialog v-model:open="showPreview">
-          <DialogContent class="max-w-4xl max-h-[90vh] overflow-hidden">
+          <AppDialogContent class="max-w-4xl max-h-[90vh] overflow-hidden">
             <DialogHeader>
               <DialogTitle>Email Preview</DialogTitle>
               <DialogDescription>
@@ -1910,12 +1909,12 @@ useSeoMeta({
                 </div>
               </div>
             </div>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
 
         <!-- Attachment Browser Dialog -->
         <Dialog v-model:open="showAttachmentBrowser">
-          <DialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
+          <AppDialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Select Attachment</DialogTitle>
               <DialogDescription>
@@ -2035,7 +2034,7 @@ useSeoMeta({
                 Cancel
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
       </div>
     </div>

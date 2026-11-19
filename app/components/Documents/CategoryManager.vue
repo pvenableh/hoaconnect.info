@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -387,7 +386,7 @@ async function createAllPredefinedCategories() {
 
   <!-- Add/Edit Dialog -->
   <Dialog v-model:open="showDialog">
-    <DialogContent class="sm:max-w-[500px]">
+    <AppDialogContent class="sm:max-w-[500px]">
       <DialogHeader>
         <DialogTitle>{{ isEditing ? 'Edit Category' : 'New Category' }}</DialogTitle>
         <DialogDescription>
@@ -463,6 +462,6 @@ async function createAllPredefinedCategories() {
           {{ saving ? 'Saving...' : (isEditing ? 'Update' : 'Create') }}
         </Button>
       </DialogFooter>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

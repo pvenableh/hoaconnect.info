@@ -219,19 +219,19 @@ const saveEdit = async () => {
         <div class="space-y-1">
           <Label :for="`flag-rel-${flag.id}`">Relationship</Label>
           <Select v-model="form.relationship">
-            <SelectTrigger :id="`flag-rel-${flag.id}`"><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger :id="`flag-rel-${flag.id}`"><SelectValue /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="r in RELATIONSHIP_ORDER" :key="r" :value="r">{{ RELATIONSHIP_LABELS[r] }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </div>
         <div class="space-y-1">
           <Label :for="`flag-sev-${flag.id}`">Severity</Label>
           <Select v-model="form.severity">
-            <SelectTrigger :id="`flag-sev-${flag.id}`"><SelectValue /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger :id="`flag-sev-${flag.id}`"><SelectValue /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="s in SEVERITY_ORDER" :key="s" :value="s">{{ SEVERITY_LABELS[s] }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </div>
       </div>

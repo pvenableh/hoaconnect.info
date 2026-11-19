@@ -91,7 +91,7 @@ const timeline = computed(() => {
             <Icon name="lucide:more-horizontal" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <AppDropdownMenuContent align="end">
           <DropdownMenuItem v-if="canEditCharge(charge, canCorrect)" @click="openSheet('edit')">
             <Icon name="lucide:pencil" class="w-4 h-4 mr-2" />
             Edit Charge
@@ -108,7 +108,7 @@ const timeline = computed(() => {
             <Icon name="lucide:undo-2" class="w-4 h-4 mr-2" />
             Withdraw Charge
           </DropdownMenuItem>
-        </DropdownMenuContent>
+        </AppDropdownMenuContent>
       </DropdownMenu>
     </template>
 

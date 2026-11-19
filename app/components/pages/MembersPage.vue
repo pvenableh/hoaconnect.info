@@ -3,7 +3,6 @@ import { useDirectusAuth, useDirectusItems } from "#imports";
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -1500,12 +1499,12 @@ useSeoMeta({
                             <Icon name="lucide:more-horizontal" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <AppDropdownMenuContent align="end">
                           <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
                             <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" />
                             Delete (entered by mistake)
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
+                        </AppDropdownMenuContent>
                       </DropdownMenu>
                     </div>
                   </div>
@@ -1576,12 +1575,12 @@ useSeoMeta({
                             <Icon name="lucide:more-horizontal" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <AppDropdownMenuContent align="end">
                           <DropdownMenuItem class="text-destructive" @click="handleDeleteBoardTerm(term)">
                             <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" />
                             Delete (entered by mistake)
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
+                        </AppDropdownMenuContent>
                       </DropdownMenu>
                     </div>
                   </div>
@@ -1718,7 +1717,7 @@ useSeoMeta({
 
         <!-- Add Board Position. Correct, End term and Change office are MembersBoardTermSheets. -->
         <Dialog v-model:open="showBoardModal">
-          <DialogContent class="sm:max-w-[500px]">
+          <AppDialogContent class="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Add Board Position</DialogTitle>
               <DialogDescription>
@@ -1817,7 +1816,7 @@ useSeoMeta({
               </Button>
               <Button @click="handleSubmitBoardTerm">Save Position</Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
 
         <MembersBoardTermSheets

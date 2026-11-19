@@ -186,7 +186,7 @@ watch(isOpen, (open) => {
 
 <template>
   <Dialog v-model:open="isOpen">
-    <DialogContent class="sm:max-w-md">
+    <AppDialogContent class="sm:max-w-md">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
           Channel members
@@ -309,6 +309,6 @@ watch(isOpen, (open) => {
           </p>
         </div>
       </div>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

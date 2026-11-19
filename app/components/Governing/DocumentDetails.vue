@@ -91,10 +91,10 @@ const save = async () => {
         <div class="space-y-1">
           <Label for="gov-doc-kind">Kind of document</Label>
           <Select v-model="form.kind">
-            <SelectTrigger id="gov-doc-kind"><SelectValue placeholder="Kind" /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger id="gov-doc-kind"><SelectValue placeholder="Kind" /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="k in DOCUMENT_KINDS" :key="k" :value="k">{{ kindLabel(k) }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </div>
         <div class="space-y-1">
@@ -134,11 +134,11 @@ const save = async () => {
         <div class="space-y-1 sm:col-span-2">
           <Label for="gov-doc-amends">Amends</Label>
           <Select v-model="form.amends">
-            <SelectTrigger id="gov-doc-amends" data-testid="governing-document-amends"><SelectValue placeholder="Amends" /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger id="gov-doc-amends" data-testid="governing-document-amends"><SelectValue placeholder="Amends" /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem :value="NONE">No other document</SelectItem>
               <SelectItem v-for="d in others" :key="d.id" :value="d.id">{{ d.label }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <p class="type-meta t-text-muted">The earlier document this one changes. Members see it on both documents' pages.</p>
         </div>

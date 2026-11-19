@@ -19,7 +19,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -621,7 +620,7 @@ watch(orgId, () => {
 
     <!-- Vendor dialog -->
     <Dialog v-model:open="dialogOpen">
-      <DialogContent class="ui-kit max-h-[90vh] overflow-y-auto">
+      <AppDialogContent class="ui-kit max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{{ editing.id ? "Edit vendor" : "Add vendor" }}</DialogTitle>
           <DialogDescription>A service provider for this community.</DialogDescription>
@@ -731,12 +730,12 @@ watch(orgId, () => {
             {{ savingVendor ? "Saving…" : "Save vendor" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Invite dialog -->
     <Dialog v-model:open="inviteOpen">
-      <DialogContent class="ui-kit">
+      <AppDialogContent class="ui-kit">
         <DialogHeader>
           <DialogTitle>Invite property manager</DialogTitle>
           <DialogDescription>Pick what they can do now — it takes effect the moment they accept.</DialogDescription>
@@ -788,7 +787,7 @@ watch(orgId, () => {
             {{ inviting ? "Sending…" : "Send invitation" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

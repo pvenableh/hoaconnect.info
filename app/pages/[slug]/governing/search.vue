@@ -148,32 +148,32 @@ const relationshipsOf = (r: GoverningSearchResult) => [...new Set(r.flags.map((f
 
       <div class="flex flex-wrap items-center gap-2">
         <Select v-model="documentFilter">
-          <SelectTrigger class="w-56" aria-label="Document"><SelectValue placeholder="Document" /></SelectTrigger>
-          <SelectContent>
+          <AppSelectTrigger class="w-56" aria-label="Document"><SelectValue placeholder="Document" /></AppSelectTrigger>
+          <AppSelectContent>
             <SelectItem :value="ALL">All documents</SelectItem>
             <SelectItem v-for="d in documents" :key="d.id" :value="d.id">{{ d.title }}</SelectItem>
-          </SelectContent>
+          </AppSelectContent>
         </Select>
         <Select v-model="kindFilter">
-          <SelectTrigger class="w-44" aria-label="Kind of document"><SelectValue placeholder="Kind" /></SelectTrigger>
-          <SelectContent>
+          <AppSelectTrigger class="w-44" aria-label="Kind of document"><SelectValue placeholder="Kind" /></AppSelectTrigger>
+          <AppSelectContent>
             <SelectItem :value="ALL">All kinds</SelectItem>
             <SelectItem v-for="k in kinds" :key="k" :value="k">{{ kindLabel(k) }}</SelectItem>
-          </SelectContent>
+          </AppSelectContent>
         </Select>
         <Select v-model="relationshipFilter">
-          <SelectTrigger class="w-60" aria-label="Relationship to state law"><SelectValue placeholder="Relationship" /></SelectTrigger>
-          <SelectContent>
+          <AppSelectTrigger class="w-60" aria-label="Relationship to state law"><SelectValue placeholder="Relationship" /></AppSelectTrigger>
+          <AppSelectContent>
             <SelectItem :value="ALL">Any relationship to state law</SelectItem>
             <SelectItem v-for="r in RELATIONSHIP_ORDER" :key="r" :value="r">{{ RELATIONSHIP_LABELS[r] }}</SelectItem>
-          </SelectContent>
+          </AppSelectContent>
         </Select>
         <Select v-model="severityFilter">
-          <SelectTrigger class="w-40" aria-label="Severity"><SelectValue placeholder="Severity" /></SelectTrigger>
-          <SelectContent>
+          <AppSelectTrigger class="w-40" aria-label="Severity"><SelectValue placeholder="Severity" /></AppSelectTrigger>
+          <AppSelectContent>
             <SelectItem :value="ALL">Any severity</SelectItem>
             <SelectItem v-for="s in SEVERITY_ORDER" :key="s" :value="s">{{ SEVERITY_LABELS[s] }}</SelectItem>
-          </SelectContent>
+          </AppSelectContent>
         </Select>
         <ActionButton icon="lucide:flag" :pressed="hasFlags" @click="hasFlags = !hasFlags">Has Statute Notes</ActionButton>
         <ActionButton v-if="hasFilter" icon="lucide:x" @click="clearFilters">Clear Filters</ActionButton>

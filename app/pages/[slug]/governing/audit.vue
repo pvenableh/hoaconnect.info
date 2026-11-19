@@ -108,18 +108,18 @@ const who = (e: GoverningAuditEntry) => e.actor_name || e.actor_email || "Unknow
       <template v-else>
         <div class="flex flex-wrap items-center gap-2">
           <Select v-model="documentFilter">
-            <SelectTrigger class="w-56" aria-label="Document"><SelectValue placeholder="Document" /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger class="w-56" aria-label="Document"><SelectValue placeholder="Document" /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem :value="ALL">All documents</SelectItem>
               <SelectItem v-for="d in documents" :key="d.id" :value="d.id">{{ d.title }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
           <Select v-model="actionFilter">
-            <SelectTrigger class="w-60" aria-label="Kind of change"><SelectValue placeholder="Kind of change" /></SelectTrigger>
-            <SelectContent>
+            <AppSelectTrigger class="w-60" aria-label="Kind of change"><SelectValue placeholder="Kind of change" /></AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem :value="ALL">Every kind of change</SelectItem>
               <SelectItem v-for="a in AUDIT_ACTIONS" :key="a" :value="a">{{ auditActionLabel(a) }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </div>
 

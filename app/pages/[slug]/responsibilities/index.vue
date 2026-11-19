@@ -197,13 +197,13 @@ const day = (d: string) => {
       >
         <template #filters>
           <Select v-model="resource.filters.holder">
-            <SelectTrigger class="w-48 rounded-full" aria-label="Who">
+            <AppSelectTrigger class="w-48 rounded-full" aria-label="Who">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem value="any">Anyone</SelectItem>
               <SelectItem v-for="h in holderOptionsList" :key="h.value" :value="h.value">{{ h.label }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </template>
         <template #cell-title="{ row }">

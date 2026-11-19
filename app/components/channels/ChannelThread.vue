@@ -714,7 +714,7 @@ onBeforeUnmount(() => {
           >
             <Icon name="lucide:ellipsis" class="w-4 h-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <AppDropdownMenuContent align="end">
             <DropdownMenuItem v-if="!isPinned" :disabled="pinning" @click="setPinned(true)">
               <Icon name="lucide:pin" class="w-4 h-4 mr-2" /> Pin channel
             </DropdownMenuItem>
@@ -730,7 +730,7 @@ onBeforeUnmount(() => {
             <DropdownMenuItem class="text-red-600" @click="deleteChannel">
               <Icon name="lucide:trash-2" class="w-4 h-4 mr-2" /> Delete channel
             </DropdownMenuItem>
-          </DropdownMenuContent>
+          </AppDropdownMenuContent>
         </DropdownMenu>
 
         <Badge :variant="isConnected ? 'default' : 'destructive'" class="text-xs hidden sm:inline-flex">

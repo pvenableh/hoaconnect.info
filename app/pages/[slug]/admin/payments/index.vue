@@ -347,12 +347,12 @@ const TYPE_FILTERS = [
       >
         <template #filters>
           <Select v-model="charges.filters.type">
-            <SelectTrigger class="w-40 rounded-full" aria-label="Charge type">
+            <AppSelectTrigger class="w-40 rounded-full" aria-label="Charge type">
               <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
+            </AppSelectTrigger>
+            <AppSelectContent>
               <SelectItem v-for="opt in TYPE_FILTERS" :key="opt.value" :value="opt.value">{{ opt.label }}</SelectItem>
-            </SelectContent>
+            </AppSelectContent>
           </Select>
         </template>
         <template #cell-member="{ value }">
@@ -395,7 +395,7 @@ const TYPE_FILTERS = [
                   <Icon name="lucide:more-horizontal" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <AppDropdownMenuContent align="end">
                 <DropdownMenuItem v-if="canEditCharge(row, canCorrect)" @click="openSheet('edit', row)">
                   <Icon name="lucide:pencil" class="w-4 h-4 mr-2" />
                   Edit Charge
@@ -412,7 +412,7 @@ const TYPE_FILTERS = [
                   <Icon name="lucide:undo-2" class="w-4 h-4 mr-2" />
                   Withdraw Charge
                 </DropdownMenuItem>
-              </DropdownMenuContent>
+              </AppDropdownMenuContent>
             </DropdownMenu>
             <span
               v-if="!pendingLabel(row) && !(canWrite && isOpenCharge(row)) && !hasChargeMenu(row, canEnter, canCorrect)"

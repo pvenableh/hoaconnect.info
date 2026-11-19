@@ -522,7 +522,7 @@ const selectChannel = (channel: HoaChannel) => {
 
     <!-- Move to folder -->
     <Dialog :open="!!moveTarget" @update:open="(v: boolean) => { if (!v) moveTarget = null; }">
-      <DialogContent class="sm:max-w-sm">
+      <AppDialogContent class="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Move #{{ moveTarget?.name }}</DialogTitle>
           <DialogDescription>
@@ -538,7 +538,7 @@ const selectChannel = (channel: HoaChannel) => {
           <Button variant="outline" :disabled="moving" @click="moveTarget = null">Cancel</Button>
           <Button :disabled="moving" @click="saveMove">Move</Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

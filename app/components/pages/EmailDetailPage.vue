@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -917,7 +916,7 @@ useSeoMeta({
 
         <!-- Delete Confirmation Dialog -->
         <Dialog v-model:open="showDeleteDialog">
-          <DialogContent>
+          <AppDialogContent>
             <DialogHeader>
               <DialogTitle>{{ email?.status === "draft" ? "Delete Draft" : "Remove Failed Email" }}</DialogTitle>
               <DialogDescription>
@@ -937,7 +936,7 @@ useSeoMeta({
                 {{ email?.status === 'draft' ? 'Delete' : 'Remove' }}
               </Button>
             </DialogFooter>
-          </DialogContent>
+          </AppDialogContent>
         </Dialog>
       </PageContainer>
   </div>

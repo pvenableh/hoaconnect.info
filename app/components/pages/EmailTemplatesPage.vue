@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -138,7 +137,7 @@ useSeoMeta({ title: "Email Templates" });
 
     <!-- Delete confirm -->
     <Dialog :open="!!toDelete" @update:open="(v) => { if (!v) toDelete = null }">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete template?</DialogTitle>
           <DialogDescription>
@@ -152,7 +151,7 @@ useSeoMeta({ title: "Email Templates" });
             Delete
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

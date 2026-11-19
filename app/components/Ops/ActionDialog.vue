@@ -11,7 +11,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -93,7 +92,7 @@ async function submit() {
 
 <template>
   <Dialog v-model:open="open">
-    <DialogContent class="sm:max-w-md" data-ops-action-dialog>
+    <AppDialogContent class="sm:max-w-md" data-ops-action-dialog>
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription v-if="description">{{ description }}</DialogDescription>
@@ -120,6 +119,6 @@ async function submit() {
           </Button>
         </DialogFooter>
       </form>
-    </DialogContent>
+    </AppDialogContent>
   </Dialog>
 </template>

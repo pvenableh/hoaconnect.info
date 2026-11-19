@@ -345,6 +345,10 @@ describe("nested boxes (overlay-boxes / settings-boxes)", () => {
     expect(found).toHaveLength(1);
     expect(found[0]!.text).toContain("inside");
   });
+  it.each(["AppDialogContent", "AppSheetContent"])("%s, a wrapper of a stock overlay, is an overlay", (tag) => {
+    const src = sfc([`<${tag}>`, `  <div class="ios-card">inside</div>`, `</${tag}>`].join("\n"));
+    expect(findBoxes(src, overlayRegion(src)).findings).toHaveLength(1);
+  });
 });
 
 describe("page-h1", () => {

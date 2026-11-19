@@ -2,7 +2,6 @@
 import { toast } from "vue-sonner";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
@@ -405,7 +404,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
 
     <!-- Edit / add dialog -->
     <Dialog :open="!!editor" @update:open="(v) => { if (!v) editor = null; }">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{{ editor?.title }}</DialogTitle>
           <DialogDescription>
@@ -523,7 +522,7 @@ const requestRemoval = async (kind: ChangeKind, targetId: string, label: string)
           <Button variant="ghost" @click="editor = null">Cancel</Button>
           <Button :disabled="!canSave" @click="save">{{ saving ? "Submitting…" : "Submit for review" }}</Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

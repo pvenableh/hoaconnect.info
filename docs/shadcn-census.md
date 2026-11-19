@@ -5,7 +5,7 @@ at their stock defaults; project changes live in a wrapper outside `ui/`. Sessio
 Card (`ui/card/Card.vue` restored, `<AppCard>` in `app/components/App/Card.vue`, 39 users switched).
 This is the census for everything else._
 
-**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Steps 2 and 3 done the same day. Steps 4–5 not started.
+**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Steps 2, 3 and 4 done the same day. Step 5 not started.
 
 ## How it was counted
 
@@ -34,15 +34,15 @@ files depend on the change.
 | `button/index.ts` (+ `Button.vue` import order only) | Pill base (`rounded-full`); variants wear `glass-btn-primary / -destructive / -soft / -soft--tinted` instead of flat fills + `shadow-xs`; `destructive-foreground` text; added `icon-sm`, `icon-lg` sizes | `<AppButton>` (`App/Button.vue`) wrapping `<Button>`, plus an `appButtonVariants` for non-component use | **170** | **H** — also used inside `ui/` via `buttonVariants()`: `AlertDialogAction/Cancel`, `PaginationItem`, calendar nav buttons. Those would go stock unless they are wrapped too. `icon-sm`/`icon-lg` are in current upstream, so they may survive a re-pull. |
 | `input/Input.vue` | Box replaced by `field-underline` (no border, radius, padding-x, shadow, focus ring) | `<AppInput>` | **77** | **H** — `defineModel` + vee-validate `componentField` must pass through untouched; `DateInput` composes it. |
 | `textarea/Textarea.vue` | Same `field-underline` swap as Input | `<AppTextarea>` | 21 | M |
-| `dialog/DialogContent.vue`, `DialogOverlay.vue` (`DialogScrollContent.vue` ✅ restored, 0 users) | `glass-surface glass-surface--strong rounded-2xl`, no border/shadow; overlay `bg-black/80` → `dialog-overlay-glass` | `<AppDialogContent>` (overlay comes along, it is rendered inside Content) | 34 (ScrollContent: 0) | M — portaled; the stock `bg-background` utility beats the layered glass class (the AppCard lesson), so the wrapper restates the material unlayered |
+| `dialog/DialogContent.vue`, `DialogOverlay.vue` (`DialogScrollContent.vue` ✅ restored, 0 users) | `glass-surface glass-surface--strong rounded-2xl`, no border/shadow; overlay `bg-black/80` → `dialog-overlay-glass` | ✅ Stock. `<AppDialogContent>` adds the glass (unlayered, so a class is enough); the overlay comes from its data-slot. 34 callers switched. | 34 | done |
 | `alert-dialog/AlertDialogContent.vue` | Same glass + overlay as Dialog | ✅ Stock again; `App/ConfirmDialog.vue` puts `glass-surface glass-surface--strong rounded-2xl` on it. Overlay via data-slot (below). | 1 | done |
 | `command/CommandDialog.vue` | Hides the close X, makes `Command` transparent on the glass pane | ✅ Stock again; `App/Spotlight.vue` composes `Dialog` + `Command` itself with the two changes. | 1 | done |
 | `sheet/SheetContent.vue` | Glass surface, `rounded-*-none` per side instead of a border, `DialogOverlay` with `dialog-overlay-glass` | ✅ Stock again (the 2025-12 state: stock plus the `DialogOverlay` fix, which current upstream also has). `<AppSheetContent>` (`App/SheetContent.vue`) adds the glass and squares the screen edge; all 4 callers switched. | 4 | done |
-| `popover/PopoverContent.vue` | `glass-surface --strong chrome-float rounded-xl`, no border/shadow | `<AppPopoverContent>` | 3 | L |
-| `dropdown-menu/DropdownMenuContent.vue`, `…SubContent.vue` | Same floating-chrome glass as Popover | `<AppDropdownMenuContent>` (+ SubContent) | 10 (Sub: 0) | M — portaled |
-| `select/SelectContent.vue` | Glass surface, `rounded-xl` | `<AppSelectContent>` | 12 | M |
-| `select/SelectTrigger.vue` | `glass-field rounded-full`, focus/invalid ring and border dropped | `<AppSelectTrigger>` | 12 | M — sizes via `data-[size]` must still forward |
-| `tooltip/TooltipContent.vue` | Glass instead of `bg-foreground` inverse; arrow removed | `<AppTooltipContent>` | 2 | L |
+| `popover/PopoverContent.vue` | `glass-surface --strong chrome-float rounded-xl`, no border/shadow | ✅ Stock. `<AppPopoverContent>`. | 3 | done |
+| `dropdown-menu/DropdownMenuContent.vue`, `…SubContent.vue` | Same floating-chrome glass as Popover | ✅ Both stock. `<AppDropdownMenuContent>`; SubContent has no users, so no wrapper yet. | 10 (Sub: 0) | done |
+| `select/SelectContent.vue` | Glass surface, `rounded-xl` | ✅ Stock. `<AppSelectContent>`. | 12 | done |
+| `select/SelectTrigger.vue` | `glass-field rounded-full`, focus/invalid ring and border dropped | ✅ Stock. `<AppSelectTrigger>` restates the layered `glass-field` material and its focus ring unlayered in a scoped style (the AppCard way); `size` falls through. | 12 | done |
+| `tooltip/TooltipContent.vue` | Glass instead of `bg-foreground` inverse; arrow removed | ✅ Stock (arrow back). `<AppTooltipContent>` adds the glass and hides the arrow (`[&>span:has(>svg)]:hidden`). | 2 | done |
 | `badge/Badge.vue` | `rounded-md` → `rounded-full` | `<AppBadge>` | 13 | L |
 | `tabs/TabsList.vue`, `TabsTrigger.vue` | Pill track (`rounded-full`, `p-1`, `gap-0.5`), wider trigger padding | ✅ Restored to stock — 0 users (views use `AppSegmentedControl` / `App/TabPanels`). | 0 | done |
 | `checkbox/Checkbox.vue` | `lucide-vue-next` `<Check>` → Nuxt `<Icon name="lucide:check">` | ✅ Restored to stock (`lucide-vue-next` `<Check>`). | 7 | done |
@@ -85,10 +85,11 @@ Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Ses
    Proves the floating-glass restatement on three callers before the big ones.
 3. ✅ **Earnest ports with no app users** (done): Combobox, Pagination, Toggle Group → `App*` wrappers
    over fresh stock. Cheap now; expensive once features adopt them.
-4. **Floating chrome** (Popover, Tooltip, Dropdown, Select, Dialog — ~60 users): decide
+4. ✅ **Floating chrome** (done; 53 files switched): decide
    one primitive per commit. Overlays are settled (below); the content surfaces get wrappers.
 5. **Badge**, then **Textarea**, then **Input**, then **Button** last — Button touches 170
    files and three other `ui/` primitives; do it once the pattern is boring.
 
-**Next: step 4**, floating chrome: one primitive per commit, smallest first (Tooltip 2, Popover 3,
-Dropdown 10, Select 12, Dialog 34). Overlays already come from data-slot CSS.
+**Next: step 5** — Badge (13), Textarea (21), Input (77), then Button (170 + `buttonVariants` inside
+`ui/`). The audits that match tags by name (`overlay-boxes` learned `AppDialogContent` /
+`AppSheetContent` in step 4) need the same check whenever a wrapper replaces a stock tag.

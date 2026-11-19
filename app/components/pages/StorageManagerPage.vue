@@ -618,13 +618,13 @@ async function loadFolderSize(id: string) {
                   <Icon name="lucide:ellipsis" class="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <AppDropdownMenuContent align="end">
                 <DropdownMenuItem @select="openFolder(folder)"><Icon name="lucide:folder-open" class="mr-2 h-4 w-4" />Open</DropdownMenuItem>
                 <DropdownMenuItem @select="startRename('folder', folder.id, folder.name)"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
                 <DropdownMenuItem @select="startMove('folder', folder.id, folder.name)"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem class="text-destructive" @select="startDelete('folder', folder.id, folder.name)"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
-              </DropdownMenuContent>
+              </AppDropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
@@ -660,7 +660,7 @@ async function loadFolderSize(id: string) {
                   <Icon name="lucide:ellipsis" class="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <AppDropdownMenuContent align="end">
                 <DropdownMenuItem @select="openFile(file)"><Icon name="lucide:eye" class="mr-2 h-4 w-4" />Preview</DropdownMenuItem>
                 <DropdownMenuItem as-child><a :href="downloadUrl(file)" target="_blank" rel="noopener"><Icon name="lucide:download" class="mr-2 h-4 w-4" />Download</a></DropdownMenuItem>
                 <DropdownMenuItem @select="copyLink(file)"><Icon name="lucide:link" class="mr-2 h-4 w-4" />Copy link</DropdownMenuItem>
@@ -671,7 +671,7 @@ async function loadFolderSize(id: string) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem class="text-destructive" @select="startDelete('file', file.id, fileLabel(file))"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                 </template>
-              </DropdownMenuContent>
+              </AppDropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
@@ -744,7 +744,7 @@ async function loadFolderSize(id: string) {
                   <Icon name="lucide:ellipsis" class="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <AppDropdownMenuContent align="end">
                 <template v-if="row.kind === 'folder'">
                   <DropdownMenuItem @select="startRename('folder', row.folder!.id, row.folder!.name)"><Icon name="lucide:pencil" class="mr-2 h-4 w-4" />Rename</DropdownMenuItem>
                   <DropdownMenuItem @select="startMove('folder', row.folder!.id, row.folder!.name)"><Icon name="lucide:folder-input" class="mr-2 h-4 w-4" />Move</DropdownMenuItem>
@@ -763,7 +763,7 @@ async function loadFolderSize(id: string) {
                     <DropdownMenuItem class="text-destructive" @select="startDelete('file', row.file!.id, fileLabel(row.file!))"><Icon name="lucide:trash-2" class="mr-2 h-4 w-4" />Delete</DropdownMenuItem>
                   </template>
                 </template>
-              </DropdownMenuContent>
+              </AppDropdownMenuContent>
             </DropdownMenu>
           </template>
         </AppDataTable>
@@ -786,7 +786,7 @@ async function loadFolderSize(id: string) {
 
     <!-- New folder dialog -->
     <Dialog v-model:open="showNewFolder">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>New folder</DialogTitle>
           <DialogDescription>Create a folder in the current location.</DialogDescription>
@@ -796,12 +796,12 @@ async function loadFolderSize(id: string) {
           <Button variant="ghost" @click="showNewFolder = false">Cancel</Button>
           <Button :disabled="busy || !newFolderName.trim()" @click="createFolder">Create</Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Rename dialog -->
     <Dialog :open="!!renameTarget" @update:open="(v) => !v && (renameTarget = null)">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Rename {{ renameTarget?.type }}</DialogTitle>
         </DialogHeader>
@@ -810,12 +810,12 @@ async function loadFolderSize(id: string) {
           <Button variant="ghost" @click="renameTarget = null">Cancel</Button>
           <Button :disabled="busy || !renameValue.trim()" @click="confirmRename">Save</Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Delete confirm -->
     <Dialog :open="!!deleteTarget" @update:open="(v) => !v && (deleteTarget = null)">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Delete {{ deleteTarget?.type }}?</DialogTitle>
           <DialogDescription>
@@ -865,12 +865,12 @@ async function loadFolderSize(id: string) {
             Delete
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Optimize file dialog -->
     <Dialog :open="!!optimizeTarget" @update:open="(v) => !v && (optimizeTarget = null, optimizeResult = null)">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Optimize image</DialogTitle>
           <DialogDescription>
@@ -923,12 +923,12 @@ async function loadFolderSize(id: string) {
             {{ optimizeResult ? "Done" : "Cancel" }}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Library optimize sweep dialog -->
     <Dialog v-model:open="showSweep">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Optimize the library</DialogTitle>
           <DialogDescription>
@@ -959,12 +959,12 @@ async function loadFolderSize(id: string) {
             <Icon name="lucide:sparkles" class="mr-1.5 h-4 w-4" /> Start
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Move dialog -->
     <Dialog :open="!!moveTarget" @update:open="(v) => !v && (moveTarget = null, moveNav = null)">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Move “{{ moveTarget?.name }}”</DialogTitle>
           <DialogDescription>Choose a destination folder.</DialogDescription>
@@ -1003,12 +1003,12 @@ async function loadFolderSize(id: string) {
             <Button :disabled="busy || moveNav?.id === moveTarget?.id" @click="confirmMove">Move here</Button>
           </div>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Sharing dialog -->
     <Dialog v-model:open="showSharing">
-      <DialogContent>
+      <AppDialogContent>
         <DialogHeader>
           <DialogTitle>Library sharing</DialogTitle>
           <DialogDescription>Choose who can browse the organization's file library. Members can always see files they uploaded themselves.</DialogDescription>
@@ -1031,7 +1031,7 @@ async function loadFolderSize(id: string) {
           <Button variant="ghost" @click="showSharing = false">Cancel</Button>
           <Button :disabled="busy" @click="saveSharing">Save</Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- Preview drawer -->
