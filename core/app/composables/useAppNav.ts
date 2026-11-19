@@ -98,8 +98,7 @@ export function badgeCountsFor(
 // The dock's apps come from the nav registry (core/shared/nav/registry.ts), the
 // only source of nav entries; see docs/spec-capability-nav.md. An AppDef is the
 // dock's view of one entry. These derived lists keep the shape the page
-// transitions and Breadcrumbs read: the admin sections in dock order, the
-// member apps, and the manager's areas.
+// transitions read: the admin sections in dock order and the member apps.
 export function toAppDef(e: NavEntry): AppDef {
   const modules = e.needs.flatMap((n) => ("module" in n && typeof n.module !== "string" ? [...n.module] : []));
   return {
@@ -123,8 +122,6 @@ const layoutApps = (ids: readonly string[]): AppDef[] =>
 export const ADMIN_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.admin.filter((id) => id !== "queue"));
 /** The member dock's apps (Money is a hub, so it lives with the admin sections). */
 export const MEMBER_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.member.filter((id) => !isHub(id)));
-/** The manager dock: the queue and one slot per area. */
-export const MANAGER_APPS: readonly AppDef[] = layoutApps(NAV_LAYOUTS.manager);
 
 export function useAppNav() {
   const route = useRoute();

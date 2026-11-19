@@ -111,4 +111,8 @@ After step 5 (2026-11-19):
 
 Still stock with no users, to dress with `appButtonClasses()` from the wrapper that first uses
 them: `AlertDialogAction` (ConfirmDialog uses an AppButton so a destructive confirm reads
-destructive), `PaginationFirst` / `PaginationLast`. `App/Breadcrumbs.vue` has no users either.
+destructive), `PaginationFirst` / `PaginationLast`. They stay: deleting stock parts would make `ui/` differ
+from a re-pull.
+
+Also done: DateInput opens on the `month-and-year` layout (month and year dropdowns over the
+pill nav), and the unused `App/Breadcrumbs.vue` (with the `MANAGER_APPS` list only it read) is gone.

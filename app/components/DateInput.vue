@@ -134,8 +134,11 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
       </PopoverTrigger>
       <AppPopoverContent class="w-auto p-0" align="end">
         <!-- default-placeholder opens the grid on the bound month, not today's;
-             the Calendar mounts fresh on every open, so this is read each time. -->
+             the Calendar mounts fresh on every open, so this is read each time.
+             month-and-year: lease starts and statute dates are often years away,
+             so the header is two dropdowns rather than arrows alone. -->
         <AppCalendar
+          layout="month-and-year"
           :model-value="calendarValue"
           :default-placeholder="calendarValue"
           :min-value="minValue"
