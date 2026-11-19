@@ -20,6 +20,7 @@ import {
   type NavContext,
   type NavEntry,
 } from "#core/shared/nav/registry";
+import { bestLinkIndex, linkMatchScore } from "#core/shared/nav/link-match";
 
 export interface SectionLink {
   label: string;
@@ -56,48 +57,20 @@ export function useSectionNav() {
     return visiblePills(key, nav.ctx.value).map(toLink);
   };
 
-  // How well a section link matches the current page: 0 not at all; 1 its
-  // path (org-scoped, query stripped, by prefix, so /admin/projects/123 keeps
-  // Projects active); 2 its path AND every query param it names (a pill that
-  // is one view of a page: the dashboard's `?tab=building`, Setup's
-  // `?tab=modules`). A link with a query that the page does not carry is not
-  // this page.
-  const linkMatch = (path: string): 0 | 1 | 2 => {
-    const [rawBase = "", rawQuery] = buildOrgPath(path).split("?");
-    const here = route.path.replace(/\/$/, "") || "/";
-    const base = rawBase.replace(/\/$/, "") || "/";
-    // A link to the org root ("/", e.g. the Dashboard "Overview" tab) must match
-    // ONLY the root itself — the prefix rule would otherwise mark it active on
-    // every page under /{slug}/.
-    const orgRoot = buildOrgPath("/").split("?")[0].replace(/\/$/, "") || "/";
-    const onPath = base === orgRoot ? here === base : here === base || here.startsWith(base + "/");
-    if (!onPath) return 0;
-    if (!rawQuery) return 1;
-    const params = new URLSearchParams(rawQuery);
-    for (const [k, v] of params) if (String(route.query[k] ?? "") !== v) return 0;
-    return 2;
-  };
+  // The page as the matcher sees it (core/shared/nav/link-match.ts).
+  const here = () => ({ path: route.path, query: route.query });
+  const orgRoot = () => buildOrgPath("/");
 
   /** Is this section link the current page (ignoring its siblings)? */
-  const isLinkActive = (path: string): boolean => linkMatch(path) > 0;
+  const isLinkActive = (path: string): boolean => linkMatchScore(buildOrgPath(path), here(), orgRoot()) > 0;
 
   /**
    * Which of a hub's links is the current page: the most specific match, so a
    * pill naming `?tab=building` wins over the plain page beside it. -1 when
    * none matches (a section root).
    */
-  const activeLinkIndex = (links: readonly { path: string }[]): number => {
-    let best = -1;
-    let score = 0;
-    links.forEach((l, i) => {
-      const m = linkMatch(l.path);
-      if (m > score) {
-        score = m;
-        best = i;
-      }
-    });
-    return best;
-  };
+  const activeLinkIndex = (links: readonly { path: string }[]): number =>
+    bestLinkIndex(links.map((l) => buildOrgPath(l.path)), here(), orgRoot());
 
   const hasChildren = (key: string | null | undefined): boolean =>
     sectionLinksFor(key).length > 0;
