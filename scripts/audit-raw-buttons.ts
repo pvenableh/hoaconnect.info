@@ -62,7 +62,7 @@ const PRIMITIVES = [
  * 2026-11-18 (Phase 4, Session 17) — **293**: the Board Room's hand-made
  * `t-btn` buttons are the kit's pill `<Button>`.
  */
-const BASELINE = 293;
+const BASELINE = 291;
 
 runFileAudit({
   name: "raw-buttons",

@@ -29,6 +29,8 @@
 // THE DOCK'S APP NAMES (Session 18) live beside the tint, owned the same way:
 // off by default, `{ dock: { names: true } }` in the app prefs when a person
 // turns them on, cached on the device first and replaced by the account copy.
+// So does whether the attention line is open (What needs you on the dashboard,
+// Worth a look on the hubs; Session 18): `attentionOpen(surface)`.
 
 import {
   accentCssVars,
@@ -36,7 +38,13 @@ import {
   type ResolvedTint,
   type TintSwatchId,
 } from "#core/shared/branding/accent";
-import { DEFAULT_DOCK_NAMES, type DockPrefs, type TintPrefs } from "#core/shared/nav/app-prefs";
+import {
+  DEFAULT_ATTENTION_OPEN,
+  DEFAULT_DOCK_NAMES,
+  type AttentionPrefs,
+  type DockPrefs,
+  type TintPrefs,
+} from "#core/shared/nav/app-prefs";
 
 export type AppearanceMode = "light" | "dark" | "system";
 export type ResolvedAppearance = "light" | "dark";
@@ -51,6 +59,8 @@ const LEGACY_STORAGE_KEY = "design-theme";
 const TINT_STORAGE_KEY = "app-tint";
 /** This device's cache of the person's dock prefs ({ names? }). */
 const DOCK_STORAGE_KEY = "app-dock";
+/** This device's cache of where the attention line is open ({ home?, hubs? }). */
+const ATTENTION_STORAGE_KEY = "app-attention";
 /** The six dock knobs' old cache keys: removed on first load (Phase 4). */
 const RETIRED_KEYS = ["app-nav-palette", "app-nav-position", "app-nav-labels", "app-nav-glass"];
 
@@ -92,6 +102,7 @@ const state = reactive({
   hydrated: false,
   tint: {} as TintPrefs,
   dock: {} as DockPrefs,
+  attention: {} as AttentionPrefs,
 });
 
 function readStoredTint(): TintPrefs {
@@ -124,6 +135,29 @@ function cacheDock() {
   }
 }
 
+function readStoredAttention(): AttentionPrefs {
+  if (!import.meta.client) return {};
+  try {
+    const raw = JSON.parse(localStorage.getItem(ATTENTION_STORAGE_KEY) || "null") as AttentionPrefs | null;
+    if (!raw || typeof raw !== "object") return {};
+    const out: AttentionPrefs = {};
+    if (typeof raw.home === "boolean") out.home = raw.home;
+    if (typeof raw.hubs === "boolean") out.hubs = raw.hubs;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function cacheAttention() {
+  if (!import.meta.client) return;
+  try {
+    localStorage.setItem(ATTENTION_STORAGE_KEY, JSON.stringify(state.attention));
+  } catch {
+    // Storage full or blocked: the account copy still holds it.
+  }
+}
+
 function cacheTint() {
   if (!import.meta.client) return;
   try {
@@ -147,12 +181,16 @@ async function pullTint(userId: string, onArrive: () => void) {
   pulledFor = userId;
   const editsBefore = localEdits;
   try {
-    const res = await $fetch<{ available: boolean; prefs: { tint?: TintPrefs; dock?: DockPrefs } }>("/api/user/app-prefs");
+    const res = await $fetch<{ available: boolean; prefs: { tint?: TintPrefs; dock?: DockPrefs; attention?: AttentionPrefs } }>(
+      "/api/user/app-prefs",
+    );
     if (!res?.available || localEdits !== editsBefore) return;
     state.tint = { ...(res.prefs?.tint ?? {}) };
     state.dock = { ...(res.prefs?.dock ?? {}) };
+    state.attention = { ...(res.prefs?.attention ?? {}) };
     cacheTint();
     cacheDock();
+    cacheAttention();
     onArrive();
   } catch {
     // Signed out, offline, or the route is unavailable: the cache stands.
@@ -186,6 +224,20 @@ function pushDock() {
   }, 400);
 }
 
+let attentionTimer: ReturnType<typeof setTimeout> | null = null;
+function pushAttention() {
+  localEdits++;
+  cacheAttention();
+  if (!import.meta.client || !pulledFor) return;
+  if (attentionTimer) clearTimeout(attentionTimer);
+  attentionTimer = setTimeout(() => {
+    attentionTimer = null;
+    // Both surfaces, defaults included: the route drops what is a default.
+    const attention = { ...DEFAULT_ATTENTION_OPEN, ...state.attention };
+    $fetch("/api/user/app-prefs", { method: "PATCH", body: { attention } }).catch(() => {});
+  }, 400);
+}
+
 export function useAppearance() {
   const { user } = useDirectusAuth();
   const { updateProfile } = useDirectusUser();
@@ -211,6 +263,9 @@ export function useAppearance() {
   const tintSwatch = computed<TintSwatchId>(() => state.tint.swatch ?? "community");
   /** The dock names its apps under their icons. Off by default. */
   const dockNames = computed(() => state.dock.names ?? DEFAULT_DOCK_NAMES);
+  /** Is the attention line open on this surface (dashboard or hubs)? */
+  const attentionOpen = (surface: keyof AttentionPrefs) =>
+    computed(() => state.attention[surface] ?? DEFAULT_ATTENTION_OPEN[surface]);
 
   /**
    * Write the resolved appearance to the document. This is the ONLY place the
@@ -252,6 +307,7 @@ export function useAppearance() {
     if (!state.hydrated) {
       state.tint = readStoredTint();
       state.dock = readStoredDock();
+      state.attention = readStoredAttention();
     }
     state.hydrated = true;
     apply();
@@ -269,6 +325,11 @@ export function useAppearance() {
   function setDockNames(names: boolean) {
     state.dock = { ...state.dock, names };
     pushDock();
+  }
+
+  function setAttentionOpen(surface: keyof AttentionPrefs, open: boolean) {
+    state.attention = { ...state.attention, [surface]: open };
+    pushAttention();
   }
 
   function setTintSwatch(swatch: TintSwatchId) {
@@ -323,6 +384,8 @@ export function useAppearance() {
     setTintSwatch,
     dockNames,
     setDockNames,
+    attentionOpen,
+    setAttentionOpen,
     setMode,
     toggle,
     hydrate,

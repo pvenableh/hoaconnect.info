@@ -2,9 +2,13 @@
  * Per-user workspace preferences, stored on `directus_users.app_prefs` (JSON,
  * added by scripts/add-user-app-prefs-field.ts). Today: the tint (Phase 4,
  * plan §2.4, decisions 4 and 8) and whether the dock names its apps
- * (Session 18; off by default, which reverses Session 12's "labels on").
+ * (Session 18; off by default, which reverses Session 12's "labels on"), and
+ * whether the attention line is open (Session 18: "What needs you" on the
+ * dashboard, open by default; "Worth a look" on the hub pages, shut by
+ * default). Per person rather than per device: a board member who keeps it
+ * shut on the laptop keeps it shut on the phone.
  *
- * Shape: `{ tint: { on, swatch }, dock: { names } }`. Every key optional, and
+ * Shape: `{ tint: { on, swatch }, dock: { names }, attention: { home, hubs } }`. Every key optional, and
  * a default is never stored: Tint on, the community's swatch and names off are
  * what an absent key means, so a person who never changed them stores nothing
  * (`dock.names: true` is the only dock value ever written), and the
@@ -46,10 +50,20 @@ export interface DockPrefs {
   names?: boolean;
 }
 
+/** Is the attention line open: on the dashboard (`home`), on the hub pages (`hubs`). */
+export interface AttentionPrefs {
+  home?: boolean;
+  hubs?: boolean;
+}
+
 export interface AppPrefs {
   tint?: TintPrefs;
   dock?: DockPrefs;
+  attention?: AttentionPrefs;
 }
+
+/** What needs you opens on the dashboard; Worth a look stays one line on the hubs. */
+export const DEFAULT_ATTENTION_OPEN: Required<AttentionPrefs> = { home: true, hubs: false };
 
 /** Names under the dock's icons: off unless a person turns them on. */
 export const DEFAULT_DOCK_NAMES = false;
@@ -62,6 +76,7 @@ function compact(prefs: AppPrefs): AppPrefs {
   const out: AppPrefs = {};
   if (prefs.tint && Object.keys(prefs.tint).length) out.tint = prefs.tint;
   if (prefs.dock && Object.keys(prefs.dock).length) out.dock = prefs.dock;
+  if (prefs.attention && Object.keys(prefs.attention).length) out.attention = prefs.attention;
   return out;
 }
 
@@ -80,7 +95,12 @@ export function sanitizeAppPrefs(input: unknown): AppPrefs {
   }
   const dock: DockPrefs = {};
   if (isRecord(input.dock) && typeof input.dock.names === "boolean") dock.names = input.dock.names;
-  return compact({ tint, dock });
+  const attention: AttentionPrefs = {};
+  if (isRecord(input.attention)) {
+    if (typeof input.attention.home === "boolean") attention.home = input.attention.home;
+    if (typeof input.attention.hubs === "boolean") attention.hubs = input.attention.hubs;
+  }
+  return compact({ tint, dock, attention });
 }
 
 /** Drop what an absent key already means. */
@@ -90,7 +110,10 @@ function withoutDefaults(prefs: AppPrefs): AppPrefs {
   if (tint.swatch === DEFAULT_TINT_SWATCH) delete tint.swatch;
   const dock: DockPrefs = { ...prefs.dock };
   if (dock.names === DEFAULT_DOCK_NAMES) delete dock.names;
-  return compact({ tint, dock });
+  const attention: AttentionPrefs = { ...prefs.attention };
+  if (attention.home === DEFAULT_ATTENTION_OPEN.home) delete attention.home;
+  if (attention.hubs === DEFAULT_ATTENTION_OPEN.hubs) delete attention.hubs;
+  return compact({ tint, dock, attention });
 }
 
 /**
@@ -103,5 +126,6 @@ export function mergeAppPrefs(base: unknown, patch: unknown): AppPrefs {
   return withoutDefaults({
     tint: { ...a.tint, ...b.tint },
     dock: { ...a.dock, ...b.dock },
+    attention: { ...a.attention, ...b.attention },
   });
 }

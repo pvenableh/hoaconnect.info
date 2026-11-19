@@ -45,7 +45,7 @@ const PUBLIC_SURFACE =
  * 2026-11-18 (Phase 4, Session 16) — **576**: the floating View bar is one
  * small button on the public preview.
  */
-const BASELINE = 576;
+const BASELINE = 568;
 
 runFileAudit({
   name: "color-literals",

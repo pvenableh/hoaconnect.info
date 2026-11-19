@@ -66,6 +66,8 @@ describe("sanitizeAppPrefs / mergeAppPrefs", () => {
     ["drops a non-boolean names", { dock: { names: "yes" } }, {}],
     ["keeps names beside a tint and drops the old dock keys around it", { tint: { swatch: "teal" }, dock: { names: true, palette: "aurora", labels: true } }, { tint: { swatch: "teal" }, dock: { names: true } }],
     ["does not read the old labels switch as names", { dock: { labels: true } }, {}],
+    ["keeps the attention line's open state per surface", { attention: { home: false, hubs: true, other: true } }, { attention: { home: false, hubs: true } }],
+    ["drops a non-boolean attention value", { attention: { home: "no" } }, {}],
   ])("sanitize %s", (_name, input, out) => {
     expect(sanitizeAppPrefs(input)).toEqual(out);
   });
@@ -80,6 +82,9 @@ describe("sanitizeAppPrefs / mergeAppPrefs", () => {
     ["never stores names off: it is the default", { dock: { names: true }, tint: { swatch: "rose" } }, { dock: { names: false } }, { tint: { swatch: "rose" } }],
     ["a tint change keeps names", { dock: { names: true } }, { tint: { swatch: "blue" } }, { tint: { swatch: "blue" }, dock: { names: true } }],
     ["a names change keeps the tint", { tint: { on: false } }, { dock: { names: true } }, { tint: { on: false }, dock: { names: true } }],
+    ["never stores the dashboard open or the hubs shut: the defaults", {}, { attention: { home: true, hubs: false } }, {}],
+    ["stores the dashboard shut and the hubs open", { dock: { names: true } }, { attention: { home: false, hubs: true } }, { dock: { names: true }, attention: { home: false, hubs: true } }],
+    ["choosing the default again clears that surface only", { attention: { home: false, hubs: true } }, { attention: { hubs: false } }, { attention: { home: false } }],
   ])("merge %s", (_name, base, patch, out) => {
     expect(mergeAppPrefs(base, patch)).toEqual(out);
   });

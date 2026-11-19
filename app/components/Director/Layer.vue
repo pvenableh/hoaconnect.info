@@ -19,7 +19,12 @@
  * 2. **It collapses.** Pending proposals are a chip — "● 4 approvals waiting ·
  *    Review" — not a stack of full-width cards pushing the actual content below
  *    the fold. Expanding renders the same `<AiActionCard>` the panel uses, so
- *    approve/reject/undo exists once.
+ *    approve/reject/undo exists once. Notices are ONE line too (Session 18,
+ *    Peter's concept 1): "Worth a look · 15 · the first one… · Draft a plan ·
+ *    Show", the assistant's invitation folded in; Show opens compact one-line
+ *    rows in the same card, every action (open, propose, dismiss) one tap away.
+ *    Open or shut is the person's (app prefs, `attention.hubs`, shut by
+ *    default), the same pattern as the dashboard's What needs you.
  * 3. **It renders nothing when it has nothing.** No empty state, no placeholder.
  *    An ambient layer that is always visible stops being ambient.
  *
@@ -87,20 +92,26 @@ const router = useRouter();
 const { buildOrgPath } = useOrgNavigation();
 
 // ── Notices ──────────────────────────────────────────────────────────────────
-const NOTICE_ACCENT: Record<string, string> = {
-  urgent: "text-red-600 dark:text-red-400",
-  high: "text-amber-600 dark:text-amber-400",
-  medium: "text-sky-600 dark:text-sky-400",
-  low: "t-text-muted",
-};
+// The priority is a dot in a status token (and words for a screen reader).
 const NOTICE_DOT: Record<string, string> = {
-  urgent: "bg-red-500",
-  high: "bg-amber-500",
-  medium: "bg-sky-500",
-  low: "bg-slate-400",
+  urgent: "bg-destructive",
+  high: "bg-warning",
+  medium: "bg-info",
+  low: "bg-muted-foreground",
 };
 
-const MAX_COLLAPSED = 2;
+// The one line: open or shut, the person's choice, remembered with their prefs.
+const listId = useId();
+const { attentionOpen, setAttentionOpen } = useAppearance();
+const open = attentionOpen("hubs");
+const toggleOpen = () => setAttentionOpen("hubs", !open.value);
+const firstNotice = computed(() => notices.value[0] ?? null);
+/** The count's chip: the attention colour when anything is urgent or high. */
+const countTone = computed(() =>
+  notices.value.some((n) => n.priority === "urgent" || n.priority === "high") ? "director-line__count--hot" : "",
+);
+
+const MAX_COLLAPSED = 5;
 const noticesExpanded = ref(false);
 const visibleNotices = computed(() =>
   noticesExpanded.value ? notices.value : notices.value.slice(0, MAX_COLLAPSED)
@@ -200,8 +211,9 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
       :class="variant === 'inline' ? 'mb-2' : ''"
       aria-label="Assistant"
     >
-      <!-- Heading pill: ambient, rounded-full, one outline button. -->
-      <div v-if="showHeading" class="ios-card rounded-full px-4 py-2 sm:px-5">
+      <!-- Heading pill: ambient, rounded-full, one outline button. With notices
+           the line below carries the same invitation instead. -->
+      <div v-if="showHeading && !showNoticeBlock" class="ios-card rounded-full px-4 py-2 sm:px-5">
         <div class="flex items-center justify-between gap-3 flex-wrap">
           <div class="flex items-center gap-2 min-w-0">
             <Icon name="i-lucide-sparkles" class="w-4 h-4 t-text-secondary shrink-0" />
@@ -268,90 +280,118 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
         {{ planError }}
       </p>
 
-      <!-- Advisory notices. Deterministic, free, and never an LLM call. -->
-      <div v-if="showNoticeBlock" class="space-y-2">
-        <div class="flex items-center gap-1.5 px-1">
-          <Icon name="i-lucide-radar" class="w-3.5 h-3.5 t-text-secondary" />
-          <span class="text-[10px] font-semibold uppercase tracking-wide t-text-muted">
-            Worth a look
-          </span>
-        </div>
-
-        <div
-          v-for="n in visibleNotices"
-          :key="n.id"
-          class="group rounded-2xl border t-border t-bg p-3 sm:p-4"
-        >
-          <div class="flex items-start gap-3">
+      <!-- With notices: ONE line (Session 18, concept 1), the assistant's
+           invitation and the notices folded together. Collapsed it is a
+           52px pill; expanded, the same card holds compact one-line rows,
+           every action one tap away. -->
+      <div
+        v-if="showNoticeBlock"
+        class="director-line ios-card"
+        :class="{ 'director-line--open': open }"
+        data-attention-line
+      >
+        <div class="director-line__bar">
+          <button
+            type="button"
+            class="director-line__toggle"
+            :aria-expanded="open"
+            :aria-controls="listId"
+            data-attention-toggle
+            @click="toggleOpen"
+          >
+            <Icon name="i-lucide-radar" class="w-4 h-4 t-text-secondary shrink-0" aria-hidden="true" />
+            <span class="text-sm font-semibold t-text shrink-0">Worth a look</span>
+            <span class="director-line__count text-xs tabular-nums" :class="countTone">{{ notices.length }}</span>
             <span
-              class="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0"
-              :class="NOTICE_DOT[n.priority]"
-              aria-hidden="true"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium t-text">{{ n.title }}</p>
-              <p class="text-xs t-text-muted mt-0.5">{{ n.description }}</p>
-              <div class="flex items-center gap-3 mt-2 flex-wrap">
-                <button
-                  v-if="n.actionLabel && n.actionRoute"
-                  type="button"
-                  class="text-xs font-medium t-text-accent hover:underline"
-                  @click="openNotice(n)"
-                >
-                  {{ n.actionLabel }} &rarr;
-                </button>
-                <button
-                  v-if="n.proposedAction"
-                  type="button"
-                  class="inline-flex items-center gap-1.5 rounded-full border t-border px-2.5 py-1 text-xs t-text-secondary hover:t-text transition-colors disabled:opacity-50 ios-press"
-                  :disabled="proposingId === n.id"
-                  @click="proposeFromNotice(n.id)"
-                >
-                  <Icon
-                    :name="proposingId === n.id ? 'i-lucide-loader-2' : 'i-lucide-wand-2'"
-                    class="w-3 h-3"
-                    :class="proposingId === n.id ? 'animate-spin' : ''"
-                  />
-                  {{ n.proposedAction.title }}
-                </button>
-              </div>
-            </div>
-            <span
-              class="text-[10px] uppercase tracking-wide shrink-0"
-              :class="NOTICE_ACCENT[n.priority]"
+              v-if="!open && firstNotice"
+              class="director-line__peek text-sm t-text-secondary"
             >
-              {{ n.priority }}
+              <span class="director-line__dot" :class="NOTICE_DOT[firstNotice.priority]" aria-hidden="true" />
+              <span class="truncate">{{ firstNotice.title }}<template v-if="notices.length > 1"> · and {{ notices.length - 1 }} more</template></span>
             </span>
-            <button
-              type="button"
-              class="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 focus-visible:opacity-100 t-text-muted hover:t-text transition-all"
-              title="Dismiss"
-              :aria-label="`Dismiss: ${n.title}`"
-              @click.stop="dismissNotice(n.id)"
+            <span class="sr-only">{{ open ? "Hide" : "Show" }}</span>
+          </button>
+
+          <div class="director-line__actions">
+            <ActionButton
+              v-if="showApprovals"
+              :pressed="approvalsExpanded"
+              icon="lucide:circle-dot"
+              :title="approvalsLabel"
+              hide-label="sm"
+              @click="toggleApprovals"
             >
-              <Icon name="i-lucide-x" class="w-3.5 h-3.5" />
-            </button>
+              {{ approvalsLabel }}
+            </ActionButton>
+            <ActionButton
+              v-if="showHeading"
+              :icon="planning ? 'lucide:loader-2' : 'lucide:list-checks'"
+              :loading="planning"
+              :disabled="planning"
+              title="Draft a plan"
+              hide-label="sm"
+              @click="planThis()"
+            >
+              {{ planning ? "Drafting…" : "Draft a plan" }}
+            </ActionButton>
+            <ActionButton
+              size="xs"
+              :icon="open ? 'lucide:chevron-up' : 'lucide:chevron-down'"
+              :title="open ? 'Hide' : 'Show'"
+              :aria-expanded="open"
+              :aria-controls="listId"
+              @click="toggleOpen"
+            />
           </div>
         </div>
 
-        <p v-if="proposeError" class="text-xs text-red-600 dark:text-red-400">
-          {{ proposeError }}
-        </p>
-
-        <button
-          v-if="hiddenNoticeCount > 0"
-          type="button"
-          class="text-[11px] t-text-muted hover:t-text transition-colors px-1"
-          @click="noticesExpanded = !noticesExpanded"
-        >
-          {{ noticesExpanded ? "Show less" : `Show ${hiddenNoticeCount} more` }}
-        </button>
+        <div v-if="open" :id="listId" class="director-line__body">
+          <ul class="director-line__list">
+            <li v-for="n in visibleNotices" :key="n.id" class="director-line__row">
+              <span class="director-line__dot mt-1.5" :class="NOTICE_DOT[n.priority]" aria-hidden="true" />
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium t-text">
+                  {{ n.title }}
+                  <span class="sr-only">, {{ n.priority }} priority</span>
+                </p>
+                <p v-if="n.description" class="text-xs t-text-muted truncate">{{ n.description }}</p>
+              </div>
+              <div v-if="(n.actionLabel && n.actionRoute) || n.proposedAction" class="director-line__row-actions">
+                <ActionButton v-if="n.actionLabel && n.actionRoute" icon="lucide:arrow-right" @click="openNotice(n)">
+                  {{ n.actionLabel }}
+                </ActionButton>
+                <ActionButton
+                  v-if="n.proposedAction"
+                  :icon="proposingId === n.id ? 'lucide:loader-2' : 'lucide:wand-2'"
+                  :loading="proposingId === n.id"
+                  :disabled="proposingId === n.id"
+                  @click="proposeFromNotice(n.id)"
+                >
+                  {{ n.proposedAction.title }}
+                </ActionButton>
+              </div>
+              <ActionButton size="xs" icon="lucide:x" :title="`Dismiss: ${n.title}`" @click="dismissNotice(n.id)" />
+            </li>
+          </ul>
+          <div v-if="hiddenNoticeCount > 0 || proposeError" class="director-line__foot">
+            <p v-if="proposeError" class="text-xs text-destructive">{{ proposeError }}</p>
+            <Button
+              v-if="hiddenNoticeCount > 0"
+              variant="link"
+              size="sm"
+              class="h-auto px-0"
+              @click="noticesExpanded = !noticesExpanded"
+            >
+              {{ noticesExpanded ? "Show fewer" : `Show ${hiddenNoticeCount} more` }}
+            </Button>
+          </div>
+        </div>
       </div>
 
       <!-- Approvals: a chip on its own row when there is no heading to carry it. -->
       <div v-if="showApprovals" class="space-y-2">
         <button
-          v-if="!showHeading"
+          v-if="!showHeading && !showNoticeBlock"
           type="button"
           class="ios-card rounded-full px-4 py-2 sm:px-5 w-full flex items-center gap-2 text-left ios-press"
           :aria-expanded="approvalsExpanded"
@@ -411,3 +451,117 @@ const showAny = computed(() => showHeading.value || showApprovals.value || showN
     </section>
   </ClientOnly>
 </template>
+
+<style scoped>
+/* The attention line (Session 18): a 52px pill shut, a card open. Solid
+   content (ios-card), never glass; nothing in it is filled, so it never
+   out-shouts the page's own primary action. */
+.director-line {
+  border-radius: 1.625rem;
+  padding: 0.375rem 0.5rem 0.375rem 1rem;
+}
+.director-line.director-line--open {
+  padding-bottom: 0.5rem;
+}
+.director-line__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+}
+.director-line__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+  /* 44px, not 2.75rem: the workspace's root size is 15px. */
+  min-height: 44px;
+  text-align: left;
+  border-radius: 999px;
+}
+.director-line__toggle:focus-visible {
+  outline: 2px solid var(--theme-accent-primary);
+  outline-offset: 2px;
+}
+.director-line__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.375rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--theme-bg-secondary);
+  color: var(--theme-text-secondary);
+  flex-shrink: 0;
+}
+.director-line__count--hot {
+  background: color-mix(in srgb, var(--destructive) 14%, var(--theme-bg-elevated));
+  color: var(--destructive);
+}
+.director-line__peek {
+  display: none;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+@media (min-width: 640px) {
+  .director-line__peek {
+    display: inline-flex;
+  }
+}
+.director-line__dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.director-line__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.director-line__list {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.director-line__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.25rem 0.625rem 0;
+  border-top: 1px solid var(--theme-border-light);
+}
+/* The row's text takes what is left; its actions sit beside it, and drop
+   under it (indented past the dot) when the row is too narrow for both. */
+.director-line__row > .min-w-0 {
+  flex: 1 1 14rem;
+}
+.director-line__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+/* On a phone the actions take their own line under the text, and the dismiss
+   stays on the first line, beside the title. */
+@media (max-width: 639px) {
+  .director-line__row-actions {
+    order: 3;
+    flex-basis: 100%;
+    padding-left: 1.1875rem;
+  }
+}
+.director-line__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.375rem 0 0;
+  border-top: 1px solid var(--theme-border-light);
+}
+</style>

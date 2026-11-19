@@ -2376,9 +2376,9 @@ Shipped:
 | `settings-boxes` | ratchet | **31** | second-and-later boxes in settings files (`settings/subscription.vue` most) |
 | `empty-states` | ratchet | **55** | bare "No X yet" outside `AppEmptyState` |
 | `css-colors` | ratchet | **181** | literals in rules, token definitions excluded |
-| `type-scale` | ratchet | **282** | `text-[Npx]` / `leading-[Npx]` / `font-size: Npx` |
-| `raw-buttons` | ratchet | **293** | outside `ui/button` and 8 shell primitives |
-| `color-literals` | ratchet | **576** | palette classes + `bg-white/black`, public surfaces and `ui/` excluded |
+| `type-scale` | ratchet | **279** | `text-[Npx]` / `leading-[Npx]` / `font-size: Npx` |
+| `raw-buttons` | ratchet | **291** | outside `ui/button` and 8 shell primitives |
+| `color-literals` | ratchet | **568** | palette classes + `bg-white/black`, public surfaces and `ui/` excluded |
 
 **Proved red:** for each of the 16 audits a deliberate violation was added to a clean tracked file, `--check` exited 1 with
 the count one over its baseline, and the file was restored (verified `git status`). `contrast-pairs` was proved by lightening
