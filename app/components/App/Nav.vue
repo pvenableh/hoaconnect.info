@@ -72,13 +72,23 @@ const {
 // Per-org module toggles (gate optional member-facing nav links).
 const { isEnabled: isModuleEnabled } = useModules();
 
-// Messages and the assistant open from the avatar's menu (App/AccountMenu.vue,
-// plan §2.4 "One account menu"); the header keeps their counts, which feed the
-// avatar's one badge and the menu's rows. Channels: admins, active board
-// members, and any member invited into at least one channel.
+// Messages is its own button in the header, with its own badge (Session 18,
+// option A); the assistant opens from the avatar's menu (App/AccountMenu.vue,
+// plan §2.4 "One account menu"), and its waiting actions feed the avatar's
+// badge. Channels: admins, active board members, and any member invited into
+// at least one channel.
 const channelUnread = useChannelUnread();
 channelUnread.watchLive();
 onMounted(() => channelUnread.refresh());
+const channelsPanel = useChannelsPanel();
+const messagesBadge = computed(() => {
+  const n = channelUnread.total.value;
+  return n > 0 ? (n > 9 ? "9+" : String(n)) : null;
+});
+const messagesLabel = computed(() => {
+  const n = channelUnread.total.value;
+  return n > 0 ? `Messages, ${n} unread` : "Messages";
+});
 // The assistant: staff only (admin / board / property manager). Its actions
 // awaiting review count toward the badge.
 const aiPendingCount = useAiPendingCount();
@@ -246,7 +256,7 @@ const userAvatarUrl = computed(() => {
     data-app-nav
   >
     <div class="max-w-7xl mx-auto py-2.5 sm:py-4">
-      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
+      <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
         <!-- Logo / Brand — centered org identity -->
         <!-- On org page (slug route): link to org root -->
         <!-- Otherwise (main domain or custom domain): link to home -->
@@ -256,7 +266,7 @@ const userAvatarUrl = computed(() => {
         >
         <NuxtLink
           :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
-          class="app-nav__brand flex min-w-0 items-center gap-2 hover:opacity-80 transition"
+          class="app-nav__brand flex min-w-0 max-w-full items-center gap-2 hover:opacity-80 transition"
           :tabindex="showChromeTitle ? -1 : undefined"
           :aria-hidden="showChromeTitle ? 'true' : undefined"
         >
@@ -274,7 +284,7 @@ const userAvatarUrl = computed(() => {
           <!-- Show org name when on org page or logged in but no logo -->
           <template v-else-if="showOrgBranding && orgName">
             <span
-              class="block max-w-[11rem] truncate text-sm font-semibold tracking-extra-wide uppercase t-text sm:max-w-none"
+              class="block max-w-[11rem] truncate text-sm font-semibold tracking-wider uppercase t-text sm:max-w-none sm:tracking-extra-wide"
               >{{ orgName }}</span
             >
           </template>
@@ -326,7 +336,7 @@ const userAvatarUrl = computed(() => {
         <!-- User Menu (Authenticated): + New, Search, and the avatar, which
              carries notifications, messages and the assistant in one menu with
              one badge (plan §2.4, "One account menu"). -->
-        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-1.5 sm:gap-2">
+        <div v-if="user" class="col-start-3 row-start-1 justify-self-end flex items-center gap-0 sm:gap-2">
           <!-- "+ New": the create verbs this viewer may run here (useCreateVerbs).
                Renders nothing for members. On a phone it lives in the dock's
                Apps card instead. -->
@@ -363,6 +373,38 @@ const userAvatarUrl = computed(() => {
             <Icon name="i-lucide-search" class="w-5 h-5" />
           </button>
 
+          <!-- Messages: its own door and its own badge (unread messages), at
+               every width, between Search and the avatar (asked 2026-11-19,
+               Session 18; option A). Opens the Channels slide-over. A round
+               pill from sm, a 44px glyph on a phone. Client-only: the unread
+               count and channel access are client state. -->
+          <ClientOnly>
+            <template v-if="showChat">
+              <button
+                type="button"
+                class="hidden sm:inline-grid place-items-center header-pill app-nav__msg"
+                :class="{ 'is-active': channelsPanel.isOpen.value }"
+                :aria-label="messagesLabel"
+                :aria-expanded="channelsPanel.isOpen.value"
+                data-messages-trigger
+                @click="channelsPanel.open()"
+              >
+                <Icon name="i-lucide-messages-square" class="w-4 h-4" />
+                <span v-if="messagesBadge" class="app-nav__badge text-[0.625rem]" aria-hidden="true">{{ messagesBadge }}</span>
+              </button>
+              <button
+                type="button"
+                class="inline-grid place-items-center sm:hidden app-nav__icon-btn app-nav__msg"
+                :aria-label="messagesLabel"
+                :aria-expanded="channelsPanel.isOpen.value"
+                @click="channelsPanel.open()"
+              >
+                <Icon name="i-lucide-messages-square" class="w-5 h-5" />
+                <span v-if="messagesBadge" class="app-nav__badge text-[0.625rem]" aria-hidden="true">{{ messagesBadge }}</span>
+              </button>
+            </template>
+          </ClientOnly>
+
           <ClientOnly>
             <AppAccountMenu
               :user="user"
@@ -373,8 +415,6 @@ const userAvatarUrl = computed(() => {
               :account-url="accountUrl"
               :can-open-ops="canOpenOps"
               :show-notifications="isOnOrgPage"
-              :show-chat="showChat"
-              :chat-unread="channelUnread.total.value"
               :show-assistant="showAssistant"
               :assistant-pending="aiPendingCount"
               @logout="handleLogout"
@@ -433,6 +473,10 @@ const userAvatarUrl = computed(() => {
    they cross-fade in place and the cell is as wide as the wider of the two. */
 .app-nav__centre {
   display: grid;
+  /* Never wider than its cell: on a phone the cell is what the switcher and
+     the three buttons leave, and the name truncates inside it. */
+  grid-template-columns: minmax(0, 100%);
+  max-width: 100%;
   align-items: center;
   justify-items: center;
   min-width: 0;
@@ -510,5 +554,38 @@ const userAvatarUrl = computed(() => {
 .app-nav__icon-btn:focus-visible {
   outline: 2px solid var(--theme-accent-primary);
   outline-offset: -4px;
+}
+
+/* Messages: the badge sits on the glyph's corner, like the avatar's. */
+.app-nav__msg {
+  position: relative;
+}
+.app-nav__badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.375rem;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.3125rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--theme-bg-elevated);
+  pointer-events: none;
+  animation: badge-pop var(--motion-base, 240ms) var(--spring) both;
+}
+/* On a phone the glyph is in a 44px target: tuck the badge onto the glyph. */
+.app-nav__icon-btn .app-nav__badge {
+  top: 0.25rem;
+  right: 0.125rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-nav__badge {
+    animation: none;
+  }
 }
 </style>

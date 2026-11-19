@@ -1,12 +1,13 @@
 <!--
   AppAccountMenuBody — what the avatar opens (plan §2.4, "One account menu").
 
-  The header used to carry seven controls on the right; the bell, the chat
-  button and the assistant's button (with its autonomy ring) folded in here, so
-  the avatar carries one badge for everything waiting. Top to bottom: who you
+  The header used to carry seven controls on the right; the bell and the
+  assistant's button (with its autonomy ring) folded in here, so the avatar
+  carries one badge for what waits inside. Messages folded in too, then came
+  back out to a header button of its own (Session 18). Top to bottom: who you
   are; the latest unread notifications, with "See all" opening the whole inbox
-  in place (NotificationPanel, with a way back); Messages and the Assistant,
-  each with its count; your own pages; Appearance and Tint; sign out.
+  in place (NotificationPanel, with a way back); the Assistant, with its count;
+  your own pages; Appearance and Tint; sign out.
 
   The same body in both presentations App/AccountMenu.vue picks: a popover from
   the avatar at sm and up, a bottom sheet on a phone. It IS the surface, so it
@@ -25,15 +26,12 @@ const props = defineProps<{
   accountUrl: string;
   canOpenOps: boolean;
   showNotifications: boolean;
-  showChat: boolean;
-  chatUnread: number;
   showAssistant: boolean;
   assistantPending: number;
 }>();
 const emit = defineEmits<{ close: []; logout: [] }>();
 
 const route = useRoute();
-const channelsPanel = useChannelsPanel();
 const aiAssistant = useAiAssistant();
 const { notifications, getUnseenCount, openNotification, getNotificationStyle, formatDate } = useNotifications();
 
@@ -51,10 +49,6 @@ const cap = (n: number) => (n > 99 ? "99+" : String(n));
 function openNote(n: UnifiedNotification) {
   openNotification(n);
   emit("close");
-}
-function openChat() {
-  emit("close");
-  channelsPanel.open();
 }
 function openAssistant() {
   emit("close");
@@ -111,16 +105,10 @@ function openAssistant() {
         </button>
       </section>
 
-      <!-- Messages and the assistant: what used to be two header buttons. -->
-      <div v-if="showChat || showAssistant" class="account-menu__group">
-        <button v-if="showChat" type="button" class="account-menu__row text-base" data-account-menu-chat @click="openChat">
-          <Icon name="i-lucide-messages-square" class="account-menu__icon" />
-          Messages
-          <span v-if="chatUnread > 0" class="account-menu__meta text-sm">
-            <span class="account-menu__count text-xs">{{ cap(chatUnread) }}</span>
-          </span>
-        </button>
-        <button v-if="showAssistant" type="button" class="account-menu__row text-base" data-account-menu-assistant @click="openAssistant">
+      <!-- The assistant: what used to be a header button. Messages has its
+           own button in the header again (Session 18). -->
+      <div v-if="showAssistant" class="account-menu__group">
+        <button type="button" class="account-menu__row text-base" data-account-menu-assistant @click="openAssistant">
           <Icon name="i-lucide-sparkles" class="account-menu__icon" />
           Assistant
           <span class="account-menu__meta text-sm">

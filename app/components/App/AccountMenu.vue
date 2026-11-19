@@ -1,7 +1,8 @@
 <!--
-  AppAccountMenu — the avatar in the header, and the one badge for everything
-  waiting for you: unread notifications, unread messages and the assistant's
-  actions waiting for review (each only where this person sees that surface).
+  AppAccountMenu — the avatar in the header, and the one badge for what waits
+  in its menu: unread notifications and the assistant's actions waiting for
+  review (each only where this person sees that surface). Messages has its own
+  button and badge beside it (App/Nav.vue, Session 18).
 
   It opens App/AccountMenuBody.vue: as a popover under the avatar from sm up,
   and as a bottom sheet on a phone, where the menu is long and the thumb is at
@@ -20,8 +21,6 @@ const props = defineProps<{
   accountUrl: string;
   canOpenOps: boolean;
   showNotifications: boolean;
-  showChat: boolean;
-  chatUnread: number;
   showAssistant: boolean;
   assistantPending: number;
 }>();
@@ -33,7 +32,6 @@ const { getUnseenCount } = useNotifications();
 const waiting = computed(
   () =>
     (props.showNotifications ? getUnseenCount.value : 0) +
-    (props.showChat ? props.chatUnread : 0) +
     (props.showAssistant ? props.assistantPending : 0)
 );
 const badgeText = computed(() => (waiting.value > 9 ? "9+" : String(waiting.value)));
