@@ -3,7 +3,7 @@
  * The one host for `useConfirm()` — mounted once in app.vue, next to the
  * Toaster. Nothing else should render this; call `useConfirm().confirm()`.
  *
- * Built on the glass `AlertDialog` (role="alertdialog", focus trapped, Esc and
+ * Built on the stock `AlertDialog`, dressed in glass here (role="alertdialog", focus trapped, Esc and
  * Cancel both answer "no"). The action is a plain Button rather than
  * `AlertDialogAction`, because that part hard-codes the primary tier and a
  * destructive confirm must read as destructive.
@@ -91,8 +91,17 @@ function onFieldKeydown(e: KeyboardEvent) {
 <template>
   <AlertDialog v-model:open="open">
     <!-- z-[80]: above AppBottomSheet (z-index 70), so a confirm asked from inside a
-         sheet is seen; at the primitive's z-50 it opened hidden behind it (2026-11-17). -->
-    <AlertDialogContent v-if="shown" data-confirm-dialog class="sm:max-w-md z-[80]" @open-auto-focus="onOpenFocus">
+         sheet is seen; at the primitive's z-50 it opened hidden behind it (2026-11-17).
+         The glass is put on here; ui/alert-dialog stays stock. `.glass-surface` is
+         unlayered, so it beats the stock bg-background / border / shadow-lg; its
+         radius is layered, so rounded-2xl replaces the stock rounded-lg. The
+         overlay's glass comes from its data-slot (earnest-ui.css). -->
+    <AlertDialogContent
+      v-if="shown"
+      data-confirm-dialog
+      class="glass-surface glass-surface--strong rounded-2xl sm:max-w-md z-[80]"
+      @open-auto-focus="onOpenFocus"
+    >
       <AlertDialogHeader>
         <AlertDialogTitle>{{ shown.title }}</AlertDialogTitle>
         <AlertDialogDescription v-if="shown.body">{{ shown.body }}</AlertDialogDescription>

@@ -1036,7 +1036,7 @@ async function loadFolderSize(id: string) {
 
     <!-- Preview drawer -->
     <Sheet :open="!!previewFile" @update:open="(v) => !v && (previewFile = null)">
-      <SheetContent side="right" class="w-full sm:max-w-md">
+      <AppSheetContent side="right" class="w-full sm:max-w-md">
         <template v-if="previewFile">
           <SheetHeader>
             <SheetTitle class="truncate pr-6">{{ fileLabel(previewFile) }}</SheetTitle>
@@ -1074,7 +1074,7 @@ async function loadFolderSize(id: string) {
             </template>
           </div>
         </template>
-      </SheetContent>
+      </AppSheetContent>
     </Sheet>
   </div>
 </template>

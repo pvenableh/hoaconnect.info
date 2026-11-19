@@ -490,12 +490,12 @@ const materials = [
             <SheetTrigger as-child>
               <Button variant="outline" data-kit-open="sheet">Sheet</Button>
             </SheetTrigger>
-            <SheetContent>
+            <AppSheetContent>
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
                 <SheetDescription>Narrow the member list.</SheetDescription>
               </SheetHeader>
-            </SheetContent>
+            </AppSheetContent>
           </Sheet>
 
           <Popover>
@@ -1033,7 +1033,8 @@ const materials = [
             :key="row.label"
             class="w-full flex items-center gap-3 px-4 py-3 text-left ios-press"
           >
-            <span class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
+            <span
+class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
               :style="{
                 backgroundColor: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l) / 0.12)',
                 color: 'hsl(var(--app-accent-h) var(--app-accent-s) var(--app-accent-l))',

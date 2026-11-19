@@ -533,7 +533,14 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 }
 
 /* ---- Dialog overlay glass — accent-tinted blurred modal backdrop ---- */
-.dialog-overlay-glass {
+/* The stock shadcn-vue overlays (app/components/ui/, kept as shipped) are
+   matched by their own data-slot: each Content component renders its overlay
+   inside itself, so a wrapper cannot hand it a class. Unlayered, so it beats
+   the stock `bg-black/80` utility. (docs/shadcn-census.md, step 2.) */
+.dialog-overlay-glass,
+[data-slot='dialog-overlay'],
+[data-slot='alert-dialog-overlay'],
+[data-slot='sheet-overlay'] {
 	background:
 		radial-gradient(
 			ellipse 70% 60% at 50% 40%,
@@ -544,7 +551,10 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 	-webkit-backdrop-filter: blur(8px) saturate(140%);
 	backdrop-filter: blur(8px) saturate(140%);
 }
-.dark .dialog-overlay-glass {
+.dark .dialog-overlay-glass,
+.dark [data-slot='dialog-overlay'],
+.dark [data-slot='alert-dialog-overlay'],
+.dark [data-slot='sheet-overlay'] {
 	background:
 		radial-gradient(
 			ellipse 70% 60% at 50% 40%,
@@ -557,7 +567,10 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
    is behind glass" without the frost. Without this the overlay kept its blur
    while every surface above it had already dropped theirs. */
 @media (prefers-reduced-transparency: reduce) {
-	.dialog-overlay-glass {
+	.dialog-overlay-glass,
+	[data-slot='dialog-overlay'],
+	[data-slot='alert-dialog-overlay'],
+	[data-slot='sheet-overlay'] {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
 		background: hsl(0 0% 0% / 0.6);

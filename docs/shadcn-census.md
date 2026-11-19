@@ -5,7 +5,7 @@ at their stock defaults; project changes live in a wrapper outside `ui/`. Sessio
 Card (`ui/card/Card.vue` restored, `<AppCard>` in `app/components/App/Card.vue`, 39 users switched).
 This is the census for everything else._
 
-**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Steps 2–5 not started.
+**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Step 2 done the same day. Steps 3–5 not started.
 
 ## How it was counted
 
@@ -35,9 +35,9 @@ files depend on the change.
 | `input/Input.vue` | Box replaced by `field-underline` (no border, radius, padding-x, shadow, focus ring) | `<AppInput>` | **77** | **H** — `defineModel` + vee-validate `componentField` must pass through untouched; `DateInput` composes it. |
 | `textarea/Textarea.vue` | Same `field-underline` swap as Input | `<AppTextarea>` | 21 | M |
 | `dialog/DialogContent.vue`, `DialogOverlay.vue` (`DialogScrollContent.vue` ✅ restored, 0 users) | `glass-surface glass-surface--strong rounded-2xl`, no border/shadow; overlay `bg-black/80` → `dialog-overlay-glass` | `<AppDialogContent>` (overlay comes along, it is rendered inside Content) | 34 (ScrollContent: 0) | M — portaled; the stock `bg-background` utility beats the layered glass class (the AppCard lesson), so the wrapper restates the material unlayered |
-| `alert-dialog/AlertDialogContent.vue` | Same glass + overlay as Dialog | Fold into the existing `App/ConfirmDialog.vue` | 1 | **L** |
-| `command/CommandDialog.vue` | Hides the close X, makes `Command` transparent on the glass pane | Fold into `App/Spotlight.vue` (use `Dialog` + `Command` directly there) | 1 | **L** |
-| `sheet/SheetContent.vue` | Glass surface, `rounded-*-none` per side instead of a border, `DialogOverlay` with `dialog-overlay-glass` | `<AppSheetContent>`; `Notification/Sheet.vue` and `Announcement/Sheet.vue` are already wrappers | 4 | L |
+| `alert-dialog/AlertDialogContent.vue` | Same glass + overlay as Dialog | ✅ Stock again; `App/ConfirmDialog.vue` puts `glass-surface glass-surface--strong rounded-2xl` on it. Overlay via data-slot (below). | 1 | done |
+| `command/CommandDialog.vue` | Hides the close X, makes `Command` transparent on the glass pane | ✅ Stock again; `App/Spotlight.vue` composes `Dialog` + `Command` itself with the two changes. | 1 | done |
+| `sheet/SheetContent.vue` | Glass surface, `rounded-*-none` per side instead of a border, `DialogOverlay` with `dialog-overlay-glass` | ✅ Stock again (the 2025-12 state: stock plus the `DialogOverlay` fix, which current upstream also has). `<AppSheetContent>` (`App/SheetContent.vue`) adds the glass and squares the screen edge; all 4 callers switched. | 4 | done |
 | `popover/PopoverContent.vue` | `glass-surface --strong chrome-float rounded-xl`, no border/shadow | `<AppPopoverContent>` | 3 | L |
 | `dropdown-menu/DropdownMenuContent.vue`, `…SubContent.vue` | Same floating-chrome glass as Popover | `<AppDropdownMenuContent>` (+ SubContent) | 10 (Sub: 0) | M — portaled |
 | `select/SelectContent.vue` | Glass surface, `rounded-xl` | `<AppSelectContent>` | 12 | M |
@@ -65,26 +65,29 @@ Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Ses
    wrapper therefore restates its material unlayered (as `AppCard` does), or neutralises the
    stock utilities in its `class` (`border-0 shadow-none bg-transparent rounded-xl` — `cn`'s
    tailwind-merge drops the stock ones).
-2. **Portaled surfaces have one more option.** Dialog / Sheet / Popover / Dropdown / Select /
+2. **Overlays: decided — data-slot CSS** (Peter, 2026-11-19). **Portaled surfaces have one more option.** Dialog / Sheet / Popover / Dropdown / Select /
    Tooltip content all carry a stock `data-slot` (`dialog-content`, `popover-content`, …). A
    project stylesheet keyed on `[data-slot="popover-content"]` would give the glass with **zero
    call-site changes** and `ui/` left stock. It is not a wrapper component, so it bends the
    rule as written — Peter's call. Wrappers are the safer reading of the rule; the stylesheet is
    far cheaper for the 60-odd floating-chrome call sites.
+   **Decision:** the stock Content components render their overlay inside themselves, so no wrapper
+   can reach it. `earnest-ui.css` gives `[data-slot='dialog-overlay' | 'alert-dialog-overlay' |
+   'sheet-overlay']` the `dialog-overlay-glass` material (light, dark, reduced transparency). Content
+   surfaces still get wrapper components.
 
 ## Recommendation — order
 
 1. ✅ **Free restorations** (done): Tabs, Checkbox icon, `DialogScrollContent`, ChartContainer
    vars → caller. Calendar re-pull deferred (see table).
-2. **Fold into wrappers that already exist**: `AlertDialogContent` → `ConfirmDialog`,
+2. ✅ **Fold into wrappers that already exist** (done): `AlertDialogContent` → `ConfirmDialog`,
    `CommandDialog` → `Spotlight`, `SheetContent` → the two `*/Sheet.vue` + StorageManager.
    Proves the floating-glass restatement on three callers before the big ones.
 3. **Earnest ports with no app users**: Combobox, Pagination, Toggle Group → `App*` wrappers
    over fresh stock. Cheap now; expensive once features adopt them.
 4. **Floating chrome** (Popover, Tooltip, Dropdown, Select, Dialog — ~60 users): decide
-   wrapper vs `data-slot` stylesheet first, then one primitive per commit.
+   one primitive per commit. Overlays are settled (below); the content surfaces get wrappers.
 5. **Badge**, then **Textarea**, then **Input**, then **Button** last — Button touches 170
    files and three other `ui/` primitives; do it once the pattern is boring.
 
-**Next: step 2**, starting with `AlertDialogContent → ConfirmDialog`
-(one caller, the wrapper exists, and it rehearses the dialog material that 34 files need later).
+**Next: step 3**, the Earnest ports with no app users (Combobox, Pagination, Toggle Group).

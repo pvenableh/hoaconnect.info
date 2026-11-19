@@ -11,11 +11,12 @@
  *     capability-filtered on the server (core/shared/search). Staff only; for a
  *     member the box is destination search, and says so.
  *
- * Keyboard: ↑/↓ move, Enter opens, Esc closes — the Listbox under CommandDialog
+ * Keyboard: ↑/↓ move, Enter opens, Esc closes — the Listbox under Command
  * owns all three. Results are grouped by kind.
  *
- * Built on the kit's CommandDialog, so it is the glass Dialog like every other
- * overlay. We filter ourselves rather than letting `Command` do it: Command
+ * Composed from the stock Dialog and Command (what the kit's CommandDialog does,
+ * plus two changes it can't take as props), so it is the glass Dialog like every
+ * other overlay. We filter ourselves rather than letting `Command` do it: Command
  * matches on each row's visible text, and a record the SERVER matched on a
  * field it does not display (a phone number, a request's description) would be
  * hidden by the client a moment after it arrived.
@@ -35,7 +36,8 @@
  */
 import { useDebounceFn } from "@vueuse/core";
 import { ListboxFilter } from "reka-ui";
-import { CommandDialog, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { SearchGroupResult } from "#core/shared/search";
 import { MIN_QUERY, looksLikeQuestion } from "#core/shared/search";
 import type { VerbId } from "#core/shared/create-verbs";
@@ -269,122 +271,131 @@ const placeholder = computed(() =>
 </script>
 
 <template>
-  <CommandDialog
-    v-model:open="isOpen"
-    title="Search"
-    :description="canAsk ? 'Search records, jump to any part of the workspace, or ask the assistant.' : 'Search records and jump to any part of the workspace.'"
-  >
-    <div data-slot="command-input-wrapper" class="flex h-12 items-center gap-2.5 border-b border-border/60 px-4">
-      <Icon name="lucide:search" class="size-4 shrink-0 text-muted-foreground" />
-      <ListboxFilter
-        v-model="query"
-        auto-focus
-        data-spotlight-input
-        :placeholder="placeholder"
-        @keydown.enter="onEnter"
-        class="h-full w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
-      />
-      <kbd class="type-micro rounded-md px-1.5 py-0.5 glass-field">esc</kbd>
-    </div>
+  <Dialog v-model:open="isOpen">
+    <!-- The Command sits transparent on the glass DialogContent; its own
+         bg-popover would paint an opaque slab over the material. Esc closes,
+         so the corner X is dropped (it collided with the search row). -->
+    <DialogContent class="overflow-hidden p-0" :show-close-button="false">
+      <DialogHeader class="sr-only">
+        <DialogTitle>Search</DialogTitle>
+        <DialogDescription>
+          {{ canAsk ? 'Search records, jump to any part of the workspace, or ask the assistant.' : 'Search records and jump to any part of the workspace.' }}
+        </DialogDescription>
+      </DialogHeader>
+      <Command class="rounded-none bg-transparent">
+        <div data-slot="command-input-wrapper" class="flex h-12 items-center gap-2.5 border-b border-border/60 px-4">
+          <Icon name="lucide:search" class="size-4 shrink-0 text-muted-foreground" />
+          <ListboxFilter
+            v-model="query"
+            auto-focus
+            data-spotlight-input
+            :placeholder="placeholder"
+            @keydown.enter="onEnter"
+            class="h-full w-full bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+          />
+          <kbd class="type-micro rounded-md px-1.5 py-0.5 glass-field">esc</kbd>
+        </div>
 
-    <CommandList class="max-h-[min(60vh,420px)] p-1.5">
-      <CommandGroup v-if="showAsk && askFirst" heading="Ask" data-spotlight-group="ask">
-        <CommandItem
-          value="ask"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          data-spotlight-ask
-          @select="ask"
-        >
-          <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">Ask the assistant</span>
-            <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
-          </span>
-          <kbd v-if="askFirst" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
-        </CommandItem>
-      </CommandGroup>
-      <CommandGroup v-if="matchingDestinations.length" heading="Go to">
-        <CommandItem
-          v-for="d in matchingDestinations"
-          :key="d.key"
-          :value="d.key"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          @select="go(d.to)"
-        >
-          <Icon :name="d.icon" class="size-4 shrink-0 text-muted-foreground" />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">{{ d.label }}</span>
-            <span v-if="d.description" class="block truncate text-xs text-muted-foreground">{{ d.description }}</span>
-          </span>
-        </CommandItem>
-      </CommandGroup>
+        <CommandList class="max-h-[min(60vh,420px)] p-1.5">
+          <CommandGroup v-if="showAsk && askFirst" heading="Ask" data-spotlight-group="ask">
+            <CommandItem
+              value="ask"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              data-spotlight-ask
+              @select="ask"
+            >
+              <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">Ask the assistant</span>
+                <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
+              </span>
+              <kbd v-if="askFirst" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
+            </CommandItem>
+          </CommandGroup>
+          <CommandGroup v-if="matchingDestinations.length" heading="Go to">
+            <CommandItem
+              v-for="d in matchingDestinations"
+              :key="d.key"
+              :value="d.key"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              @select="go(d.to)"
+            >
+              <Icon :name="d.icon" class="size-4 shrink-0 text-muted-foreground" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ d.label }}</span>
+                <span v-if="d.description" class="block truncate text-xs text-muted-foreground">{{ d.description }}</span>
+              </span>
+            </CommandItem>
+          </CommandGroup>
 
-      <CommandGroup v-if="matchingVerbs.length" heading="Create" data-spotlight-group="create">
-        <CommandItem
-          v-for="v in matchingVerbs"
-          :key="v.id"
-          :value="`verb:${v.id}`"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          :data-spotlight-verb="v.id"
-          @select="runVerb(v.id)"
-        >
-          <Icon :name="v.icon" class="size-4 shrink-0 text-muted-foreground" />
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ v.label }}</span>
-        </CommandItem>
-      </CommandGroup>
+          <CommandGroup v-if="matchingVerbs.length" heading="Create" data-spotlight-group="create">
+            <CommandItem
+              v-for="v in matchingVerbs"
+              :key="v.id"
+              :value="`verb:${v.id}`"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              :data-spotlight-verb="v.id"
+              @select="runVerb(v.id)"
+            >
+              <Icon :name="v.icon" class="size-4 shrink-0 text-muted-foreground" />
+              <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ v.label }}</span>
+            </CommandItem>
+          </CommandGroup>
 
-      <CommandGroup v-if="messageHits.length" heading="Message" data-spotlight-group="message">
-        <CommandItem
-          v-for="hit in messageHits"
-          :key="`message:${hit.id}`"
-          :value="`message:${hit.id}`"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          data-spotlight-message
-          @select="messageMember(hit.userId!)"
-        >
-          <Icon name="lucide:message-circle" class="size-4 shrink-0 text-muted-foreground" />
-          <span class="min-w-0 flex-1 truncate text-sm font-medium">Message {{ hit.name }}</span>
-        </CommandItem>
-      </CommandGroup>
+          <CommandGroup v-if="messageHits.length" heading="Message" data-spotlight-group="message">
+            <CommandItem
+              v-for="hit in messageHits"
+              :key="`message:${hit.id}`"
+              :value="`message:${hit.id}`"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              data-spotlight-message
+              @select="messageMember(hit.userId!)"
+            >
+              <Icon name="lucide:message-circle" class="size-4 shrink-0 text-muted-foreground" />
+              <span class="min-w-0 flex-1 truncate text-sm font-medium">Message {{ hit.name }}</span>
+            </CommandItem>
+          </CommandGroup>
 
-      <CommandGroup v-for="g in recordGroups" :key="g.key" :heading="g.label" :data-spotlight-group="g.key">
-        <CommandItem
-          v-for="hit in g.items"
-          :key="`${g.key}:${hit.id}`"
-          :value="`${g.key}:${hit.id}`"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          data-spotlight-hit
-          @select="go(hit.to)"
-        >
-          <Icon :name="g.icon" class="size-4 shrink-0 text-muted-foreground" />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">{{ hit.name }}</span>
-            <span v-if="hit.description" class="block truncate text-xs text-muted-foreground">{{ hit.description }}</span>
-          </span>
-        </CommandItem>
-      </CommandGroup>
+          <CommandGroup v-for="g in recordGroups" :key="g.key" :heading="g.label" :data-spotlight-group="g.key">
+            <CommandItem
+              v-for="hit in g.items"
+              :key="`${g.key}:${hit.id}`"
+              :value="`${g.key}:${hit.id}`"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              data-spotlight-hit
+              @select="go(hit.to)"
+            >
+              <Icon :name="g.icon" class="size-4 shrink-0 text-muted-foreground" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">{{ hit.name }}</span>
+                <span v-if="hit.description" class="block truncate text-xs text-muted-foreground">{{ hit.description }}</span>
+              </span>
+            </CommandItem>
+          </CommandGroup>
 
-      <CommandGroup v-if="showAsk && !askFirst" heading="Ask" data-spotlight-group="ask">
-        <CommandItem
-          value="ask"
-          class="gap-3 rounded-lg px-2.5 py-2"
-          data-spotlight-ask
-          @select="ask"
-        >
-          <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium">Ask the assistant</span>
-            <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
-          </span>
-          <kbd v-if="nothingFound" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
-        </CommandItem>
-      </CommandGroup>
+          <CommandGroup v-if="showAsk && !askFirst" heading="Ask" data-spotlight-group="ask">
+            <CommandItem
+              value="ask"
+              class="gap-3 rounded-lg px-2.5 py-2"
+              data-spotlight-ask
+              @select="ask"
+            >
+              <Icon name="lucide:sparkles" class="size-4 shrink-0 text-primary" />
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium">Ask the assistant</span>
+                <span class="block truncate text-xs text-muted-foreground">“{{ askText }}”</span>
+              </span>
+              <kbd v-if="nothingFound" class="type-micro rounded-md px-1.5 py-0.5 glass-field">↵</kbd>
+            </CommandItem>
+          </CommandGroup>
 
-      <p v-if="searching" class="helper-text px-3 py-2">Searching records…</p>
-      <p v-else-if="nothingFound && !showAsk" class="helper-text px-3 py-6 text-center">
-        Nothing matches “{{ query.trim() }}”.
-      </p>
-      <p v-else-if="query.trim().length === 1" class="helper-text px-3 py-6 text-center">Keep typing…</p>
-    </CommandList>
-  </CommandDialog>
+          <p v-if="searching" class="helper-text px-3 py-2">Searching records…</p>
+          <p v-else-if="nothingFound && !showAsk" class="helper-text px-3 py-6 text-center">
+            Nothing matches “{{ query.trim() }}”.
+          </p>
+          <p v-else-if="query.trim().length === 1" class="helper-text px-3 py-6 text-center">Keep typing…</p>
+        </CommandList>
+      </Command>
+    </DialogContent>
+  </Dialog>
 </template>

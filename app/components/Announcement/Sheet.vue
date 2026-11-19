@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   Sheet,
-  SheetContent,
   SheetHeader,
   SheetTitle,
   SheetDescription,
@@ -89,7 +88,7 @@ const handleOpenChange = (open: boolean) => {
 
 <template>
   <Sheet :open="isSheetOpen" @update:open="handleOpenChange">
-    <SheetContent
+    <AppSheetContent
       side="right"
       class="w-full sm:max-w-lg overflow-y-auto"
     >
@@ -197,6 +196,6 @@ const handleOpenChange = (open: boolean) => {
           </div>
         </div>
       </template>
-    </SheetContent>
+    </AppSheetContent>
   </Sheet>
 </template>

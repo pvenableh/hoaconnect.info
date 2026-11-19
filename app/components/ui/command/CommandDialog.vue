@@ -18,15 +18,12 @@ const forwarded = useForwardPropsEmits(props, emits)
 
 <template>
   <Dialog v-slot="slotProps" v-bind="forwarded">
-    <!-- The Command sits transparent on the glass DialogContent; its own
-         bg-popover would paint an opaque slab over the material. Esc closes,
-         so the corner X is dropped (it collided with the search row). -->
-    <DialogContent class="overflow-hidden p-0" :show-close-button="false">
+    <DialogContent class="overflow-hidden p-0 ">
       <DialogHeader class="sr-only">
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription>{{ description }}</DialogDescription>
       </DialogHeader>
-      <Command class="rounded-none bg-transparent">
+      <Command>
         <slot v-bind="slotProps" />
       </Command>
     </DialogContent>
