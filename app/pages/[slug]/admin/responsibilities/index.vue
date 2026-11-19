@@ -17,9 +17,16 @@
 // with its office terms), so the slider makes no request; the grid and the panel
 // draw what the route built for one day, so they read once for the slider's day
 // before they show.
+//
+// Focus (Session 18): picking a holder FILTERS, in both modes, to the jobs
+// they hold (a person directly or through an office), and "Unassigned" is its
+// own switch, shown by default here (they are the work to do). Both live in
+// the URL (`?holder=`, `?unassigned=0`), so Grid and Map share them and a link
+// reopens them; the rules are pure (core/shared/responsibilities/focus.ts).
 import { CATEGORIES, FLORIDA_CONDOMINIUM, cadenceLabel, basisLabel } from "#core/shared/responsibilities/config";
-import { REGISTER_GROUPS, holderOptions, whoLine } from "#core/shared/responsibilities/register-view";
-import { changeDays, mapModel, type MapSelection } from "#core/shared/responsibilities/map";
+import { REGISTER_GROUPS, whoLine } from "#core/shared/responsibilities/register-view";
+import { changeDays, mapModel } from "#core/shared/responsibilities/map";
+import { focusLabel, focusMap, focusOptions } from "#core/shared/responsibilities/focus";
 import type { RegisterRow } from "#core/shared/responsibilities/views";
 
 definePageMeta({
@@ -53,7 +60,6 @@ const stack = {
   bare: ["who"],
 };
 
-const holders = computed(() => holderOptions(register.rows));
 
 // The as-of control reads the register as it stood on a day. A date half typed
 // into the field is not a date yet, so only a whole one reloads.
@@ -91,7 +97,51 @@ watch(day, (d) => {
 const snapDays = computed(() => [...new Set([...baseDays.value, pinned.value])].sort());
 
 const map = computed(() => mapModel(register.rows, day.value));
-const selection = ref<MapSelection>(null);
+
+// ── Focus: a holder, and the Unassigned switch ──────────────────────────────
+const { holder, unassigned, focus, showAll } = useRegisterFocus({ unassignedDefault: true });
+const focused = computed(() => focusMap(map.value, focus.value));
+const holders = computed(() => focusOptions(map.value));
+const holderLabel = computed(() => (focused.value.holder ? focusLabel(focused.value.holder, focused.value.shown) : null));
+// The last name the pick resolved to, for a day it holds nothing (it is not on the map then).
+const lastHolderName = ref<string | null>(null);
+watch(
+  () => focused.value.holder,
+  (h) => {
+    if (h) lastHolderName.value = h.label;
+  },
+  { immediate: true },
+);
+const emptyFocus = computed(() => {
+  const f = focused.value;
+  if (f.empty === "holder") return { title: `Nothing for ${f.holder?.label ?? lastHolderName.value ?? "that holder"} on this day`, description: "They hold no jobs on the day shown. Move the day, or show everyone." };
+  if (f.empty === "unassigned-hidden") return { title: "Only unassigned jobs on this day", description: "Every job on the day shown is unassigned, and the Unassigned switch is hiding them." };
+  return null;
+});
+
+// The grid's filters mirror the URL (and a filter cleared in the grid clears it there).
+watch(
+  focus,
+  (f) => {
+    register.filters.holder = f.holder ?? "any";
+    register.filters.unassigned = f.unassigned ? "show" : "hide";
+  },
+  { immediate: true },
+);
+watch(
+  () => register.filters.holder,
+  (v) => {
+    const next = !v || v === "any" ? null : v;
+    if (next !== holder.value) holder.value = next;
+  },
+);
+watch(
+  () => register.filters.unassigned,
+  (v) => {
+    const next = v !== "hide";
+    if (next !== unassigned.value) unassigned.value = next;
+  },
+);
 
 /** The slider: a snap day, no request. */
 const slideTo = (d: string) => {
@@ -162,8 +212,22 @@ const emptyDescription = computed(() =>
 
       <AppSegmentedControl v-model="view" :items="viewItems" label="Register views" />
 
+      <ResponsibilitiesFocusBar
+        v-if="register.total"
+        v-model:unassigned="unassigned"
+        :holder-label="holderLabel"
+        :unassigned-count="map.unassigned.length"
+        @clear="holder = null"
+      />
+
+      <AppEmptyState v-if="view === 'grid' && emptyFocus" :title="emptyFocus.title" :description="emptyFocus.description" icon="lucide:filter-x" size="sm">
+        <template #actions>
+          <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+        </template>
+      </AppEmptyState>
+
       <AppResourceIndex
-        v-if="view === 'grid'"
+        v-if="view === 'grid' && !emptyFocus"
         :resource="register"
         :columns="columns"
         :noun="{ one: 'job', other: 'jobs' }"
@@ -255,7 +319,7 @@ const emptyDescription = computed(() =>
         </template>
       </AppResourceIndex>
 
-      <div v-else class="space-y-4">
+      <div v-else-if="view === 'map'" class="space-y-4">
         <ResponsibilitiesMapSlider :days="snapDays" :model-value="day" :today="today" @update:model-value="slideTo" @type="typeDay" />
         <AppEmptyState v-if="register.error" title="Could not load" :description="register.error" icon="lucide:cloud-off" size="sm">
           <template #actions>
@@ -271,7 +335,19 @@ const emptyDescription = computed(() =>
             </Button>
           </template>
         </AppEmptyState>
-        <ResponsibilitiesMap v-else v-model:selection="selection" :model="map" can-open @open="openJob" />
+        <AppEmptyState v-else-if="emptyFocus" :title="emptyFocus.title" :description="emptyFocus.description" icon="lucide:filter-x" size="sm">
+          <template #actions>
+            <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+          </template>
+        </AppEmptyState>
+        <ResponsibilitiesMap
+          v-else
+          v-model:holder="holder"
+          :model="focused.model"
+          :total="focused.total"
+          can-open
+          @open="openJob"
+        />
       </div>
 
       <ResponsibilitiesJobForm

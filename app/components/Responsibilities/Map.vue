@@ -2,11 +2,14 @@
   ResponsibilitiesMap — the register's Map mode (plan §3.4 "Map view", Phase 2c).
 
   Holders on one side, jobs on the other, for one day (`model`, from
-  `mapModel` in core/shared/responsibilities/map.ts). Pick a holder and their
-  jobs light up; pick a job and its owner, backup and oversight light up. Jobs
-  nobody holds and offices nobody holds sit in their own groups, in the
-  attention colour. Read-only: a picked job offers "Open", which the page turns
-  into the job's panel, where hand-over and edit live.
+  `mapModel` in core/shared/responsibilities/map.ts, already focused by the
+  page through `focusMap`). Pick a holder and the page shows only their jobs
+  (Session 18: a filter, not a highlight; the page keeps the pick in the URL,
+  `?holder=`, so the Grid shares it); the rail keeps everyone, so another
+  holder is one tap away. Pick a job and its owner, backup and oversight light
+  up. Jobs nobody holds and offices nobody holds sit in their own groups, in
+  the attention colour. Read-only: a picked job offers "Open", which the page
+  turns into the job's panel, where hand-over and edit live.
 
   Material (§2.4): the holder rail is glass; job cards are solid content; no
   glass on glass. On a phone the two sides stack and the rail scrolls sideways.
@@ -28,47 +31,56 @@ import {
   type MapJob,
   type MapJobHolder,
   type MapModel,
-  type MapSelection,
 } from "#core/shared/responsibilities/map";
 import type { TargetKind } from "#core/shared/responsibilities/holders";
 
 const props = withDefaults(
   defineProps<{
+    /** The day's map, already focused on the picked holder (focusMap). */
     model: MapModel;
+    /** Jobs on the map that day before any focus: the "Everyone" row's count. */
+    total: number;
     /** Offer "Open" on a picked job (the page opens its panel). */
     canOpen?: boolean;
   }>(),
   { canOpen: false },
 );
 const emit = defineEmits<{ open: [jobId: string] }>();
-const selection = defineModel<MapSelection>("selection", { default: null });
+/** The picked holder's rail key, or null for everyone. The page keeps it in the URL. */
+const holder = defineModel<string | null>("holder", { default: null });
+/** A picked job lights its holders; it is this view's own, not the URL's. */
+const pickedJob = ref<string | null>(null);
 
 const haptic = useHaptic();
 
-// ── What lights up ─────────────────────────────────────────────────────────
-const lit = computed(() => litFor(props.model, selection.value));
+// ── What lights up: a picked job's holders ─────────────────────────────────
+const lit = computed(() => (pickedJob.value ? litFor(props.model, { job: pickedJob.value }) : null));
 const litJobs = computed(() => new Set(lit.value?.jobs ?? []));
 const litRoles = computed(() => {
   const m = new Map<string, string[]>();
   for (const h of lit.value?.holders ?? []) if (h.role) m.set(h.key, [...(m.get(h.key) ?? []), h.role]);
   return m;
 });
-const pickedHolder = computed(() => (lit.value && selection.value && "holder" in selection.value ? selection.value.holder : null));
-const pickedJob = computed(() => (lit.value && selection.value && "job" in selection.value ? selection.value.job : null));
+// A job that leaves the map (the day moved, the focus changed) is no longer picked.
+watch(lit, (l) => {
+  if (pickedJob.value && !l) pickedJob.value = null;
+});
 
 const railHolders = computed(() => [...props.model.vacant, ...props.model.holders]);
 const allJobs = computed(() => [...props.model.unassigned, ...props.model.groups.flatMap((g) => g.jobs)]);
 const jobCount = computed(() => allJobs.value.length);
+/** The picked holder, when it has a row on the rail (a person picked through an office has none). */
+const pickedHolder = computed(() => (holder.value && railHolders.value.some((h) => h.key === holder.value) ? holder.value : null));
 
 function pickHolder(key: string | null) {
-  const next: MapSelection = key ? { holder: key } : null;
-  if (JSON.stringify(next) === JSON.stringify(selection.value)) return;
+  if (key === holder.value) return;
   haptic.selection();
-  selection.value = next;
+  pickedJob.value = null;
+  holder.value = key;
 }
 function pickJob(id: string) {
   haptic.tap();
-  selection.value = pickedJob.value === id ? null : { job: id };
+  pickedJob.value = pickedJob.value === id ? null : id;
 }
 
 // ── The rail: a radio group, arrows move and pick, Home and End ─────────────
@@ -111,14 +123,8 @@ const shortDay = (d: string) => {
   return new Date(Date.UTC(y!, m! - 1, dd!)).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 };
 
-/** The sentence over the jobs: what the pick lit. */
+/** The sentence over the jobs: what a picked job lit. (A picked holder is the page's focus line.) */
 const pickSummary = computed(() => {
-  if (pickedHolder.value) {
-    const h = railHolders.value.find((x) => x.key === pickedHolder.value);
-    if (!h) return "";
-    const name = h.kind === "office" ? `${h.label} (${h.vacant ? "vacant" : people(h)})` : h.label;
-    return `${name}: ${jobsText(litJobs.value.size)}.`;
-  }
   if (pickedJob.value) {
     const j = allJobs.value.find((x) => x.id === pickedJob.value);
     if (!j) return "";
@@ -163,11 +169,13 @@ onBeforeUnmount(() => {
   if (clearTimer) clearTimeout(clearTimer);
 });
 
+// Esc lets go of a picked job first, then of the holder.
 function onKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape" && selection.value) {
-    selection.value = null;
-    e.stopPropagation();
-  }
+  if (e.key !== "Escape") return;
+  if (pickedJob.value) pickedJob.value = null;
+  else if (holder.value) holder.value = null;
+  else return;
+  e.stopPropagation();
 }
 
 const jobClasses = (j: MapJob) => ({
@@ -197,16 +205,16 @@ const jobClasses = (j: MapJob) => ({
         <button
           type="button"
           role="radio"
-          :aria-checked="checkedKey === null"
+          :aria-checked="holder === null"
           :tabindex="checkedKey === null ? 0 : -1"
           class="rmap-holder"
-          :class="{ 'rmap-holder--checked': checkedKey === null }"
+          :class="{ 'rmap-holder--checked': holder === null }"
           @click="pickHolder(null)"
         >
           <Icon name="lucide:layout-grid" class="rmap-holder__icon" aria-hidden="true" />
           <span class="rmap-holder__text">
             <span class="rmap-holder__name text-sm">Everyone</span>
-            <span class="rmap-holder__sub text-xs">{{ jobsText(jobCount) }}</span>
+            <span class="rmap-holder__sub text-xs">{{ jobsText(total) }}</span>
           </span>
         </button>
 
@@ -249,7 +257,7 @@ const jobClasses = (j: MapJob) => ({
     <!-- The jobs: solid cards, in the attention group and the five sections. -->
     <div ref="jobsEl" class="rmap-jobs">
       <p class="type-meta t-text-secondary rmap-jobs__summary" aria-live="polite">
-        {{ pickSummary || `${jobsText(jobCount)}. Pick a holder to light up their jobs, or a job to see who holds it.` }}
+        {{ pickSummary || `${jobsText(jobCount)}. Pick a holder to see only their jobs, or a job to see who holds it.` }}
       </p>
 
       <section v-if="model.unassigned.length" class="rmap-section" aria-labelledby="rmap-sec-unassigned">

@@ -15,6 +15,11 @@
 // with no slider. It is built from what the route sent and nothing else
 // (`publishedMapRows`), so it cannot show history, a basis or a name the route
 // left out.
+//
+// Focus (Session 18): picking a holder filters both modes to their jobs, and
+// the jobs nobody holds (sent only when the board shows the gap) are hidden
+// by default here, behind their own switch. Both in the URL (`?holder=`,
+// `?unassigned=1`), shared by Grid and Map.
 import { cadenceLabel } from "#core/shared/responsibilities/config";
 import {
   REGISTER_GROUPS,
@@ -23,7 +28,8 @@ import {
   publishedSearchText,
   unassignedSinceText,
 } from "#core/shared/responsibilities/register-view";
-import { mapModel, publishedMapRows, type MapSelection } from "#core/shared/responsibilities/map";
+import { mapModel, publishedMapRows } from "#core/shared/responsibilities/map";
+import { focusLabel, focusMap, focusOptions, rowInFocus } from "#core/shared/responsibilities/focus";
 import type { PublishedRow } from "#core/shared/responsibilities/views";
 
 definePageMeta({
@@ -32,6 +38,9 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
+
+/** A published row's holders, keyed as the map keys them. */
+const holdersOf = (row: PublishedRow) => (isHeldRow(row) ? row.who.map(publishedHolder) : []);
 
 // null until the first read answers: "not published" must not flash while loading.
 const published = ref<boolean | null>(null);
@@ -47,6 +56,10 @@ const resource = useResource<PublishedRow>(
       return res.responsibilities;
     },
     search: publishedSearchText,
+    filters: {
+      holder: { initial: "any", match: (r, v) => rowInFocus({ holders: holdersOf(r) }, { holder: v, unassigned: true }) },
+      unassigned: { initial: "show", match: (r) => isHeldRow(r) },
+    },
   },
   { orgId: selectedOrgId },
 );
@@ -62,7 +75,7 @@ const columns = [
 // The register's layout: the job on top; who, cadence and last verified beneath.
 const stack = { primary: "title", meta: ["who", "cadence", "lastVerified"], bare: ["who"] };
 
-const holders = (row: PublishedRow) => (isHeldRow(row) ? row.who.map(publishedHolder) : []);
+const holders = (row: PublishedRow) => holdersOf(row);
 const lastVerified = (row: PublishedRow) =>
   isHeldRow(row) && row.lastVerified ? row.lastVerified : null;
 const view = useTabQuery({ key: "view", values: ["grid", "map"], fallback: "grid" });
@@ -71,7 +84,49 @@ const viewItems = [
   { value: "map", label: "Map", icon: "lucide:waypoints" },
 ];
 const map = computed(() => mapModel(publishedMapRows(resource.rows), registerToday()));
-const selection = ref<MapSelection>(null);
+
+// ── Focus: a holder, and the Unassigned switch (hidden by default here) ──────
+const { holder, unassigned, focus, showAll } = useRegisterFocus({ unassignedDefault: false });
+const focused = computed(() => focusMap(map.value, focus.value));
+const holderOptionsList = computed(() => focusOptions(map.value));
+const holderLabel = computed(() => (focused.value.holder ? focusLabel(focused.value.holder, focused.value.shown) : null));
+// The last name the pick resolved to, for a day it holds nothing (it is not on the map then).
+const lastHolderName = ref<string | null>(null);
+watch(
+  () => focused.value.holder,
+  (h) => {
+    if (h) lastHolderName.value = h.label;
+  },
+  { immediate: true },
+);
+const emptyFocus = computed(() => {
+  const f = focused.value;
+  if (f.empty === "holder") return { title: `Nothing for ${f.holder?.label ?? lastHolderName.value ?? "that holder"}`, description: "They look after no jobs today." };
+  if (f.empty === "unassigned-hidden") return { title: "Only unassigned jobs", description: "Every job listed is unassigned, and the Unassigned switch is hiding them." };
+  return null;
+});
+watch(
+  focus,
+  (f) => {
+    resource.filters.holder = f.holder ?? "any";
+    resource.filters.unassigned = f.unassigned ? "show" : "hide";
+  },
+  { immediate: true },
+);
+watch(
+  () => resource.filters.holder,
+  (v) => {
+    const next = !v || v === "any" ? null : v;
+    if (next !== holder.value) holder.value = next;
+  },
+);
+watch(
+  () => resource.filters.unassigned,
+  (v) => {
+    const next = v !== "hide";
+    if (next !== unassigned.value) unassigned.value = next;
+  },
+);
 
 const day = (d: string) => {
   const [y, m, dd] = d.split("-").map(Number);
@@ -96,7 +151,27 @@ const day = (d: string) => {
 
       <AppSegmentedControl v-if="published" v-model="view" :items="viewItems" label="Views" />
 
-      <template v-if="published && view === 'map'">
+      <ResponsibilitiesFocusBar
+        v-if="published && resource.total"
+        v-model:unassigned="unassigned"
+        :holder-label="holderLabel"
+        :unassigned-count="map.unassigned.length"
+        @clear="holder = null"
+      />
+
+      <AppEmptyState
+        v-if="published && emptyFocus"
+        :title="emptyFocus.title"
+        :description="emptyFocus.description"
+        icon="lucide:filter-x"
+        size="sm"
+      >
+        <template #actions>
+          <Button variant="outline" size="sm" class="rounded-full" @click="showAll">Show All</Button>
+        </template>
+      </AppEmptyState>
+
+      <template v-if="published && view === 'map' && !emptyFocus">
         <p v-if="resource.pending && !resource.total" class="type-meta t-text-muted">Loading…</p>
         <AppEmptyState
           v-else-if="!resource.total"
@@ -104,11 +179,11 @@ const day = (d: string) => {
           description="The board has published the register, and no jobs are on it yet."
           icon="lucide:list-checks"
         />
-        <ResponsibilitiesMap v-else v-model:selection="selection" :model="map" />
+        <ResponsibilitiesMap v-else v-model:holder="holder" :model="focused.model" :total="focused.total" />
       </template>
 
       <AppResourceIndex
-        v-else-if="published !== false"
+        v-else-if="published !== false && !emptyFocus"
         :resource="resource"
         :columns="columns"
         :noun="{ one: 'job', other: 'jobs' }"
@@ -120,6 +195,17 @@ const day = (d: string) => {
         :groups="REGISTER_GROUPS"
         :stack="stack"
       >
+        <template #filters>
+          <Select v-model="resource.filters.holder">
+            <SelectTrigger class="w-48 rounded-full" aria-label="Who">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">Anyone</SelectItem>
+              <SelectItem v-for="h in holderOptionsList" :key="h.value" :value="h.value">{{ h.label }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </template>
         <template #cell-title="{ row }">
           <span class="t-text">{{ row.title }}</span>
         </template>

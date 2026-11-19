@@ -12,7 +12,8 @@
 // `reuse: true` so opening a job over the index makes no second request.
 import type { Ref } from "vue";
 import type { RegisterRow } from "#core/shared/responsibilities/views";
-import { matchesHolder, registerSearchText } from "#core/shared/responsibilities/register-view";
+import { registerSearchText } from "#core/shared/responsibilities/register-view";
+import { rowInFocus } from "#core/shared/responsibilities/focus";
 import type { ResourceDefinition } from "./useResource";
 import { useResource } from "./useResource";
 
@@ -73,7 +74,10 @@ export function useResponsibilitiesResource(orgId: Ref<string | null | undefined
     ],
     filters: {
       category: { initial: "all", match: (r, v) => r.category === v },
-      holder: { initial: "any", match: (r, v) => matchesHolder(r, v) },
+      // The register's focus (Session 18): the page keeps both in the URL
+      // (useRegisterFocus) and mirrors them here, so the Grid and the Map agree.
+      holder: { initial: "any", match: (r, v) => rowInFocus(r, { holder: v, unassigned: true }) },
+      unassigned: { initial: "show", match: (r) => rowInFocus(r, { holder: null, unassigned: false }) },
       basis: { initial: "any", match: (r) => (r.basis || "unknown") === "unknown" },
       review: { initial: "any", match: (r) => r.reviewOverdue },
     },

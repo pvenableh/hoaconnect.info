@@ -1,7 +1,9 @@
 /**
  * What the register's pages derive from the rows `GET /api/org/responsibilities`
- * returns (docs/spec-responsibilities.md): the holder filter's options, who a
- * holder filter matches, and how many jobs owners would see as unassigned.
+ * returns (docs/spec-responsibilities.md): the groups, search text, who a job
+ * is held by, and how many jobs owners would see as unassigned. (The holder
+ * filter's options and rule moved to focus.ts in Session 18, shared by Grid
+ * and Map.)
  * Pure, so each is table-tested and the page only draws them.
  */
 import { CATEGORIES, cadenceLabel, basisLabel, categoryLabel } from "./config";
@@ -13,38 +15,6 @@ export const REGISTER_GROUPS = CATEGORIES.map((c) => ({ key: c.key as string, la
 
 /** A holder as the filter keys it: "member:<id>", "office:treasurer", "label:City of Miami Beach". */
 export const holderKey = (h: Pick<HolderView, "kind" | "ref">) => `${h.kind}:${h.ref}`;
-
-export const UNASSIGNED = "unassigned";
-
-export interface HolderOption {
-  value: string;
-  label: string;
-}
-
-/**
- * Who the holder filter can pick: "Unassigned" first, then every holder on a
- * row holding on the as-of date, once each, by name. An office is one option,
- * and so is each person who holds one, so "Ann Lee" finds her jobs whether the
- * row names her or names the Treasurer.
- */
-export function holderOptions(rows: readonly RegisterRow[]): HolderOption[] {
-  const seen = new Map<string, string>();
-  for (const r of rows) {
-    if (r.status === "retired") continue;
-    for (const h of r.holders) {
-      seen.set(holderKey(h), h.name);
-      for (const p of h.people ?? []) if (p.memberId) seen.set(`member:${p.memberId}`, p.name);
-    }
-  }
-  const named = [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label));
-  return [{ value: UNASSIGNED, label: "Unassigned" }, ...named];
-}
-
-/** Does this job match the holder filter? "unassigned" = nobody holds it on the as-of date. */
-export function matchesHolder(row: Pick<RegisterRow, "holders">, value: string): boolean {
-  if (value === UNASSIGNED) return row.holders.length === 0;
-  return row.holders.some((h) => holderKey(h) === value || (h.people ?? []).some((p) => !!p.memberId && `member:${p.memberId}` === value));
-}
 
 /**
  * The jobs owners would see as "Unassigned since …" if that switch were on:

@@ -1,11 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   REGISTER_GROUPS,
-  UNASSIGNED,
-  holderKey,
-  holderOptions,
   isHeldRow,
-  matchesHolder,
   ownersWouldSeeUnassigned,
   publishedHolder,
   publishedSearchText,
@@ -57,45 +53,6 @@ describe("REGISTER_GROUPS", () => {
   it("is the five categories, in the register's order", () => {
     expect(REGISTER_GROUPS.map((g) => g.key)).toEqual(CATEGORY_KEYS);
     expect(REGISTER_GROUPS.every((g) => g.label.length > 0)).toBe(true);
-  });
-});
-
-describe("holderOptions", () => {
-  const rows = [
-    job({ id: "a", holders: [treasurer, holder({})] }),
-    job({ id: "b", holders: [vendor, holder({})] }),
-    job({ id: "c", holders: [] }),
-    job({ id: "d", status: "retired", holders: [holder({ kind: "label", ref: "Old Co", name: "Old Co" })] }),
-  ];
-  const opts = holderOptions(rows);
-
-  it("leads with Unassigned", () => expect(opts[0]).toEqual({ value: UNASSIGNED, label: "Unassigned" }));
-  it("lists each holder once, by name", () => {
-    expect(opts.slice(1).map((o) => o.label)).toEqual(["Acme Elevator", "Ann Lee", "Bo Chan", "Treasurer"]);
-  });
-  it("offers the person who holds an office as well as the office", () => {
-    expect(opts.map((o) => o.value)).toContain("member:m9");
-    expect(opts.map((o) => o.value)).toContain("office:treasurer");
-  });
-  it("leaves out holders of retired jobs", () => expect(opts.map((o) => o.label)).not.toContain("Old Co"));
-});
-
-describe("matchesHolder", () => {
-  it("unassigned matches a job nobody holds", () => {
-    expect(matchesHolder(job({ holders: [] }), UNASSIGNED)).toBe(true);
-    expect(matchesHolder(job({ holders: [holder({})] }), UNASSIGNED)).toBe(false);
-  });
-  it("a vacant office is not unassigned: the row still names the office", () => {
-    expect(matchesHolder(job({ holders: [vacantOffice] }), UNASSIGNED)).toBe(false);
-  });
-  it("a holder matches by kind and ref", () => {
-    expect(matchesHolder(job({ holders: [vendor] }), holderKey(vendor))).toBe(true);
-    expect(matchesHolder(job({ holders: [vendor] }), "member:m1")).toBe(false);
-  });
-  it("a person matches the job their office holds", () => {
-    expect(matchesHolder(job({ holders: [treasurer] }), "member:m9")).toBe(true);
-    expect(matchesHolder(job({ holders: [treasurer] }), "office:treasurer")).toBe(true);
-    expect(matchesHolder(job({ holders: [vacantOffice] }), "member:m9")).toBe(false);
   });
 });
 
