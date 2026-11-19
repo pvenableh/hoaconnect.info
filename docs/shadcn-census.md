@@ -43,19 +43,16 @@ files depend on the change.
 | `select/SelectContent.vue` | Glass surface, `rounded-xl` | ✅ Stock. `<AppSelectContent>`. | 12 | done |
 | `select/SelectTrigger.vue` | `glass-field rounded-full`, focus/invalid ring and border dropped | ✅ Stock. `<AppSelectTrigger>` restates the layered `glass-field` material and its focus ring unlayered in a scoped style (the AppCard way); `size` falls through. | 12 | done |
 | `tooltip/TooltipContent.vue` | Glass instead of `bg-foreground` inverse; arrow removed | ✅ Stock (arrow back). `<AppTooltipContent>` adds the glass and hides the arrow (`[&>span:has(>svg)]:hidden`). | 2 | done |
-| `badge/Badge.vue` | `rounded-md` → `rounded-full` | ✅ Back to its first commit. `<AppBadge>` adds `rounded-full`. 13 callers switched; /ui-kit has a badge row. The first commit is an older hand-rolled generation (no cva, no `data-slot`); see "Done". | 13 | done |
+| `badge/Badge.vue` | `rounded-md` → `rounded-full` | ✅ Re-pulled from the new-york-v4 registry (cva, `Primitive`, `data-slot`; it was a hand-rolled older generation). `<AppBadge>` keeps the workspace look over it: a `<span>`, semibold, `px-2.5`, wraps like text, the lift and the dark destructive fill. 13 callers; /ui-kit has a badge row. | 13 | done |
 | `tabs/TabsList.vue`, `TabsTrigger.vue` | Pill track (`rounded-full`, `p-1`, `gap-0.5`), wider trigger padding | ✅ Restored to stock — 0 users (views use `AppSegmentedControl` / `App/TabPanels`). | 0 | done |
 | `checkbox/Checkbox.vue` | `lucide-vue-next` `<Check>` → Nuxt `<Icon name="lucide:check">` | ✅ Restored to stock (`lucide-vue-next` `<Check>`). | 7 | done |
 | `chart/ChartContainer.vue` | Adds `--vis-axis-tick-label-font-size` / `--vis-axis-label-font-size: 10px` | ✅ Vars moved to the one caller, `AdminActivityPage` (inline `style` on `<ChartContainer>`). | 1 | done |
 | `combobox/*` (9 files) | Born as an Earnest port: `glass-field` pill anchor that owns the rim, bare input, glass `ComboboxList`, `type-micro` group label, `helper-text` empty, `<Icon>` glyphs | ✅ Stock (new-york-v4 registry, adds `ComboboxSeparator` / `ComboboxViewport`). `<AppCombobox v-model :options>` composes it; the bare input is reka's, since the stock input is palette-shaped. | 1 (ui-kit) | done |
 | `pagination/*` (8 files) | Earnest port: active page wears `glass-active-thumb`; `<Icon>` glyphs | ✅ Stock. `<AppPagination>` composes the whole row (reka root props pass through). | 1 (ui-kit) | done |
 | `toggle-group/*` (3 files) | Earnest port: `glass-field` track, `glass-active-thumb` ON state, `glass-btn-soft` outline variant | ✅ Stock, plus the stock `ui/toggle` it now depends on. `<AppToggleGroup>` + `<AppToggleGroupItem>`; the ON background moved out of `@layer` in earnest-ui.css (keyed on the stock data-slot) so it beats the stock `data-[state=on]:bg-accent`. Only the default variant is dressed. | 1 (ui-kit) | done |
-| `calendar/*` (13 files) | Earnest port of stock new-york **minus** the month/year `NativeSelect` layouts; no material changes | Deferred — a re-pull brings the `layout` prop and a new `native-select` primitive from the registry. The material is stock; only an unused feature is missing. Re-pull when someone wants the year dropdown. | 0 (DateInput) | L |
+| `calendar/*` (13 files) | Earnest port of stock new-york **minus** the month/year `NativeSelect` layouts; no material changes | ✅ Re-pulled with the new `ui/native-select` (adds `layout`). `<AppCalendar>` wraps it; `.app-calendar` in earnest-ui.css keeps the pill nav and day buttons, which the stock builds from `buttonVariants()` inside `ui/`. DateInput uses it. | 1 (DateInput) | done |
 
-**Version drift, not customisation** (no wrapper; a re-pull just updates them): `sheet/Sheet.vue`,
-`SheetClose.vue`, `SheetTrigger.vue` (older generation, no `data-slot`), `@/lib/utils` vs
-`~/lib/utils` imports, multi-line `cn(…)` formatting in Alert/Form/Label, Avatar/Breadcrumb/
-Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Session 18.
+**Version drift, not customisation:** ✅ `sheet/*` re-pulled from the registry (data-slots, a separate `SheetOverlay`, an unpadded flex pane); `<AppSheetContent>` pads the pane and `<AppSheetHeader>` / `<AppSheetTitle>` keep the header layout and title size. The rest (`@/lib/utils` vs `~/lib/utils` imports, multi-line `cn(…)` formatting, Avatar/Breadcrumb/Table/Field mis-paired by `--follow`) is cosmetic. `card/*` is stock since Session 18.
 
 ## Two things that decide how the rest goes
 
@@ -92,39 +89,26 @@ Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Ses
 
 ## Done
 
-All of `ui/` that carried a project change is stock again, and the app uses `App*` wrappers
-(`AppCard`, `AppBadge`, `AppButton`, `AppInput`, `AppTextarea`, `AppDialogContent`, `AppSheetContent`,
-`AppPopoverContent`, `AppDropdownMenuContent`, `AppSelectContent`, `AppSelectTrigger`,
-`AppTooltipContent`, `AppCombobox`, `AppPagination`, `AppToggleGroup` / `AppToggleGroupItem`).
+All of `ui/` is stock shadcn-vue (current new-york-v4 for Button, Badge, Sheet, Calendar,
+Native Select, Combobox, Pagination, Toggle Group; first-commit stock for the rest), and nothing
+project-authored lives there. The app uses `App*` wrappers: `AppButton` (+ `appButtonClasses` /
+`appButtonVariants`), `AppInput`, `AppTextarea`, `AppBadge`, `AppCard`, `AppCalendar`,
+`AppDialogContent`, `AppSheetContent` / `AppSheetHeader` / `AppSheetTitle`, `AppPopoverContent`,
+`AppDropdownMenuContent` / `AppDropdownMenuSubContent`, `AppSelectContent`, `AppSelectTrigger`,
+`AppTooltipContent`, `AppCombobox`, `AppPagination`, `AppToggleGroup` / `AppToggleGroupItem`.
 The tag-matching audits learned the new names as they went (`overlay-boxes` in step 4,
-`form-dialogs` — `AppInput` / `AppTextarea` — in step 5); no count dropped.
+`form-dialogs` in step 5); no count dropped.
 
-Left over, none of it urgent:
+After step 5 (2026-11-19):
+- DateInput and TiptapEditor were still on stock parts (the caller sweeps skipped `ui/`); fixed.
+- `ActionButton`, `BackLink`, `PageContainer`, `DateInput`, `DateTimeInput`, `LoadingOverlay`
+  and `TiptapEditor` moved to `app/components/` (same tag names); DateInput's helpers are
+  `app/lib/date-input-value.ts`. The audits then saw them for the first time; their findings carry
+  `allow-*` reasons, except BackLink (and the header breadcrumb it matches) and the file picker's
+  folder glyph, which moved onto `type-micro` / `text-warning`.
+- `AppDropdownMenuSubContent` added; the /ui-kit menu has a submenu.
+- Badge, Sheet and Calendar re-pulled (see the table).
 
-- **Calendar** — the re-pull is still deferred (step 1). Since step 5 its nav buttons and day
-  cells are stock too (`rounded-md`, a bordered nav square), because they call `buttonVariants()`
-  inside `ui/calendar/` and nothing outside `ui/` reaches them. Re-pull, or give DateInput its own
-  composed calendar, if the pill look is wanted back.
-- ✅ **Project-authored files under `ui/` were missed by the caller sweeps** (fixed after step 5):
-  `DateInput` rendered the stock `PopoverContent` (not glass since step 4) and `TiptapEditor`
-  rendered stock `Button` ×26, `Input` ×2 and `DialogContent` ×2. Both now use the `App*`
-  wrappers. When a wrapper replaces a stock tag, sweep `ui/`'s project-authored files too.
-- **DropdownMenuSubContent** has no wrapper (no users). Add `AppDropdownMenuSubContent` the
-  `AppDropdownMenuContent` way when a submenu appears.
-- **Badge is an older generation.** Its first commit is hand-rolled (inline variant map, `<span>`,
-  no `data-slot`). A registry re-pull brings the cva Badge — already `rounded-full`, but
-  `font-medium`, `px-2`, a `dark:bg-destructive/60` fill, and a `<div>` unless `as="span"` is
-  passed. AppBadge would then want `as="span"` and a look at those.
-- **Stock with no users:** `AlertDialogAction` (ConfirmDialog uses an AppButton so a destructive
-  confirm reads destructive), `PaginationFirst` / `PaginationLast`. Dress them with
-  `appButtonClasses()` from the wrapper that first uses them.
-- ✅ **Project-authored files moved out of `ui/`** (after step 5): `ActionButton`, `BackLink`,
-  `PageContainer`, `DateInput`, `DateTimeInput`, `LoadingOverlay` and `TiptapEditor` now sit in
-  `app/components/` (same tag names, no caller changes); DateInput's value helpers are
-  `app/lib/date-input-value.ts`. `ui/` is now only vendored shadcn-vue. Out of the `ui/`
-  exclusion, the audits saw them for the first time: ten findings, each tagged `allow-*` with its
-  reason rather than restyled (BackLink's 11px caps and the file picker's amber folder glyph would
-  change look on the nearest token — candidates for a polish pass).
-- **Sheet version drift** — `ui/sheet/` is an older generation in every file (current registry
-  adds `data-slot`s, `ring-3` and a separate `SheetOverlay`). An upgrade, not a customisation;
-  re-pull with a look at the overlay's data-slot rule and AppSheetContent.
+Still stock with no users, to dress with `appButtonClasses()` from the wrapper that first uses
+them: `AlertDialogAction` (ConfirmDialog uses an AppButton so a destructive confirm reads
+destructive), `PaginationFirst` / `PaginationLast`. `App/Breadcrumbs.vue` has no users either.

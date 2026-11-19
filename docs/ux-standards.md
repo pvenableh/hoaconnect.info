@@ -69,11 +69,12 @@ Example: `<!-- allow-raw-button: calendar day cell, 42 per month, its own materi
 
 - **Excluded everywhere**: `app/components/ui/**` (vendored shadcn-vue — it _is_ the primitives).
   Those files stay stock; the app uses the `App*` wrappers that dress them (`AppButton`,
-  `AppInput`, `AppTextarea`, `AppBadge`, `AppCard`, `AppDialogContent`, `AppSheetContent`,
-  `AppPopoverContent`, `AppDropdownMenuContent`, `AppSelectContent`, `AppSelectTrigger`,
+  `AppInput`, `AppTextarea`, `AppBadge`, `AppCard`, `AppCalendar`, `AppDialogContent`,
+  `AppSheetContent` / `AppSheetHeader` / `AppSheetTitle`, `AppPopoverContent`,
+  `AppDropdownMenuContent` / `AppDropdownMenuSubContent`, `AppSelectContent`, `AppSelectTrigger`,
   `AppTooltipContent`, `AppCombobox`, `AppPagination`, `AppToggleGroup` — see
   `docs/shadcn-census.md`). A stock part that calls `buttonVariants()` itself gets
-  `appButtonClasses()` from `App/button-variants.ts`.
+  `appButtonClasses()` from `App/button-variants.ts`. Nothing project-authored lives in `ui/`.
 - **Public surfaces** (`Marketing/`, `Org/Landing*/`, `LandingBuilder/` and the marketing pages)
   keep their own palette; `color-literals` skips them. The public landing is not the workspace.
 - **Token definition files** (`theme.css`, `theme-app.css`, `variables.css`, `tailwind.css`):
