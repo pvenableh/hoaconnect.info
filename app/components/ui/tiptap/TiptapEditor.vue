@@ -333,7 +333,7 @@ const getFileIcon = (file: DirectusFile): string => {
     >
       <!-- Text Formatting -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -342,8 +342,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Bold"
         >
           <Icon name="lucide:bold" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -352,8 +352,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Italic"
         >
           <Icon name="lucide:italic" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -362,8 +362,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Underline"
         >
           <Icon name="lucide:underline" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -372,14 +372,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Strikethrough"
         >
           <Icon name="lucide:strikethrough" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Headings -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -388,8 +388,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Heading 1"
         >
           <Icon name="lucide:heading-1" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -398,8 +398,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Heading 2"
         >
           <Icon name="lucide:heading-2" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -408,14 +408,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Heading 3"
         >
           <Icon name="lucide:heading-3" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Lists -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -424,8 +424,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Bullet List"
         >
           <Icon name="lucide:list" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -434,14 +434,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Numbered List"
         >
           <Icon name="lucide:list-ordered" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Text Alignment -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -450,8 +450,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Align Left"
         >
           <Icon name="lucide:align-left" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -460,8 +460,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Align Center"
         >
           <Icon name="lucide:align-center" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -470,14 +470,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Align Right"
         >
           <Icon name="lucide:align-right" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Link & Extras -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -486,8 +486,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Add Link"
         >
           <Icon name="lucide:link" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -496,8 +496,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Quote"
         >
           <Icon name="lucide:quote" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -505,14 +505,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Horizontal Rule"
         >
           <Icon name="lucide:minus" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Image & File Upload -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -526,8 +526,8 @@ const getFileIcon = (file: DirectusFile): string => {
             class="w-4 h-4 animate-spin"
           />
           <Icon v-else name="lucide:image-plus" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -535,7 +535,7 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Browse Files"
         >
           <Icon name="lucide:folder-open" class="w-4 h-4" />
-        </Button>
+        </AppButton>
         <input
           ref="fileInput"
           type="file"
@@ -549,7 +549,7 @@ const getFileIcon = (file: DirectusFile): string => {
 
       <!-- Table -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -557,8 +557,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Insert Table"
         >
           <Icon name="lucide:table" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           v-if="editor.can().addColumnAfter()"
           type="button"
           variant="ghost"
@@ -567,8 +567,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Add Column"
         >
           <Icon name="lucide:columns-3" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           v-if="editor.can().addRowAfter()"
           type="button"
           variant="ghost"
@@ -577,8 +577,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Add Row"
         >
           <Icon name="lucide:rows-3" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           v-if="editor.can().deleteTable()"
           type="button"
           variant="ghost"
@@ -587,14 +587,14 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Delete Table"
         >
           <Icon name="lucide:trash-2" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
 
       <Separator orientation="vertical" class="mx-1 h-6" />
 
       <!-- Undo/Redo -->
       <div class="flex items-center gap-0.5">
-        <Button
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -603,8 +603,8 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Undo"
         >
           <Icon name="lucide:undo" class="w-4 h-4" />
-        </Button>
-        <Button
+        </AppButton>
+        <AppButton
           type="button"
           variant="ghost"
           size="sm"
@@ -613,7 +613,7 @@ const getFileIcon = (file: DirectusFile): string => {
           title="Redo"
         >
           <Icon name="lucide:redo" class="w-4 h-4" />
-        </Button>
+        </AppButton>
       </div>
     </div>
 
@@ -622,7 +622,7 @@ const getFileIcon = (file: DirectusFile): string => {
 
     <!-- Link Dialog -->
     <Dialog v-model:open="showLinkDialog">
-      <DialogContent class="sm:max-w-md">
+      <AppDialogContent class="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Insert Link</DialogTitle>
           <DialogDescription>
@@ -632,7 +632,7 @@ const getFileIcon = (file: DirectusFile): string => {
         <div class="space-y-4">
           <div class="space-y-2">
             <Label for="link-url">URL</Label>
-            <Input
+            <AppInput
               id="link-url"
               v-model="linkUrl"
               placeholder="https://example.com"
@@ -641,17 +641,17 @@ const getFileIcon = (file: DirectusFile): string => {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="showLinkDialog = false">
+          <AppButton variant="outline" @click="showLinkDialog = false">
             Cancel
-          </Button>
-          <Button @click="setLink"> Apply </Button>
+          </AppButton>
+          <AppButton @click="setLink"> Apply </AppButton>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
 
     <!-- File Browser Dialog -->
     <Dialog v-model:open="showFileBrowser">
-      <DialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
+      <AppDialogContent class="sm:max-w-3xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Browse Files</DialogTitle>
           <DialogDescription>
@@ -685,7 +685,7 @@ const getFileIcon = (file: DirectusFile): string => {
             name="lucide:search"
             class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 t-text-muted"
           />
-          <Input
+          <AppInput
             v-model="fileSearchQuery"
             placeholder="Search files..."
             class="pl-9"
@@ -770,11 +770,11 @@ const getFileIcon = (file: DirectusFile): string => {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" @click="showFileBrowser = false">
+          <AppButton variant="outline" @click="showFileBrowser = false">
             Cancel
-          </Button>
+          </AppButton>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   </div>
 </template>

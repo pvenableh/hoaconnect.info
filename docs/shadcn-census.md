@@ -105,9 +105,10 @@ Left over, none of it urgent:
   cells are stock too (`rounded-md`, a bordered nav square), because they call `buttonVariants()`
   inside `ui/calendar/` and nothing outside `ui/` reaches them. Re-pull, or give DateInput its own
   composed calendar, if the pill look is wanted back.
-- **DateInput's popover is not glass.** `ui/date-input/DateInput.vue` (project-authored) still
-  renders the stock `PopoverContent`, which went stock in step 4; it should use
-  `AppPopoverContent`. One line, missed by step 4's caller sweep because the file is under `ui/`.
+- ✅ **Project-authored files under `ui/` were missed by the caller sweeps** (fixed after step 5):
+  `DateInput` rendered the stock `PopoverContent` (not glass since step 4) and `TiptapEditor`
+  rendered stock `Button` ×26, `Input` ×2 and `DialogContent` ×2. Both now use the `App*`
+  wrappers. When a wrapper replaces a stock tag, sweep `ui/`'s project-authored files too.
 - **DropdownMenuSubContent** has no wrapper (no users). Add `AppDropdownMenuSubContent` the
   `AppDropdownMenuContent` way when a submenu appears.
 - **Badge is an older generation.** Its first commit is hand-rolled (inline variant map, `<span>`,

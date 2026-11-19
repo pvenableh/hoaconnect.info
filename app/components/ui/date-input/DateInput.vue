@@ -21,7 +21,8 @@ import type { HTMLAttributes } from "vue";
 import { DateFieldInput, DateFieldRoot } from "reka-ui";
 import { cn } from "~/lib/utils";
 import { Calendar } from "~/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
+import { Popover, PopoverTrigger } from "~/components/ui/popover";
+import AppPopoverContent from "~/components/App/PopoverContent.vue";
 import { fromDateTimeValue, fromDateValue, toCalendarDate, toCalendarDateTime } from "./value";
 
 defineOptions({ inheritAttrs: false });
@@ -130,7 +131,7 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
           <Icon name="lucide:calendar" class="size-4" />
         </button>
       </PopoverTrigger>
-      <PopoverContent class="w-auto p-0" align="end">
+      <AppPopoverContent class="w-auto p-0" align="end">
         <!-- default-placeholder opens the grid on the bound month, not today's;
              the Calendar mounts fresh on every open, so this is read each time. -->
         <Calendar
@@ -141,7 +142,7 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
           initial-focus
           @update:model-value="onPick"
         />
-      </PopoverContent>
+      </AppPopoverContent>
     </Popover>
 
     <input v-if="name" type="hidden" :name="name" :value="modelValue ?? ''" />
