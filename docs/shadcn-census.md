@@ -5,7 +5,7 @@ at their stock defaults; project changes live in a wrapper outside `ui/`. Sessio
 Card (`ui/card/Card.vue` restored, `<AppCard>` in `app/components/App/Card.vue`, 39 users switched).
 This is the census for everything else._
 
-**Status:** step 1 (free restorations) done 2026-11-19, except Calendar (see below). Steps 2, 3 and 4 done the same day. Step 5 not started.
+**Status:** all five steps done 2026-11-19. Step 1 left Calendar's re-pull deferred (see below); the leftovers are listed under "Done" at the end.
 
 ## How it was counted
 
@@ -31,9 +31,9 @@ files depend on the change.
 
 | File(s) | What was changed | Proposed wrapper | Users | Risk |
 |---|---|---|---|---|
-| `button/index.ts` (+ `Button.vue` import order only) | Pill base (`rounded-full`); variants wear `glass-btn-primary / -destructive / -soft / -soft--tinted` instead of flat fills + `shadow-xs`; `destructive-foreground` text; added `icon-sm`, `icon-lg` sizes | `<AppButton>` (`App/Button.vue`) wrapping `<Button>`, plus an `appButtonVariants` for non-component use | **170** | **H** — also used inside `ui/` via `buttonVariants()`: `AlertDialogAction/Cancel`, `PaginationItem`, calendar nav buttons. Those would go stock unless they are wrapped too. `icon-sm`/`icon-lg` are in current upstream, so they may survive a re-pull. |
-| `input/Input.vue` | Box replaced by `field-underline` (no border, radius, padding-x, shadow, focus ring) | `<AppInput>` | **77** | **H** — `defineModel` + vee-validate `componentField` must pass through untouched; `DateInput` composes it. |
-| `textarea/Textarea.vue` | Same `field-underline` swap as Input | `<AppTextarea>` | 21 | M |
+| `button/index.ts` (+ `Button.vue` import order only) | Pill base (`rounded-full`); variants wear `glass-btn-primary / -destructive / -soft / -soft--tinted` instead of flat fills + `shadow-xs`; `destructive-foreground` text; added `icon-sm`, `icon-lg` sizes | ✅ Stock (new-york-v4 registry: also `xs` / `icon-xs`, `data-variant` / `data-size`). `<AppButton>` + `App/button-variants.ts` (`appButtonClasses` = the additions, `appButtonVariants` = the full list). Primary/destructive glass is a class; outline/secondary's `glass-btn-soft` is restated unlayered as `.app-btn-soft` in earnest-ui.css (focus reverts to the stock ring). Inside `ui/`: ConfirmDialog dresses `AlertDialogCancel`, AppPagination dresses its items; `AlertDialogAction`, `PaginationFirst/Last` (no users) and the calendar nav + cell buttons are stock. 169 callers switched. | 170 | done |
+| `input/Input.vue` | Box replaced by `field-underline` (no border, radius, padding-x, shadow, focus ring) | ✅ Stock. `<AppInput>` adds the unlayered `field-underline` and swaps the stock `px-3` for `p-0 py-1`, so theme-app.css's `[class*="px-"]` padding sniff only sees a caller's padding. v-model (and `.number`), vee-validate fields and listeners fall through (pinned by `tests/components/app-field-wrappers.test.ts`). `DateInput` does not compose Input (it is reka's DateField). 77 callers switched. | 77 | done |
+| `textarea/Textarea.vue` | Same `field-underline` swap as Input | ✅ Stock. `<AppTextarea>`, the AppInput way (`p-0 py-2`). 21 callers switched. | 21 | done |
 | `dialog/DialogContent.vue`, `DialogOverlay.vue` (`DialogScrollContent.vue` ✅ restored, 0 users) | `glass-surface glass-surface--strong rounded-2xl`, no border/shadow; overlay `bg-black/80` → `dialog-overlay-glass` | ✅ Stock. `<AppDialogContent>` adds the glass (unlayered, so a class is enough); the overlay comes from its data-slot. 34 callers switched. | 34 | done |
 | `alert-dialog/AlertDialogContent.vue` | Same glass + overlay as Dialog | ✅ Stock again; `App/ConfirmDialog.vue` puts `glass-surface glass-surface--strong rounded-2xl` on it. Overlay via data-slot (below). | 1 | done |
 | `command/CommandDialog.vue` | Hides the close X, makes `Command` transparent on the glass pane | ✅ Stock again; `App/Spotlight.vue` composes `Dialog` + `Command` itself with the two changes. | 1 | done |
@@ -43,7 +43,7 @@ files depend on the change.
 | `select/SelectContent.vue` | Glass surface, `rounded-xl` | ✅ Stock. `<AppSelectContent>`. | 12 | done |
 | `select/SelectTrigger.vue` | `glass-field rounded-full`, focus/invalid ring and border dropped | ✅ Stock. `<AppSelectTrigger>` restates the layered `glass-field` material and its focus ring unlayered in a scoped style (the AppCard way); `size` falls through. | 12 | done |
 | `tooltip/TooltipContent.vue` | Glass instead of `bg-foreground` inverse; arrow removed | ✅ Stock (arrow back). `<AppTooltipContent>` adds the glass and hides the arrow (`[&>span:has(>svg)]:hidden`). | 2 | done |
-| `badge/Badge.vue` | `rounded-md` → `rounded-full` | `<AppBadge>` | 13 | L |
+| `badge/Badge.vue` | `rounded-md` → `rounded-full` | ✅ Back to its first commit. `<AppBadge>` adds `rounded-full`. 13 callers switched; /ui-kit has a badge row. The first commit is an older hand-rolled generation (no cva, no `data-slot`); see "Done". | 13 | done |
 | `tabs/TabsList.vue`, `TabsTrigger.vue` | Pill track (`rounded-full`, `p-1`, `gap-0.5`), wider trigger padding | ✅ Restored to stock — 0 users (views use `AppSegmentedControl` / `App/TabPanels`). | 0 | done |
 | `checkbox/Checkbox.vue` | `lucide-vue-next` `<Check>` → Nuxt `<Icon name="lucide:check">` | ✅ Restored to stock (`lucide-vue-next` `<Check>`). | 7 | done |
 | `chart/ChartContainer.vue` | Adds `--vis-axis-tick-label-font-size` / `--vis-axis-label-font-size: 10px` | ✅ Vars moved to the one caller, `AdminActivityPage` (inline `style` on `<ChartContainer>`). | 1 | done |
@@ -87,9 +87,35 @@ Table/Field files (stock, mis-paired by `--follow`). `card/*` is stock since Ses
    over fresh stock. Cheap now; expensive once features adopt them.
 4. ✅ **Floating chrome** (done; 53 files switched): decide
    one primitive per commit. Overlays are settled (below); the content surfaces get wrappers.
-5. **Badge**, then **Textarea**, then **Input**, then **Button** last — Button touches 170
-   files and three other `ui/` primitives; do it once the pattern is boring.
+5. ✅ **Badge**, then **Textarea**, then **Input**, then **Button** last (done; one commit each) — Button touched 170
+   files and three other `ui/` primitives.
 
-**Next: step 5** — Badge (13), Textarea (21), Input (77), then Button (170 + `buttonVariants` inside
-`ui/`). The audits that match tags by name (`overlay-boxes` learned `AppDialogContent` /
-`AppSheetContent` in step 4) need the same check whenever a wrapper replaces a stock tag.
+## Done
+
+All of `ui/` that carried a project change is stock again, and the app uses `App*` wrappers
+(`AppCard`, `AppBadge`, `AppButton`, `AppInput`, `AppTextarea`, `AppDialogContent`, `AppSheetContent`,
+`AppPopoverContent`, `AppDropdownMenuContent`, `AppSelectContent`, `AppSelectTrigger`,
+`AppTooltipContent`, `AppCombobox`, `AppPagination`, `AppToggleGroup` / `AppToggleGroupItem`).
+The tag-matching audits learned the new names as they went (`overlay-boxes` in step 4,
+`form-dialogs` — `AppInput` / `AppTextarea` — in step 5); no count dropped.
+
+Left over, none of it urgent:
+
+- **Calendar** — the re-pull is still deferred (step 1). Since step 5 its nav buttons and day
+  cells are stock too (`rounded-md`, a bordered nav square), because they call `buttonVariants()`
+  inside `ui/calendar/` and nothing outside `ui/` reaches them. Re-pull, or give DateInput its own
+  composed calendar, if the pill look is wanted back.
+- **DateInput's popover is not glass.** `ui/date-input/DateInput.vue` (project-authored) still
+  renders the stock `PopoverContent`, which went stock in step 4; it should use
+  `AppPopoverContent`. One line, missed by step 4's caller sweep because the file is under `ui/`.
+- **DropdownMenuSubContent** has no wrapper (no users). Add `AppDropdownMenuSubContent` the
+  `AppDropdownMenuContent` way when a submenu appears.
+- **Badge is an older generation.** Its first commit is hand-rolled (inline variant map, `<span>`,
+  no `data-slot`). A registry re-pull brings the cva Badge — already `rounded-full`, but
+  `font-medium`, `px-2`, a `dark:bg-destructive/60` fill, and a `<div>` unless `as="span"` is
+  passed. AppBadge would then want `as="span"` and a look at those.
+- **Stock with no users:** `AlertDialogAction` (ConfirmDialog uses an AppButton so a destructive
+  confirm reads destructive), `PaginationFirst` / `PaginationLast`. Dress them with
+  `appButtonClasses()` from the wrapper that first uses them.
+- **Project-authored files still in `ui/`** (`ActionButton`, `BackLink`, `PageContainer`,
+  `date-input/`, `loading-overlay/`, `tiptap/`) — a rename out of `ui/`, not a wrapper.
