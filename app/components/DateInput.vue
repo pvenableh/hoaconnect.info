@@ -80,6 +80,12 @@ const onPick = (picked: DateValue | undefined) => {
 };
 
 const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateValue | undefined);
+
+// The literal segments come from Intl, and Node's ICU and the browser's differ
+// on spacing: Node puts a narrow no-break space (U+202F) before "PM", Chrome a
+// plain one. Server and client would render different text and fail hydration,
+// so both get the plain space the browser shows once the field re-renders.
+const literal = (value: string) => value.replace(/[\u00A0\u202F]/g, " ");
 </script>
 
 <template>
@@ -108,7 +114,7 @@ const calendarValue = computed(() => toCalendarDate(props.modelValue) as DateVal
     >
       <template v-for="(item, i) in segments" :key="`${item.part}-${i}`">
         <DateFieldInput v-if="item.part === 'literal'" :part="item.part" class="text-muted-foreground">
-          {{ item.value }}
+          {{ literal(item.value) }}
         </DateFieldInput>
         <DateFieldInput
           v-else
