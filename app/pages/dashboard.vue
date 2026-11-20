@@ -38,13 +38,21 @@ watch(
      silently disabled Nuxt's route transitions for it. As a v-if/v-else pair
      the states are mutually exclusive by construction rather than by two
      expressions that have to be kept in agreement, and the overlay no longer
-     needs a `show` prop that restated its own mount condition. -->
-<template>
-  <LoadingOverlay
-    v-if="isLoading || hasRedirected"
-    message="Loading your dashboard..."
-  />
+     needs a `show` prop that restated its own mount condition.
 
-  <!-- Only reached when the user has no org to redirect to. -->
-  <PagesDashboardPage v-else />
+     And that root is a plain div. NuxtPage's page transition hands its hooks
+     down through each component root until it reaches an element; LoadingOverlay
+     roots in a <Teleport>, so the transition reached that ("Component inside
+     <Transition> renders non-element root node"). The overlay still teleports to
+     <body>; the div is what the page transition animates. -->
+<template>
+  <div>
+    <LoadingOverlay
+      v-if="isLoading || hasRedirected"
+      message="Loading your dashboard..."
+    />
+
+    <!-- Only reached when the user has no org to redirect to. -->
+    <PagesDashboardPage v-else />
+  </div>
 </template>
