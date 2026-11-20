@@ -1,4 +1,10 @@
 <template>
+  <!-- One element root around <NuxtLayout>. NuxtPage's page transition hands
+       its hooks down through each component root until it reaches an element;
+       with <NuxtLayout> as the root it reached the <Suspense> NuxtLayout renders
+       ("Component inside <Transition> renders non-element root node"). This
+       div is what the page transition animates now, the whole shell, as before. -->
+  <div>
   <NuxtLayout :name="layoutName">
   <div class="min-h-screen">
     <!-- Loading State -->
@@ -57,6 +63,7 @@
     </template>
   </div>
   </NuxtLayout>
+  </div>
 </template>
 
 <script setup>
@@ -66,7 +73,11 @@
 // dashboard rendered under the sidebar). Instead we own the layout via
 // `layout: false` + a reactive `<NuxtLayout :name>`, which resolves correctly on
 // SSR once setup's awaits complete.
-definePageMeta({ layout: false });
+//
+// No layout transition: the page transition (on the div in the template) moves
+// the whole shell. Before that div existed, the page transition's hooks overwrote
+// the layout transition's, so the layout fade never ran here; `false` keeps it so.
+definePageMeta({ layout: false, layoutTransition: false });
 
 const route = useRoute();
 const { user } = useDirectusAuth();
