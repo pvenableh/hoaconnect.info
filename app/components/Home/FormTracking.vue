@@ -5,7 +5,7 @@
  * server route checks the admin or board hat for this organization
  * (`/api/org/forms/pending`); a refusal renders nothing.
  */
-const props = defineProps<{ organizationId: string | null | undefined }>();
+const props = defineProps<{ organizationId: string | null | undefined; upgradePrompt?: boolean }>();
 
 interface Tracked {
   id: string;
@@ -23,12 +23,26 @@ const { data } = await useAsyncData(
       : { forms: [] },
   { watch: [() => props.organizationId], server: false, default: () => ({ forms: [] as Tracked[] }) }
 );
+// Admin home only: a plan without forms to sign sees one quiet upgrade line.
+const { data: access } = await useAsyncData(
+  () => `home-form-access-${props.organizationId}`,
+  async () =>
+    props.upgradePrompt && props.organizationId
+      ? await $fetch<{ allowed: boolean; message: string | null }>("/api/org/forms/access", { query: { orgId: props.organizationId } }).catch(() => null)
+      : null,
+  { watch: [() => props.organizationId], server: false, default: () => null }
+);
 const forms = computed(() => data.value?.forms ?? []);
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 const copyHref = (f: Tracked, memberId: string) => `/api/org/forms/${f.id}/signed-copy?orgId=${props.organizationId}&memberId=${memberId}`;
 </script>
 
 <template>
+  <AppCard v-if="access && !access.allowed" class="mb-4 p-4" data-testid="home-form-upgrade">
+    <h2 class="t-eyebrow">Forms to sign</h2>
+    <p class="text-sm t-text-muted">{{ access.message }}</p>
+    <NuxtLink to="/settings/subscription" class="text-sm font-medium underline underline-offset-4">See plans</NuxtLink>
+  </AppCard>
   <div v-if="forms.length" class="space-y-3" data-testid="home-form-tracking">
     <h2 class="t-eyebrow">Forms to sign</h2>
     <AppCard v-for="f in forms" :key="f.id" class="p-4" data-testid="home-form-tracking-form">

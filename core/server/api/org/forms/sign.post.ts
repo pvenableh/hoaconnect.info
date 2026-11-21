@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
   const { context, allowed } = await getRoleContext(event, orgId);
   if (!allowed || !context.membershipId) throw createError({ statusCode: 403, statusMessage: "Not a member of this community" });
   const memberId = context.membershipId;
+  await requireFormsPlan(orgId);
 
   const [forms, sigs] = await Promise.all([readSignForms(orgId, { onlyId: formId }), readSignatures(orgId, { member: memberId, form: formId })]);
   if (sigs.length) return { ok: true, already: true };

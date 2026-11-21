@@ -54,6 +54,7 @@ import {
   type AckNoticeInput,
   type FormInput,
 } from "#core/shared/reminders/rules";
+import { formsGate } from "#core/shared/billing/forms-plan";
 import { composeReminder, reminderPushActions, type ComposedReminder } from "#core/shared/reminders/messages";
 import { isNotUnique } from "./email-send-queue";
 
@@ -822,6 +823,18 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
       if (want.has("form")) {
         tasks.push(
           (async () => {
+            // Ungated plans send no form reminders (the rows are off their homes too).
+            const gateOrg = (
+              await read<any>("hoa_organizations", {
+                filter: { id: { _eq: org.id } },
+                fields: [
+                  "subscription_status", "trial_ends_at", "is_free_account", "grace_ends_at",
+                  { subscription_plan: ["slug", "features", "is_contact_only"] },
+                  { billing_account: ["subscription_status", "trial_ends_at", "is_free_account", { subscription_plan: ["slug", "features", "is_contact_only"] }] },
+                ],
+              })
+            )[0];
+            if (!formsGate(gateOrg).allowed) return;
             const rows = await read<any>("hoa_forms", {
               filter: { organization: { _eq: org.id }, status: { _eq: "open" } },
               fields: ["id", "title", "sent_at", "date_created", "due_date", "audience"],

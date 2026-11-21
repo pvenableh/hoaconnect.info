@@ -14,6 +14,8 @@ export default defineEventHandler(async (event) => {
 
   const { context, allowed } = await getRoleContext(event, orgId);
   if (!allowed || !context.membershipId) return { forms: [] };
+  // An ungated plan owes no signatures: the row stays off the home.
+  if (!(await getFormsGate(orgId)).allowed) return { forms: [] };
 
   const [forms, sigs] = await Promise.all([readSignForms(orgId, { onlyOpen: true }), readSignatures(orgId, { member: context.membershipId })]);
   const who = { memberId: context.membershipId, organization: orgId, residency: context.residency, board: context.hats.board };
