@@ -26,19 +26,19 @@ Both are "an item sent to people, and a record per person".
 
 Permissions follow the existing member rules: a member reads and creates only their own acknowledgment or signature; admins and board read all.
 
-## Decisions Peter needs to make first
+## Decisions (2026-11-21, Peter)
 
-1. **Legal weight.** Is a typed-name signature enough, or does any form need a drawn signature or a third-party e-sign service? This decides whether `signed_file` and an audit trail are required.
-2. **Audience.** Owners only, or also tenants and board for some forms?
-3. **Reminders.** Reuse the reminder engine (`core/shared/reminders/rules.ts`) for unacknowledged and unsigned items, or home-only at first?
-4. **Revenue.** Forms to sign is a plausible paid feature (see the platform revenue goal). Gate it by plan, or include it?
+1. **Signature weight:** a typed name plus an audit trail (time, IP, browser). Drawn or third-party e-sign is out of scope until a customer asks.
+2. **Audience:** set per form (owners, tenants, board or all), defaulting to owners. Notices default to everyone the announcement targets. The Tenant and Board homes in §5 of the plan get a "forms to sign" key too.
+3. **Reminders:** use the reminder engine (`core/shared/reminders/rules.ts`) from the start, not home-only. An unacknowledged notice and an unsigned form each get a rule (a nudge a few days after sending, and again before the due date). Each UI step below ships its own rule, so nothing is left for later.
+4. **Plan gating:** acknowledgments are free; forms to sign is gated by plan, using the existing entitlement code.
 
 ## Build order (each a session of about eight files)
 
 1. Schema and permissions for acknowledgments, plus a pure `core/shared/home/acknowledgments.ts` (who still owes one) with tests.
-2. Tenant home: the Needs-you row with swipe-to-acknowledge (uses `useSwipeRow`), and a "who has not" list for admins.
+2. Tenant home: the Needs-you row with swipe-to-acknowledge (uses `useSwipeRow`), an admin "who has not" list, and the acknowledgment reminder rule with its test.
 3. Schema and permissions for forms and signatures, plus the pure outstanding-forms helper with tests.
-4. Owner home: the "Sign" row and a signing sheet; the admin tracking list and the signed-copy download.
-5. Reminders and, if decided, plan gating.
+4. Owner, tenant and board homes: the "Sign" row and a signing sheet (typed name, audit trail), the admin tracking list, the signed-copy download, and the form reminder rule with its test.
+5. Plan gating for forms to sign: the entitlement check on creating a form and on the signing routes, an upgrade prompt for ungated plans, and a test per plan state.
 
-Done when, for each: a seeded tenant or owner sees the row, acts in place, the row disappears, and the admin list shows it done.
+Done when, for each: a seeded tenant or owner sees the row, acts in place, the row disappears, the admin list shows it done, and (steps 2 and 4) the reminder rule fires for someone who has not acted.

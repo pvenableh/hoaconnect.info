@@ -29,6 +29,9 @@
 import type { DataTableColumn } from "./DataTable.vue";
 import type { DataTableStack } from "./data-table-stack";
 import type { ResourceHandle } from "#core/app/composables/useResource";
+import { useAppSlideOver } from "#core/app/composables/useAppSlideOverStack";
+import { flipPayloadFrom } from "#core/app/composables/useFlipFromRow";
+import { useSharedElement } from "#core/app/composables/useSharedElement";
 
 const props = withDefaults(
   defineProps<{
@@ -72,6 +75,34 @@ const slots = useSlots();
 // child changing its owner's data behind its back. The alias says so.
 const view = toRef(props, "resource");
 
+// Open and return. The panel flies out of the clicked row (flipFrom, as the
+// request and task lists do), and on close focus and the settle go back to that
+// same row. `openedFrom` remembers which row opened the panel, so a panel opened
+// by a deep link or by another row never settles the wrong one.
+const rootEl = ref<HTMLElement | null>(null);
+const shared = useSharedElement();
+const slide = props.resource.panel ? useAppSlideOver(props.resource.panel) : null;
+let lastRowEl: HTMLElement | null = null;
+let openedFrom: { key: string; el: HTMLElement } | null = null;
+
+function noteRow(ev: Event) {
+  const el = (ev.target as Element | null)?.closest?.(".data-table__row");
+  lastRowEl = (el as HTMLElement) ?? null;
+}
+
+watch(
+  () => props.resource.openId,
+  async (now, prev) => {
+    if (!prev || now || !openedFrom || openedFrom.key !== prev) return;
+    const { el } = openedFrom;
+    openedFrom = null;
+    await nextTick();
+    if (!el.isConnected) return;
+    el.focus({ preventScroll: true });
+    void shared.grow(el);
+  },
+);
+
 const countLabel = computed(() => {
   // "0 charges" while the first load is in flight would be a false statement.
   if (props.resource.pending && !props.resource.total) return "Loading…";
@@ -95,7 +126,15 @@ const cellSlots = computed(() => Object.keys(slots).filter((n) => n.startsWith("
 const instance = getCurrentInstance();
 const clickable = computed(() => !!props.resource.panel || !!instance?.vnode.props?.onOpen);
 function onRowClick(row: Row) {
-  if (props.resource.panel) void props.resource.open(row);
+  if (slide) {
+    const key = props.resource.keyOf(row);
+    const el = lastRowEl;
+    if (el) {
+      shared.capture(el);
+      openedFrom = { key, el };
+    }
+    void slide.open(key, { flipFrom: flipPayloadFrom(el) });
+  }
   emit("open", row);
 }
 // camelCase key: `v-on="{…}"` turns it into `onRowClick`, which is the prop
@@ -109,7 +148,7 @@ function rowClasses(row: Row) {
 </script>
 
 <template>
-  <div class="resource-index">
+  <div ref="rootEl" class="resource-index">
     <AppPageHeader v-if="title" :title="title" :description="description">
       <template #meta>
         <span class="type-meta t-text-muted tabular-nums">{{ countLabel }}</span>
@@ -160,7 +199,12 @@ function rowClasses(row: Row) {
     <!-- Grouped, the card clips instead of hiding: `overflow: hidden` makes the card
          a scroll container, and a sticky header then sticks inside the card
          (where nothing scrolls) instead of to the window. -->
-    <div class="ios-card px-2 pb-2" :class="group ? 'overflow-clip' : 'overflow-hidden'">
+    <div
+      class="ios-card px-2 pb-2"
+      :class="group ? 'overflow-clip' : 'overflow-hidden'"
+      @click.capture="noteRow"
+      @keydown.capture="noteRow"
+    >
       <AppDataTable
         :columns="tableColumns"
         :rows="resource.visible"
