@@ -23,6 +23,8 @@
  * animate with tw-animate-css keyframes instead and are already compliant.
  */
 
+export * from "./kit";
+
 export const EASING = {
   spring: "cubic-bezier(0.36, 0.66, 0.04, 1)",
   springOut: "cubic-bezier(0.32, 0.72, 0, 1)",

@@ -11,6 +11,7 @@
 // loading, container resizes, and label changes.
 
 import type { Ref, CSSProperties } from "vue";
+import { LIQUID_STRETCH_MS, liquidSpan, prefersReducedMotion } from "#core/shared/motion";
 
 export interface SlidingThumbOptions {
   /**
@@ -18,6 +19,11 @@ export interface SlidingThumbOptions {
    * list itself, a density setting, a label-collapse breakpoint).
    */
   watchSource?: () => unknown;
+  /**
+   * Stretch toward the destination, then settle into it (the liquid capsule).
+   * Default on; a no-op under reduced motion, where the thumb just moves.
+   */
+  liquid?: boolean;
 }
 
 export function useSlidingThumb(
@@ -53,7 +59,13 @@ export function useSlidingThumb(
     };
   }
 
+  let settleTimer: ReturnType<typeof setTimeout> | null = null;
+
   function measure() {
+    if (settleTimer) {
+      clearTimeout(settleTimer);
+      settleTimer = null;
+    }
     const el = itemEls.value[activeIndex.value];
     if (!el || !trackEl.value) {
       // No active item (index -1, or a filtered-out tab): leave the thumb where
@@ -62,9 +74,25 @@ export function useSlidingThumb(
       measured.value = false;
       return;
     }
-    offset.value = el.offsetLeft;
-    width.value = el.offsetWidth;
+    const next = { offset: el.offsetLeft, width: el.offsetWidth };
+    const span = measured.value && options.liquid !== false
+      ? liquidSpan({ offset: offset.value, width: width.value }, next, prefersReducedMotion())
+      : null;
     measured.value = true;
+    if (span) {
+      // Reach the far edge first, then settle: the capsule stretches and
+      // contracts instead of sliding as a rigid block.
+      offset.value = span.offset;
+      width.value = span.width;
+      settleTimer = setTimeout(() => {
+        offset.value = next.offset;
+        width.value = next.width;
+        settleTimer = null;
+      }, LIQUID_STRETCH_MS);
+      return;
+    }
+    offset.value = next.offset;
+    width.value = next.width;
   }
 
   /** Bind to the thumb element. Transform-only, so it animates on the compositor. */
@@ -94,6 +122,7 @@ export function useSlidingThumb(
   });
 
   onUnmounted(() => {
+    if (settleTimer) clearTimeout(settleTimer);
     ro?.disconnect();
     ro = null;
   });

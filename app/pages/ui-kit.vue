@@ -92,6 +92,9 @@ const segmentItems = [
   { value: "archived", label: "Archived", disabled: true },
 ];
 
+const countValue = ref(1284);
+const revealKey = ref(0);
+
 const filterSegment = ref("all");
 const filterItems = [
   { value: "all", label: "All" },
@@ -679,6 +682,35 @@ const materials = [
           <AppSegmentedControl v-model="filterSegment" :items="filterItems" size="sm" label="Filter" />
           <AppSegmentedControl v-model="filterSegment" :items="filterItems" fill label="Filter (fill)" />
           <p class="type-meta">Selected: {{ segment }} / {{ filterSegment }}</p>
+        </div>
+      </section>
+
+      <!-- ── Motion kit A ─────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Motion</h2>
+        <p class="type-body">
+          Numbers roll, lists arrive in turn, the segmented thumb stretches into
+          place, and a drill-down pushes. Each is a no-op under reduced motion.
+        </p>
+        <div class="ios-card p-5 mt-3 space-y-5">
+          <div class="flex flex-wrap items-center gap-3">
+            <p class="text-3xl font-semibold" data-kit="count-up">
+              <AppCountUp :value="countValue" prefix="$" />
+            </p>
+            <AppButton variant="outline" size="sm" @click="countValue = Math.round(500 + Math.random() * 9000)">
+              Change value
+            </AppButton>
+          </div>
+          <div class="space-y-2">
+            <AppButton variant="outline" size="sm" @click="revealKey++">Replay reveal</AppButton>
+            <AppReveal :key="revealKey" class="grid grid-cols-2 sm:grid-cols-4 gap-3" data-kit="reveal">
+              <div v-for="n in 8" :key="n" class="ios-card p-3 type-meta">Item {{ n }}</div>
+            </AppReveal>
+          </div>
+          <p class="type-meta">
+            Liquid thumb: use the segmented controls above. Push and pop: open a
+            record from any index and go back.
+          </p>
         </div>
       </section>
 

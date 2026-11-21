@@ -163,8 +163,8 @@ function setButtonRef(index: number) {
   border-radius: 999px;
   /* The house iOS spring. Transform + width only — no layout, no paint. */
   transition:
-    transform 400ms var(--spring),
-    width 400ms var(--spring),
+    transform 320ms var(--spring-out),
+    width 320ms var(--spring-out),
     opacity 200ms ease;
   pointer-events: none;
 }

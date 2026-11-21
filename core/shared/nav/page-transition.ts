@@ -138,7 +138,24 @@ export function pickPageTransition(
     }
   }
 
+  // A record under the page you came from is a push, and the way out of it a
+  // pop, whatever the history says: a deep link followed by the breadcrumb must
+  // still read as "up". History decides only when depth does not.
+  const depth = pushOrPopByDepth(fromRel, toRel);
+  if (depth) return depth;
+
   return stack === "back" ? "page-back" : "page-forward";
+}
+
+/** `/a/b` → `/a/b/c` is a push; the reverse a pop; anything else undecided. */
+export function pushOrPopByDepth(fromRel: string, toRel: string): "page-forward" | "page-back" | null {
+  const strip = (p: string) => (p.split("?")[0] ?? p).replace(/\/+$/, "");
+  const a = strip(fromRel);
+  const b = strip(toRel);
+  if (!a || !b) return null;
+  if (b.startsWith(`${a}/`)) return "page-forward";
+  if (a.startsWith(`${b}/`)) return "page-back";
+  return null;
 }
 
 function floorRoot(rel: string, linkPath: string): boolean {
