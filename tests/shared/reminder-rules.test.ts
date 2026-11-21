@@ -9,6 +9,7 @@
 import { describe, expect, it } from "vitest";
 import {
   evaluateReminders,
+  type AckNoticeInput,
   groupReminders,
   localDay,
   reminderClock,
@@ -389,6 +390,85 @@ describe("coverage — vendor coverage ending, to the admins (bell)", () => {
     const rs = run(s(), iso);
     expect(rs.map((r) => r.stage)).toEqual(want ? [want, want] : []);
     if (want) expect(rs[0]).toMatchObject({ channels: ["bell"], audience: "admin", category: "document" });
+  });
+});
+
+describe("acknowledgment — a notice nobody has acknowledged yet (bell, push, email)", () => {
+  const notice = (over: Partial<AckNoticeInput> = {}): AckNoticeInput => ({
+    id: "n1",
+    title: "Water shutoff Thursday",
+    // Sun, Nov 1, 10 am in New York.
+    publishedAt: "2026-11-01T15:00:00Z",
+    ackDue: "2026-11-12",
+    audienceUserIds: ["u1", "u2", "u3"],
+    ackedUserIds: ["u2"],
+    ...over,
+  });
+  const s = (n = notice()) => snap({ notices: [n] });
+
+  it.each([
+    ["2026-11-03T14:30:00Z", null], // two days out: too soon
+    ["2026-11-04T14:30:00Z", "nudge"], // three days after it went out
+    ["2026-11-06T14:30:00Z", "nudge"],
+    ["2026-11-07T14:30:00Z", null], // the nudge window has closed
+    ["2026-11-09T14:30:00Z", null], // due in 3: not yet in the lead
+    ["2026-11-10T14:30:00Z", "before"], // due in 2
+    ["2026-11-12T14:30:00Z", "before"], // due today
+    ["2026-11-13T14:30:00Z", null], // past due: the admin's list is the tool
+  ] as const)("at %s → %s", (iso, want) => {
+    const rs = run(s(), iso);
+    expect(rs.map((r) => r.stage)).toEqual(want ? [want, want] : []);
+  });
+
+  it("goes only to people the notice reaches who have not acknowledged it", () => {
+    const rs = run(s(), "2026-11-04T14:30:00Z");
+    expect(rs.map((r) => r.member).sort()).toEqual(["u1", "u3"]);
+    expect(rs[0]).toMatchObject({
+      rule: "acknowledgment",
+      audience: "member",
+      template: "notice",
+      channels: ["bell", "push", "email"],
+      category: "announcement",
+      essential: false,
+      entity: { collection: "hoa_announcements", id: "n1" },
+    });
+  });
+
+  it("is once per person per stage: the key hangs off the send day (nudge) or the due date (before)", () => {
+    expect(run(s(), "2026-11-04T14:30:00Z")[0]!.key).toBe("acknowledgment:n1:nudge@20261101:u1");
+    expect(run(s(), "2026-11-10T14:30:00Z")[0]!.key).toBe("acknowledgment:n1:before@20261112:u1");
+    // A later tick inside the window is the same key, so the tick's claim skips it.
+    expect(run(s(), "2026-11-05T14:30:00Z")[0]!.key).toBe(run(s(), "2026-11-04T14:30:00Z")[0]!.key);
+  });
+
+  it("a notice with no due date is nudged and never reminded again", () => {
+    const n = notice({ ackDue: null });
+    expect(run(s(n), "2026-11-04T14:30:00Z").map((r) => r.stage)).toEqual(["nudge", "nudge"]);
+    expect(run(s(n), "2026-11-10T14:30:00Z")).toEqual([]);
+  });
+
+  it("everyone acknowledged: nothing to send", () => {
+    expect(run(s(notice({ ackedUserIds: ["u1", "u2", "u3"] })), "2026-11-04T14:30:00Z")).toEqual([]);
+  });
+
+  it("waits for the send hour and stays quiet in the evening", () => {
+    expect(run(s(), "2026-11-04T12:30:00Z")).toEqual([]); // 7:30 am
+    expect(run(s(), "2026-11-05T02:30:00Z")).toEqual([]); // 9:30 pm on the 4th
+  });
+
+  it("is off until the board turns it on, and the 'before' days are the board's", () => {
+    const off = snap({ notices: [notice()], settings: allOn({ acknowledgment: { enabled: false } }) });
+    expect(run(off, "2026-11-04T14:30:00Z").every((r) => !r.enabled)).toBe(true);
+    const wide = snap({ notices: [notice()], settings: allOn({ acknowledgment: { days: 5 } }) });
+    expect(run(wide, "2026-11-07T14:30:00Z").map((r) => r.stage)).toEqual(["before", "before"]);
+    expect(resolveReminderSettings({}).rules.acknowledgment.days).toBe(2);
+  });
+
+  it("says what is owed and by when", () => {
+    const [nudge] = run(s(), "2026-11-04T14:30:00Z");
+    const [before] = run(s(), "2026-11-10T14:30:00Z");
+    expect(composeReminder([nudge!])).toMatchObject({ subject: "Please acknowledge: Water shutoff Thursday", ctaLabel: "Acknowledge" });
+    expect(composeReminder([before!]).subject).toBe("Please acknowledge by Thu, Nov 12: Water shutoff Thursday");
   });
 });
 

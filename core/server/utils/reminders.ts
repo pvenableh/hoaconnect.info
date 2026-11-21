@@ -51,6 +51,7 @@ import {
   type ReminderSnapshot,
   type RequestInput,
   type VendorInput,
+  type AckNoticeInput,
 } from "#core/shared/reminders/rules";
 import { composeReminder, reminderPushActions, type ComposedReminder } from "#core/shared/reminders/messages";
 import { isNotUnique } from "./email-send-queue";
@@ -573,6 +574,7 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
         requests: [],
         polls: [],
         vendors: [],
+        notices: [],
         adminUserIds: [],
       };
       const { orgAudienceUserIds, adminUserIds } = await import("./notification-events");
@@ -773,6 +775,44 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
               activeUntil: v.active_until ?? null,
             } satisfies VendorInput));
             snap.adminUserIds = rows.length ? await adminUserIds(org.id).catch(() => []) : [];
+          })()
+        );
+      }
+
+      if (want.has("acknowledgment")) {
+        tasks.push(
+          (async () => {
+            const rows = await read<any>("hoa_announcements", {
+              filter: {
+                organization: { _eq: org.id },
+                status: { _eq: "published" },
+                requires_acknowledgment: { _eq: true },
+                _and: [
+                  { _or: [{ expiry_date: { _null: true } }, { expiry_date: { _gte: asOf.toISOString() } }] },
+                  { _or: [{ publish_date: { _null: true } }, { publish_date: { _lte: asOf.toISOString() } }] },
+                ],
+              },
+              fields: ["id", "title", "publish_date", "date_created", "ack_due", "target_audience"],
+            });
+            const acks = rows.length
+              ? await read<any>("hoa_acknowledgments", {
+                  filter: { announcement: { _in: rows.map((n) => n.id) }, organization: { _eq: org.id } },
+                  fields: ["announcement", "member.user"],
+                })
+              : [];
+            snap.notices = await Promise.all(
+              rows.map(async (n) => ({
+                id: String(n.id),
+                title: String(n.title || "A notice"),
+                publishedAt: n.publish_date ?? n.date_created ?? null,
+                ackDue: n.ack_due ?? null,
+                audienceUserIds: await audience(n.target_audience),
+                ackedUserIds: acks
+                  .filter((a) => idOf(a.announcement) === String(n.id))
+                  .map((a) => idOf(a.member?.user))
+                  .filter(Boolean) as string[],
+              } satisfies AckNoticeInput))
+            );
           })()
         );
       }

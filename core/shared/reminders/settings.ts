@@ -26,7 +26,7 @@
  * before the assignee is nudged (7).
  */
 
-export const REMINDER_RULES = ["dues", "meeting", "request", "violation", "poll", "coverage"] as const;
+export const REMINDER_RULES = ["dues", "meeting", "request", "violation", "poll", "coverage", "acknowledgment"] as const;
 export type ReminderRule = (typeof REMINDER_RULES)[number];
 
 export const RULE_STAGES = {
@@ -36,6 +36,7 @@ export const RULE_STAGES = {
   violation: ["before", "due"],
   poll: ["opened", "closing", "closed"],
   coverage: ["before", "expired"],
+  acknowledgment: ["nudge", "before"],
 } as const satisfies Record<ReminderRule, readonly string[]>;
 export type ReminderStage = (typeof RULE_STAGES)[ReminderRule][number];
 
@@ -46,6 +47,7 @@ export const RULE_LABELS: Record<ReminderRule, string> = {
   violation: "Violations",
   poll: "Polls",
   coverage: "Vendor coverage",
+  acknowledgment: "Notice acknowledgments",
 };
 
 /** The local hour day-based reminders go out at, when the org hasn't chosen one. */
@@ -63,6 +65,7 @@ export const DEFAULT_DAYS: Record<ReminderRule, number> = {
   violation: 3,
   poll: 1,
   coverage: 30,
+  acknowledgment: 2,
 };
 const DAYS_MAX = 60;
 

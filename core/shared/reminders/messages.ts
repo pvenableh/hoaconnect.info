@@ -176,6 +176,24 @@ function defaultCopy(rule: ReminderRule, stage: ReminderStage, v: Record<string,
             path: v.path || "/requests",
             ctaLabel: "Open request",
           };
+    case "acknowledgment":
+      return stage === "before"
+        ? {
+            subject: `Please acknowledge by ${v.due}: ${v.title}`,
+            message: `${q(v.title!)} needs your acknowledgment by ${v.due}.`,
+            heading: `Acknowledge by ${v.due}`,
+            intro: `The board asked you to acknowledge ${q(v.title!)} by ${v.due}. It takes one tap.`,
+            path: "/",
+            ctaLabel: "Acknowledge",
+          }
+        : {
+            subject: `Please acknowledge: ${v.title}`,
+            message: `${q(v.title!)} is waiting for your acknowledgment.`,
+            heading: "A notice is waiting for you",
+            intro: `The board asked you to acknowledge ${q(v.title!)}, and we haven't seen it yet. It takes one tap.`,
+            path: "/",
+            ctaLabel: "Acknowledge",
+          };
     case "coverage":
       return stage === "expired"
         ? {

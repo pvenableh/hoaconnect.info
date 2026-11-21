@@ -386,6 +386,27 @@ export interface CouponUsage {
 	subscription_plan?: SubscriptionPlan | string | null;
 }
 
+export interface HoaAcknowledgment {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	announcement: HoaAnnouncement | string;
+	/** @required */
+	member: HoaMember | string;
+	/** @required */
+	acknowledged_at: string;
+	/** @required */
+	method: 'swipe' | 'button';
+	/** @description <announcement>:<member>. Unique: one acknowledgment per member per notice. @required */
+	ack_key: string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaActivity {
 	/** @primaryKey */
 	id: string;
@@ -449,6 +470,10 @@ export interface HoaAnnouncement {
 	external_link?: boolean | null;
 	/** @description Surface this announcement as a toast for members. Off = sheet/feed only. */
 	show_toast?: boolean | null;
+	/** @description Members must confirm they have seen this notice. */
+	requires_acknowledgment?: boolean;
+	/** @description Acknowledge by this date (reminders key off it). */
+	ack_due?: string | null;
 }
 
 export interface HoaAreaGrant {
@@ -1064,6 +1089,57 @@ export interface HoaEmailTemplate {
 	salutation?: string | null;
 	/** @description Owning organization (leave empty for a global template) */
 	organization?: HoaOrganization | string | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaForm {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	title: string;
+	description?: string | null;
+	/** @description The document to read and sign. */
+	document?: DirectusFile | string | null;
+	/** @required */
+	audience: 'owners' | 'tenants' | 'board' | 'all';
+	/** @description Sign by this date (reminders key off it). */
+	due_date?: string | null;
+	/** @required */
+	status: 'draft' | 'open' | 'closed';
+	/** @description Set when the form is opened; reminders count days from here. */
+	sent_at?: string | null;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
+export interface HoaFormSignature {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	form: HoaForm | string;
+	/** @required */
+	member: HoaMember | string;
+	/** @required */
+	signed_at: string;
+	/** @description The name the person typed as their signature. @required */
+	signed_name: string;
+	/** @description Audit trail, set by the server. */
+	ip?: string | null;
+	/** @description Audit trail, set by the server. */
+	user_agent?: string | null;
+	/** @description Optional signed copy. */
+	signed_file?: DirectusFile | string | null;
+	/** @description <form>:<member>. Unique: one signature per member per form. @required */
+	sign_key: string;
 	user_created?: DirectusUser | string | null;
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
@@ -3092,6 +3168,7 @@ export interface Schema {
 	coupons: Coupon[];
 	coupons_subscription_plans: CouponsSubscriptionPlan[];
 	coupon_usage: CouponUsage[];
+	hoa_acknowledgments: HoaAcknowledgment[];
 	hoa_activity: HoaActivity[];
 	hoa_amenities: HoaAmenity[];
 	hoa_announcements: HoaAnnouncement[];
@@ -3117,6 +3194,8 @@ export interface Schema {
 	hoa_email_send_leases: HoaEmailSendLease[];
 	hoa_emails_files: HoaEmailsFile[];
 	hoa_email_templates: HoaEmailTemplate[];
+	hoa_forms: HoaForm[];
+	hoa_form_signatures: HoaFormSignature[];
 	hoa_governance: HoaGovernance[];
 	hoa_governing_audit_log: HoaGoverningAuditLog[];
 	hoa_governing_documents: HoaGoverningDocument[];
@@ -3226,6 +3305,7 @@ export enum CollectionNames {
 	coupons = 'coupons',
 	coupons_subscription_plans = 'coupons_subscription_plans',
 	coupon_usage = 'coupon_usage',
+	hoa_acknowledgments = 'hoa_acknowledgments',
 	hoa_activity = 'hoa_activity',
 	hoa_amenities = 'hoa_amenities',
 	hoa_announcements = 'hoa_announcements',
@@ -3251,6 +3331,8 @@ export enum CollectionNames {
 	hoa_email_send_leases = 'hoa_email_send_leases',
 	hoa_emails_files = 'hoa_emails_files',
 	hoa_email_templates = 'hoa_email_templates',
+	hoa_forms = 'hoa_forms',
+	hoa_form_signatures = 'hoa_form_signatures',
 	hoa_governance = 'hoa_governance',
 	hoa_governing_audit_log = 'hoa_governing_audit_log',
 	hoa_governing_documents = 'hoa_governing_documents',

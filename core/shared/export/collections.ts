@@ -283,6 +283,9 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_polls", "Polls", BOTH),
   direct("hoa_poll_votes", "Poll votes", BOTH),
   direct("hoa_announcements", "Announcements", BOTH),
+  direct("hoa_acknowledgments", "Notice acknowledgments", BOTH),
+  direct("hoa_forms", "Forms to sign", BOTH),
+  direct("hoa_form_signatures", "Form signatures", BOTH),
 
   // ── Operations ────────────────────────────────────────────────────────────
   direct("hoa_requests", "Requests", BOTH, {

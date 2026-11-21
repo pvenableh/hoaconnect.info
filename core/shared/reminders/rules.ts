@@ -160,6 +160,19 @@ export interface VendorInput {
   activeUntil: string | null;
 }
 
+export interface AckNoticeInput {
+  id: string;
+  title: string;
+  /** `publish_date`, or the row's creation: when the notice went out. */
+  publishedAt: string | null;
+  /** `ack_due` — a calendar day. */
+  ackDue: string | null;
+  /** Everyone the notice reaches (user ids). */
+  audienceUserIds: string[];
+  /** Users who have acknowledged it already. */
+  ackedUserIds: string[];
+}
+
 export interface ReminderSnapshot {
   org: { id: string; slug: string; name: string; timeZone: string; graceDays: number };
   settings: ResolvedReminderSettings;
@@ -168,6 +181,8 @@ export interface ReminderSnapshot {
   requests: RequestInput[];
   polls: PollInput[];
   vendors: VendorInput[];
+  /** Optional so snapshots built before this rule existed still type-check. */
+  notices?: AckNoticeInput[];
   adminUserIds: string[];
 }
 
@@ -570,6 +585,63 @@ function coverage(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit) {
   }
 }
 
+/** Days after a notice goes out that a still-owing member is nudged, and how long that nudge stays due. */
+export const ACK_NUDGE_AFTER_DAYS = 3;
+export const ACK_NUDGE_SPAN_DAYS = 3;
+
+/**
+ * Acknowledgments: whoever a notice reaches and hasn't acknowledged is nudged
+ * a few days after it goes out, and again in the days before its due date. The
+ * nudge stands down once the "before" window opens (that one says the date),
+ * and neither goes out after the due date: past it, the admin's list is the tool.
+ */
+function acknowledgments(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit) {
+  if (!clock.awake) return;
+  const lead = snap.settings.rules.acknowledgment.days;
+  for (const n of snap.notices ?? []) {
+    const due = localDay(n.ackDue, clock.timeZone);
+    const sent = localDay(n.publishedAt, clock.timeZone);
+    const toDue = due ? daysBetween(clock.today, due) : null; // whole days until due; negative once past
+    let stage: "nudge" | "before" | null = null;
+    let anchor = "";
+    if (due && toDue! >= 0 && toDue! <= lead) {
+      stage = "before";
+      anchor = dayAnchor(due);
+    } else if (sent && (!due || toDue! > lead)) {
+      const since = daysBetween(sent, clock.today);
+      if (since >= ACK_NUDGE_AFTER_DAYS && since < ACK_NUDGE_AFTER_DAYS + ACK_NUDGE_SPAN_DAYS) {
+        stage = "nudge";
+        anchor = dayAnchor(sent);
+      }
+    }
+    if (!stage) continue;
+    const acked = new Set(n.ackedUserIds);
+    for (const member of new Set(n.audienceUserIds)) {
+      if (acked.has(member)) continue;
+      emit({
+        rule: "acknowledgment",
+        stage,
+        anchor,
+        entity: { collection: "hoa_announcements", id: n.id },
+        member,
+        audience: "member",
+        template: "notice",
+        vars: {
+          title: n.title,
+          due: due ? formatDay(due) : "",
+          days_left: toDue === null ? "" : String(toDue),
+          path: "/announcements",
+        },
+        urgency: stage === "before" ? "normal" : "low",
+        channels: ALL,
+        essential: false,
+        category: "announcement",
+        group: `acknowledgment:${n.id}:${stage}`,
+      });
+    }
+  }
+}
+
 /**
  * Every reminder due at `asOf`, enabled or not (`enabled` says which; the tick
  * sends only those, the dry run lists both). Sorted by key, so a run is stable.
@@ -595,6 +667,7 @@ export function evaluateReminders(
   requests(snap, clock, emit);
   polls(snap, clock, emit);
   coverage(snap, clock, emit);
+  acknowledgments(snap, clock, emit);
   return [...out.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 

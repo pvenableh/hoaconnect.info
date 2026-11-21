@@ -638,6 +638,8 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           <template #needs>
             <HomeManagerQueue v-if="has.needs('delegated-queue')" :role-context="roleContext" />
             <HomeBoardNeeds v-if="has.needs('approvals')" />
+            <HomeAckPending v-if="roleContext.hats.board" :organization-id="orgId" />
+            <HomeAcknowledge :organization-id="orgId" :swipe="has.acts('swipe-acknowledge')" />
             <div v-if="has.needs('my-tasks')" class="space-y-3">
               <HomeTeamNeeds :tasks="myTasks" @done="() => refreshTasks()" />
               <HomeTeamQueue v-if="has.needs('area-queue')" :role-context="roleContext" />
