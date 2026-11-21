@@ -25,7 +25,7 @@ const submit = () => {
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 mat-blur-modal"
       @click.self="emit('cancel')"
     >
       <div class="w-full max-w-md rounded-2xl t-bg-elevated shadow-xl ring-1 ring-[var(--theme-border-primary)] p-6 space-y-4">

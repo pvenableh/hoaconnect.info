@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
            push deepens the dim instead of stacking layers. -->
       <div
         v-if="backdropMounted"
-        class="app-slide-over-stack__backdrop"
+        class="app-slide-over-stack__backdrop mat-blur-scrim"
         :style="backdropStyle"
         @click="pop()"
       />
@@ -360,8 +360,6 @@ onBeforeUnmount(() => {
       transparent 80%
     ),
     rgb(0 0 0 / 0.35);
-  -webkit-backdrop-filter: blur(6px) saturate(140%);
-  backdrop-filter: blur(6px) saturate(140%);
   pointer-events: auto;
   opacity: 0;
 }

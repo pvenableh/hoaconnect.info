@@ -177,7 +177,7 @@ onBeforeUnmount(() => {
       </footer>
     </template>
     <template v-else>
-      <header class="app-slide-over-shell__header">
+      <header class="app-slide-over-shell__header mat-blur-chrome">
         <div class="app-slide-over-shell__nav-row">
           <button
             type="button"
@@ -214,7 +214,7 @@ onBeforeUnmount(() => {
         <slot />
       </div>
 
-      <footer v-if="$slots.footer" class="app-slide-over-shell__footer">
+      <footer v-if="$slots.footer" class="app-slide-over-shell__footer mat-blur-soft">
         <slot name="footer" />
       </footer>
 
@@ -272,8 +272,6 @@ onBeforeUnmount(() => {
       hsl(calc(var(--app-accent-h, 220) + 30) 55% 55% / 0.08) 100%
     ),
     color-mix(in srgb, var(--background) 78%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
   box-shadow: 0 1px 0 0 hsl(0 0% 100% / 0.1) inset;
   position: relative;
   flex-shrink: 0;
@@ -409,6 +407,5 @@ onBeforeUnmount(() => {
   padding: 0.75rem 1.25rem;
   border-top: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
   background: color-mix(in srgb, var(--background) 92%, transparent);
-  backdrop-filter: blur(8px);
 }
 </style>

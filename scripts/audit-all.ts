@@ -23,6 +23,7 @@ export const AUDITS = [
   "color-literals",
   "css-colors",
   "dead-theme-classes",
+  "materials",
   "unresolved-components",
   "contrast-pairs",
   "heading-labels",

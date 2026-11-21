@@ -9,7 +9,7 @@
       :class="[
         showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         scrolledPastHero
-          ? 'bg-[var(--theme-bg-overlay)] backdrop-blur-md shadow-sm'
+          ? 'bg-[var(--theme-bg-overlay)] landing-blur-md shadow-sm'
           : '',
       ]"
     >
@@ -910,7 +910,7 @@
           <a
             href="https://1033lenox.com"
             target="_blank"
-            class="px-8 py-4 text-lg font-semibold bg-white/10 backdrop-blur-sm text-white border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 rounded-lg"
+            class="px-8 py-4 text-lg font-semibold bg-white/10 landing-blur-sm text-white border border-white/20 hover:bg-white/20 hover:border-white/40 transition-all duration-300 rounded-lg"
           >
             See Live Demo
           </a>

@@ -953,8 +953,6 @@ select:focus-visible {
    bg-black/40 / bg-black/80 in ui/dialog + ui/sheet. */
 .t-scrim {
 	background-color: rgba(20, 18, 15, 0.42);
-	backdrop-filter: blur(3px) saturate(1.04);
-	-webkit-backdrop-filter: blur(3px) saturate(1.04);
 }
 .theme-modern-light .t-scrim,
 .theme-modern-dark .t-scrim {

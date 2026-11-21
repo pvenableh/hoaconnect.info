@@ -316,10 +316,10 @@ export interface TintSwatch {
 
 export const TINT_SWATCHES: readonly TintSwatch[] = [
   { id: "community", label: "Community", hex: null },
-  { id: "blue", label: "Blue", hex: "#2563EB" },
-  { id: "teal", label: "Teal", hex: "#0D9488" },
-  { id: "violet", label: "Violet", hex: "#7C3AED" },
-  { id: "rose", label: "Rose", hex: "#DB2777" },
+  { id: "blue", label: "Blue", hex: "#3B82F6" },
+  { id: "teal", label: "Teal", hex: "#14B8A6" },
+  { id: "violet", label: "Violet", hex: "#8B5CF6" },
+  { id: "rose", label: "Rose", hex: "#EC4899" },
   { id: "slate", label: "Slate", hex: "#64748B", neutral: true },
 ];
 

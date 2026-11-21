@@ -28,7 +28,7 @@
     <!-- The column matches PageContainer's width and gutters, so the capsule's
          left edge is the page title's and the cards' left edge. -->
     <div class="app-subnav__column" :class="pageWide ? 'max-w-7xl' : 'max-w-6xl'">
-      <div ref="trackEl" class="app-subnav__capsule">
+      <div ref="trackEl" class="app-subnav__capsule mat-blur-capsule">
         <span class="app-subnav__thumb glass-active-thumb" :style="thumbStyle" aria-hidden="true" />
         <NuxtLink
           v-for="(link, i) in links"
@@ -175,8 +175,6 @@ watch(
   padding: 3px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--theme-nav-capsule-bg) 82%, transparent);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
   box-shadow:
     inset 0 0 0 1px hsl(var(--card-ring)),
     0 6px 18px -10px hsl(var(--card-shadow) / var(--card-shadow-far));

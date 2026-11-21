@@ -41,7 +41,7 @@ const props = withDefaults(defineProps<Props>(), {
         v-if="show"
         :class="
           cn(
-            'flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm z-50',
+            'flex flex-col items-center justify-center gap-4 bg-background/80 mat-blur-modal z-50',
             fullscreen ? 'fixed inset-0' : 'absolute inset-0',
             props.class
           )

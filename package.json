@@ -22,6 +22,7 @@
     "audit:color-literals": "tsx scripts/audit-color-literals.ts",
     "audit:css-colors": "tsx scripts/audit-css-colors.ts",
     "audit:dead-theme-classes": "tsx scripts/audit-dead-theme-classes.ts",
+    "audit:materials": "tsx scripts/audit-materials.ts",
     "audit:unresolved-components": "tsx scripts/audit-unresolved-components.ts",
     "audit:contrast-pairs": "tsx scripts/audit-contrast-pairs.ts",
     "audit:heading-labels": "tsx scripts/audit-heading-labels.ts",

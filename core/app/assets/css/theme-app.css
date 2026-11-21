@@ -173,18 +173,18 @@ html.theme-app {
 	   tests/shared/tint-swatches.test.ts holds each equal to what accent.ts
 	   computes. The community's swatch has no row: any colour can arrive, so
 	   deriveInkAccent's tests grade it across the hue wheel instead. */
-	--tint-blue-ink: light-dark(#1f5fea, #5483e8);
-	--tint-blue-ink-hover: light-dark(#1453dc, #7ca0ee);
-	--tint-blue-glass: light-dark(#e5ecfd, #202d40);
-	--tint-teal-ink: light-dark(#0b7f75, #53e9dc);
-	--tint-teal-ink-hover: light-dark(#09675f, #7ceee5);
-	--tint-teal-glass: light-dark(#e5fdfb, #20393f);
-	--tint-violet-ink: light-dark(#691feb, #9a6aeb);
-	--tint-violet-ink-hover: light-dark(#5d14dc, #b593f1);
-	--tint-violet-glass: light-dark(#eee5fd, #272740);
-	--tint-rose-ink: light-dark(#d62474, #de5e98);
-	--tint-rose-ink-hover: light-dark(#c02068, #e684b0);
-	--tint-rose-glass: light-dark(#fbe6f0, #312836);
+	--tint-blue-ink: light-dark(#1369f4, #4d8bef);
+	--tint-blue-ink-hover: light-dark(#0a5de3, #77a7f3);
+	--tint-blue-glass: light-dark(#e4eefe, #1f2e41);
+	--tint-teal-ink: light-dark(#0e7f71, #56e6d5);
+	--tint-teal-ink-hover: light-dark(#0b685d, #7eecdf);
+	--tint-teal-glass: light-dark(#e5fcfa, #20393e);
+	--tint-violet-ink: light-dark(#5917f2, #936af1);
+	--tint-violet-ink-hover: light-dark(#4d0de3, #b194f5);
+	--tint-violet-glass: light-dark(#ece4fd, #252641);
+	--tint-rose-ink: light-dark(#d91778, #e6569e);
+	--tint-rose-ink-hover: light-dark(#c2146b, #ec7eb5);
+	--tint-rose-glass: light-dark(#fce5f1, #322737);
 	--tint-slate-ink: light-dark(#63738a, #909cad);
 	--tint-slate-ink-hover: light-dark(#59677b, #aab3c0);
 	--tint-slate-glass: light-dark(#eef0f3, #273039);

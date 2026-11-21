@@ -11,6 +11,29 @@
    Everything reads from the --theme-* tokens in theme.css.
 ============================================================================= */
 
+/* ---- Marketing blur tokens -------------------------------------------------
+   Every backdrop blur on landing and marketing surfaces reads these, so the
+   whole public site retunes here. Components use .landing-blur-sm / -md or
+   var(--landing-blur-*); no literal blur() in a component. Values match the
+   Tailwind utilities they replace, so nothing moves on the page. */
+:root {
+	--landing-blur-sm: 4px;
+	--landing-blur-md: 12px;
+	--landing-blur-cta: 10px;
+	--landing-blur-glass: 16px;
+	--landing-blur-dock: 22px;
+	--landing-saturate: 150%;
+	--landing-saturate-dock: 170%;
+}
+.landing-blur-sm {
+	backdrop-filter: blur(var(--landing-blur-sm));
+	-webkit-backdrop-filter: blur(var(--landing-blur-sm));
+}
+.landing-blur-md {
+	backdrop-filter: blur(var(--landing-blur-md));
+	-webkit-backdrop-filter: blur(var(--landing-blur-md));
+}
+
 /* ---- Shared scaffolding ---------------------------------------------------- */
 .landing-eyebrow {
 	font-family: var(--theme-body-font);
@@ -122,8 +145,8 @@
 	font-size: 0.75rem;
 	color: #fff;
 	cursor: pointer;
-	backdrop-filter: blur(10px);
-	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(var(--landing-blur-cta));
+	-webkit-backdrop-filter: blur(var(--landing-blur-cta));
 	transition: background 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
 		border-color 0.3s ease;
 }
@@ -296,8 +319,8 @@ html.theme-modern-dark .landing-card:hover {
 html.theme-modern-light .glass-widget,
 html.theme-modern-dark .glass-widget {
 	border-radius: 1rem;
-	backdrop-filter: blur(16px) saturate(150%);
-	-webkit-backdrop-filter: blur(16px) saturate(150%);
+	backdrop-filter: blur(var(--landing-blur-glass)) saturate(var(--landing-saturate));
+	-webkit-backdrop-filter: blur(var(--landing-blur-glass)) saturate(var(--landing-saturate));
 }
 
 /* =============================================================================
@@ -311,8 +334,8 @@ html.theme-modern-dark .glass-widget {
 	border-radius: 9999px;
 	background: rgba(255, 255, 255, 0.55);
 	border: 1px solid rgba(255, 255, 255, 0.6);
-	backdrop-filter: blur(22px) saturate(170%);
-	-webkit-backdrop-filter: blur(22px) saturate(170%);
+	backdrop-filter: blur(var(--landing-blur-dock)) saturate(var(--landing-saturate-dock));
+	-webkit-backdrop-filter: blur(var(--landing-blur-dock)) saturate(var(--landing-saturate-dock));
 	box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.35),
 		0 0 0 1px color-mix(in srgb, var(--theme-accent-primary) 22%, transparent),
 		0 8px 28px -10px color-mix(in srgb, var(--theme-accent-primary) 45%, transparent);

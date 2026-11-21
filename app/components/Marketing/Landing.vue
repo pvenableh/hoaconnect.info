@@ -12,7 +12,7 @@
       :class="[
         showNav ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0',
         scrolledPastHero
-          ? 'bg-[var(--theme-bg-overlay)] backdrop-blur-md shadow-sm'
+          ? 'bg-[var(--theme-bg-overlay)] landing-blur-md shadow-sm'
           : '',
       ]"
     >

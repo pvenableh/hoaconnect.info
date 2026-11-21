@@ -403,6 +403,36 @@ const materials = [
         </div>
       </section>
 
+      <!-- ── Materials ───────────────────────────────────────────────── -->
+      <section data-kit="materials">
+        <h2 class="type-section">Materials</h2>
+        <p class="type-body">
+          Four materials, neutral by default. Bar, menu and sheet are glass;
+          solid is every content card. Shown in light and dark over the same ground.
+        </p>
+        <div class="grid gap-4 sm:grid-cols-2 mt-3">
+          <div
+            v-for="mode in ['light', 'dark']"
+            :key="mode"
+            :class="mode === 'dark' ? 'dark' : ''"
+            :data-kit="`materials-${mode}`"
+            class="rounded-2xl p-4 grid grid-cols-2 gap-3"
+            style="background: linear-gradient(135deg, var(--theme-bg), var(--theme-bg-elevated) 60%, var(--theme-bg));"
+          >
+            <div
+              v-for="m in ['bar', 'menu', 'sheet', 'solid']"
+              :key="m"
+              :class="`material-${m}`"
+              :data-material="m"
+              class="p-3 text-sm"
+              style="border-radius: var(--r-3); color: var(--theme-text-primary);"
+            >
+              material-{{ m }}
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ── Type ─────────────────────────────────────────────────────── -->
       <section>
         <h2 class="type-section">Type</h2>

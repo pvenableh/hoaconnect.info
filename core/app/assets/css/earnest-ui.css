@@ -1280,3 +1280,166 @@ a[role='button']:not([data-no-press]):active,
 		transition: none;
 	}
 }
+
+/* =============================================================================
+   MATERIAL V2 (plan-unified-experience §3). Four named materials, neutral by
+   default: blur and saturation take colour from what is behind the pane, and the
+   person's colour appears only as a highlight (selected capsule, focus ring,
+   unread dot, links). Declared last so it outranks the older recipes above; the
+   old class names (.glass-surface, --strong, .glass-bar, toast) are ALIASES of
+   these four until Session 2 deletes them.
+
+     material-bar    top bar, section capsule, dock
+     material-menu   dropdown, popover, select, tooltip, toast
+     material-sheet  dialog, bottom sheet, slide-over, Spotlight
+     material-solid  every content card, table, field, chart
+============================================================================= */
+:root {
+	--mat-bar-fill: 70%;
+	--mat-menu-fill: 82%;
+	--mat-sheet-fill: 92%;
+	--mat-bar-saturate: 180%;
+	--mat-menu-saturate: 180%;
+	--mat-sheet-saturate: 160%;
+	--mat-blur: 20px;
+	--mat-hairline: inset 0 0 0 1px hsl(0 0% 0% / 0.08);
+	--mat-shadow-1: 0 1px 2px hsl(0 0% 0% / 0.06), 0 4px 12px -4px hsl(0 0% 0% / 0.10);
+	--mat-shadow-2: 0 1px 3px hsl(0 0% 0% / 0.08), 0 12px 32px -12px hsl(0 0% 0% / 0.18);
+	--mat-shadow-3: 0 2px 6px hsl(0 0% 0% / 0.10), 0 24px 48px -16px hsl(0 0% 0% / 0.28);
+	--mat-wash: 0.10; /* the highlight, as an alpha over the neutral fill */
+	/* Radius scale 8 / 12 / 16 / 22 / capsule; inner = outer - padding. */
+	--r-1: 8px;
+	--r-2: 12px;
+	--r-3: 16px;
+	--r-4: 22px;
+	--r-capsule: 9999px;
+	--r-card: var(--r-3);
+	--r-pad: 12px;
+	--r-inset: calc(var(--r-card) - var(--r-pad));
+}
+.dark {
+	--mat-bar-fill: 60%;
+	--mat-menu-fill: 78%;
+	--mat-sheet-fill: 88%;
+	--mat-hairline: inset 0 1px 0 0 hsl(0 0% 100% / 0.14), inset 0 0 0 1px hsl(0 0% 100% / 0.06);
+	--mat-shadow-1: 0 1px 2px hsl(0 0% 0% / 0.30), 0 4px 12px -4px hsl(0 0% 0% / 0.40);
+	--mat-shadow-2: 0 1px 3px hsl(0 0% 0% / 0.40), 0 12px 32px -12px hsl(0 0% 0% / 0.55);
+	--mat-shadow-3: 0 2px 6px hsl(0 0% 0% / 0.45), 0 24px 48px -16px hsl(0 0% 0% / 0.65);
+}
+
+.material-bar,
+.glass-bar,
+.material-menu,
+.material-sheet,
+.glass-surface,
+.glass-surface--strong,
+html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
+	--_ground: var(--theme-card-bg);
+	background-image: none;
+	border: 0;
+}
+.material-bar,
+.glass-bar {
+	background-color: color-mix(in srgb, var(--theme-bg-elevated) var(--mat-bar-fill), transparent);
+	-webkit-backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-bar-saturate));
+	backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-bar-saturate));
+	box-shadow: var(--mat-hairline), var(--mat-shadow-1);
+}
+.material-menu,
+.glass-surface,
+html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
+	background-color: color-mix(in srgb, var(--_ground) var(--mat-menu-fill), transparent);
+	-webkit-backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-menu-saturate));
+	backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-menu-saturate));
+	box-shadow: var(--mat-hairline), var(--mat-shadow-2);
+}
+.material-sheet,
+.glass-surface--strong,
+.dark .glass-surface--strong {
+	background-color: color-mix(in srgb, var(--_ground) var(--mat-sheet-fill), transparent);
+	-webkit-backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sheet-saturate));
+	backdrop-filter: blur(var(--mat-blur)) saturate(var(--mat-sheet-saturate));
+	box-shadow: var(--mat-hairline), var(--mat-shadow-3);
+}
+.dark .glass-surface { background-image: none; }
+.dark .glass-surface:not(.glass-surface--strong) {
+	background-color: color-mix(in srgb, var(--_ground) var(--mat-menu-fill), transparent);
+	box-shadow: var(--mat-hairline), var(--mat-shadow-2);
+}
+.glass-surface--hoverable:hover { box-shadow: var(--mat-hairline), var(--mat-shadow-3); }
+
+.material-solid {
+	background-color: var(--theme-card-bg);
+	border: 0;
+	box-shadow: var(--mat-hairline), var(--mat-shadow-1);
+}
+
+/* The highlight: the person's colour as a faint wash on the selected capsule and
+   the open dock app. Tint Off sets --glass-tint to 0 and the wash disappears. */
+.material-highlight,
+.glass-active-thumb {
+	background-image: linear-gradient(
+		hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 50% / calc(var(--mat-wash) * var(--glass-tint, 1))),
+		hsl(var(--app-accent-h, 220) var(--app-accent-s, 70%) 50% / calc(var(--mat-wash) * var(--glass-tint, 1)))
+	);
+}
+
+/* The primary action is the ink, not the accent. */
+.glass-btn-primary {
+	background-color: var(--theme-text-primary);
+	color: var(--theme-text-inverse);
+	box-shadow: var(--mat-hairline), var(--mat-shadow-1);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+	.material-bar, .glass-bar, .material-menu, .material-sheet,
+	html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+		background-color: var(--theme-bg-elevated);
+	}
+}
+
+/* ---- Scoped blur (app) ------------------------------------------------------
+   Blur for the surfaces that are not one of the four materials. A component
+   adds one of these classes in its template; no component writes a blur itself.
+   Reduced transparency turns every one of them off here, so it does not depend
+   on cascade order against a component's own styles. */
+:root {
+	--mat-blur-chrome: 20px;
+	--mat-blur-soft: 8px;
+	--mat-blur-scrim: 6px;
+	--mat-blur-capsule: 16px;
+	--mat-blur-modal: 4px;
+	--mat-blur-tscrim: 3px;
+}
+.mat-blur-chrome {
+	-webkit-backdrop-filter: blur(var(--mat-blur-chrome)) saturate(160%);
+	backdrop-filter: blur(var(--mat-blur-chrome)) saturate(160%);
+}
+.mat-blur-soft {
+	-webkit-backdrop-filter: blur(var(--mat-blur-soft));
+	backdrop-filter: blur(var(--mat-blur-soft));
+}
+.mat-blur-scrim {
+	-webkit-backdrop-filter: blur(var(--mat-blur-scrim)) saturate(140%);
+	backdrop-filter: blur(var(--mat-blur-scrim)) saturate(140%);
+}
+.mat-blur-capsule {
+	-webkit-backdrop-filter: blur(var(--mat-blur-capsule));
+	backdrop-filter: blur(var(--mat-blur-capsule));
+}
+.mat-blur-modal {
+	-webkit-backdrop-filter: blur(var(--mat-blur-modal));
+	backdrop-filter: blur(var(--mat-blur-modal));
+}
+.t-scrim {
+	-webkit-backdrop-filter: blur(var(--mat-blur-tscrim)) saturate(1.04);
+	backdrop-filter: blur(var(--mat-blur-tscrim)) saturate(1.04);
+}
+@media (prefers-reduced-transparency: reduce) {
+	.mat-blur-chrome, .mat-blur-soft, .mat-blur-scrim, .mat-blur-capsule, .mat-blur-modal, .t-scrim {
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+}
