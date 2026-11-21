@@ -19,52 +19,16 @@ const emit = defineEmits<{
   reorder: [fromKey: string, toKey: string];
 }>();
 
-const isDragOver = ref(false);
-
-const spanClass = computed(() => {
-  switch (props.widget.span) {
-    case "full":
-      return "md:col-span-2 lg:col-span-3";
-    case "lg":
-      return "lg:col-span-2";
-    default:
-      return "";
-  }
-});
-
-const onDragStart = (e: DragEvent) => {
-  if (!props.editing) return;
-  e.dataTransfer?.setData("text/plain", props.widget.key);
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-};
-const onDragOver = (e: DragEvent) => {
-  if (!props.editing) return;
-  e.preventDefault();
-  isDragOver.value = true;
-  if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-};
-const onDrop = (e: DragEvent) => {
-  if (!props.editing) return;
-  e.preventDefault();
-  isDragOver.value = false;
-  const fromKey = e.dataTransfer?.getData("text/plain");
-  if (fromKey) emit("reorder", fromKey, props.widget.key);
-};
+// Span lives on the sortable's item wrapper (DashboardPage), so this card only
+// supplies the chrome; AppSortable owns drag, keyboard and undo.
 </script>
 
 <template>
-  <div
-    :class="[spanClass, editing && 'dash-widget--editing', isDragOver && 'dash-widget--dragover']"
-    :draggable="editing"
-    @dragstart="onDragStart"
-    @dragover="onDragOver"
-    @dragleave="isDragOver = false"
-    @drop="onDrop"
-  >
+  <div :class="[editing && 'dash-widget--editing']">
     <!-- Edit toolbar -->
     <div v-if="editing" class="dash-widget__bar">
       <span class="flex items-center gap-1.5 min-w-0">
-        <Icon name="lucide:grip-vertical" class="w-4 h-4 t-text-muted shrink-0 cursor-grab" />
+        <Icon name="lucide:grip-vertical" class="dash-widget__grip w-4 h-4 t-text-muted shrink-0 cursor-grab" />
         <Icon :name="'i-lucide-' + widget.icon" class="w-3.5 h-3.5 t-text-muted shrink-0" />
         <span class="text-xs font-medium t-text-secondary truncate">{{ widget.title }}</span>
       </span>

@@ -18,7 +18,16 @@ export function useDockApps() {
   // the org being VIEWED — never the selected org's role.
   const showAdminUI = computed(() => isOnOrgPage.value && nav.layout.value === "admin");
 
-  const apps = computed<AppDef[]>(() => nav.entries.value.map(toAppDef));
+  // The person's own dock order (per browser; Session 6). The registry still
+  // decides WHICH apps appear; the saved order only decides where.
+  const registryApps = computed<AppDef[]>(() => nav.entries.value.map(toAppDef));
+  const orderPref = useOrderPref("dock-order-v1", computed(() => registryApps.value.map((a) => a.key)));
+  const apps = computed<AppDef[]>(() => {
+    const byKey = new Map(registryApps.value.map((a) => [a.key, a]));
+    return orderPref.ordered.value.map((k) => byKey.get(k)).filter((a): a is AppDef => !!a);
+  });
+  /** Persist a new order for the whole dock (a drag, a keyboard move or an undo). */
+  const setOrder = (list: AppDef[]) => orderPref.set(list.map((a) => a.key));
   const activeKey = computed(() => activeKeyFor(apps.value));
   const activeIndex = computed(() => apps.value.findIndex((a) => a.key === activeKey.value));
 
@@ -43,5 +52,5 @@ export function useDockApps() {
 
   // Every chip wears the person's tint (useAppearance writes --app-accent-*);
   // the colour is read in CSS, so there is nothing per app to hand out.
-  return { isOnOrgPage, showAdminUI, apps, activeKey, activeIndex, badges, totalUnread, go };
+  return { isOnOrgPage, showAdminUI, apps, activeKey, activeIndex, badges, totalUnread, go, setOrder };
 }

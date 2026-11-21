@@ -155,3 +155,4 @@ export function settleTransition(slackMs = 100) {
     const timer = setTimeout(finish, longest + slackMs);
   };
 }
+export * from "./sortable";

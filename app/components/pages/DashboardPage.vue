@@ -263,9 +263,11 @@ const {
   hide: hideWidget,
   show: showWidget,
   move: moveWidget,
-  reorder: reorderWidget,
+  setOrder: setWidgetOrder,
   reset: resetWidgets,
 } = useDashboardWidgets({ roles: ["admin", "board"] });
+const widgetSpanClass = (w: { span?: string }) =>
+  w.span === "full" ? "md:col-span-2 lg:col-span-3" : w.span === "lg" ? "lg:col-span-2" : "";
 
 // ---- The ambient backdrop (Phase 7 polish) ----
 // Per-device, localStorage-backed, and its own kill switch: Waves → Orbs → Off.
@@ -366,9 +368,18 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
               </template>
 
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <AppSortable
+                  :model-value="visibleWidgets"
+                  item-key="key"
+                  label="dashboard"
+                  handle=".dash-widget__grip"
+                  :disabled="!isEditing"
+                  class="contents"
+                  :item-class="widgetSpanClass"
+                  @update:model-value="(l: any[]) => setWidgetOrder(l)"
+                >
+                <template #item="{ element: w, index: i }">
                 <DashboardWidgetCard
-                  v-for="(w, i) in visibleWidgets"
-                  :key="w.key"
                   class="stagger-item"
                   :widget="w"
                   :editing="isEditing"
@@ -376,7 +387,6 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                   :is-last="i === visibleWidgets.length - 1"
                   @hide="hideWidget"
                   @move="moveWidget"
-                  @reorder="reorderWidget"
                 >
                   <!-- Quick Actions -->
                   <div v-if="w.key === 'quick-actions'" class="ios-card p-5">
@@ -535,6 +545,8 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                     <p v-else class="t-text-muted py-4 text-center flex-1">No channels yet</p>
                   </div>
                 </DashboardWidgetCard>
+                </template>
+                </AppSortable>
               </div>
 
               <!-- Add-widget tray (edit mode) -->

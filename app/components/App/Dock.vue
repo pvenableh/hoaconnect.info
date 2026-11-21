@@ -13,7 +13,7 @@ const route = useRoute();
 // a switch, decides whether the pill is glass. With names off the open app is
 // marked on its chip (a ring in the ink with a gap, a faint tinted fill), a
 // pointer still gets the name in a tooltip, and every chip keeps its label.
-const { isOnOrgPage, apps, activeKey, badges, go } = useDockApps();
+const { isOnOrgPage, apps, activeKey, badges, go, setOrder } = useDockApps();
 const { dockNames } = useAppearance();
 
 // The pill's height, for what must clear it (an immersive page's foot, the
@@ -261,27 +261,38 @@ watch(shownApps, reset, { immediate: true });
           @pointermove="onPointerMove"
           @pointerleave="reset"
         >
-          <button
-            v-for="(app, i) in shownApps"
-            :key="app.key"
-            :ref="(el) => setChipRef(el, i)"
-            type="button"
-            class="dock-item"
-            :class="{ 'dock-item--active': app.key === activeKey }"
-            :style="chipStyle(i)"
-            :aria-label="app.label"
-            :aria-current="app.key === activeKey ? 'page' : undefined"
-            @click="onAppClick(app)"
+          <AppSortable
+            :model-value="shownApps"
+            item-key="key"
+            label="dock"
+            orientation="horizontal"
+            :disabled="needsMore"
+            class="app-dock__row"
+            item-class="app-dock__slot"
+            @update:model-value="setOrder"
           >
-            <span class="dock-item__tip">{{ app.label }}</span>
-            <span class="dock-item__chip">
-              <Icon :name="'i-lucide-' + app.icon" class="dock-item__icon" />
-              <span v-if="badges[app.key]" class="dock-item__badge">
-                {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
-              </span>
-            </span>
-            <span v-if="dockNames" class="dock-item__label">{{ app.shortName }}</span>
-          </button>
+            <template #item="{ element: app, index: i }">
+              <button
+                :ref="(el) => setChipRef(el, i)"
+                type="button"
+                class="dock-item"
+                :class="{ 'dock-item--active': app.key === activeKey }"
+                :style="chipStyle(i)"
+                :aria-label="app.label"
+                :aria-current="app.key === activeKey ? 'page' : undefined"
+                @click="onAppClick(app)"
+              >
+                <span class="dock-item__tip">{{ app.label }}</span>
+                <span class="dock-item__chip">
+                  <Icon :name="'i-lucide-' + app.icon" class="dock-item__icon" />
+                  <span v-if="badges[app.key]" class="dock-item__badge">
+                    {{ badges[app.key] > 9 ? "9+" : badges[app.key] }}
+                  </span>
+                </span>
+                <span v-if="dockNames" class="dock-item__label">{{ app.shortName }}</span>
+              </button>
+            </template>
+          </AppSortable>
 
           <button
             v-if="needsMore"
@@ -443,6 +454,14 @@ watch(shownApps, reset, { immediate: true });
   box-shadow: 0 0 0 2px var(--theme-card-bg);
 }
 
+.app-dock__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.app-dock__slot {
+  display: flex;
+}
 .app-dock__pill {
   pointer-events: auto;
   display: flex;

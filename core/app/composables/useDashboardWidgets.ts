@@ -188,6 +188,9 @@ export function useDashboardWidgets(opts?: { roles?: WidgetRole[] }) {
     persist();
   };
 
+  // Apply a full new visible order (AppSortable: drag, keyboard, undo).
+  const setOrder = (list: { key: string }[]) => applyVisibleOrder(list.map((w) => w.key));
+
   const reset = () => {
     layout.value = defaultLayout();
     persist();
@@ -204,6 +207,7 @@ export function useDashboardWidgets(opts?: { roles?: WidgetRole[] }) {
     show,
     move,
     reorder,
+    setOrder,
     reset,
   };
 }
