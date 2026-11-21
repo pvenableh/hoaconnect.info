@@ -338,6 +338,7 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                   <template #needs>
                     <HomeAdminSetup class="mb-4" />
                     <HomeAckPending class="mb-4" :organization-id="selectedOrgId" />
+                    <HomeFormTracking class="mb-4" :organization-id="selectedOrgId" />
                     <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
                   </template>
                   <template #glance><HomeGlanceRail /></template>

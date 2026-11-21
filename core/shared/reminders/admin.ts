@@ -27,7 +27,7 @@ import {
 } from "./settings";
 
 /** Rules whose `days` the board can change (the others have fixed windows). */
-export const RULES_WITH_DAYS: readonly ReminderRule[] = ["dues", "violation", "coverage", "request", "acknowledgment"];
+export const RULES_WITH_DAYS: readonly ReminderRule[] = ["dues", "violation", "coverage", "request", "acknowledgment", "form"];
 const DAYS_MAX = 60;
 
 export interface RuleGuide {
@@ -81,6 +81,12 @@ export const RULE_GUIDE: Record<ReminderRule, RuleGuide> = {
     tokens: ["title", "due", "days_left"],
     stages: { nudge: "A few days after it goes out", before: "Before the due date" },
   },
+  form: {
+    summary: "People a form is for who haven't signed it: a nudge a few days after it opens, and again just before its due date. Email, bell and push.",
+    daysLabel: "Days before the due date",
+    tokens: ["title", "due", "days_left"],
+    stages: { nudge: "A few days after it opens", before: "Before the due date" },
+  },
 };
 
 /** "14 dues reminders", "1 vendor coverage reminder". */
@@ -92,6 +98,7 @@ const RULE_NOUN: Record<ReminderRule, string> = {
   poll: "poll",
   coverage: "vendor coverage",
   acknowledgment: "acknowledgment",
+  form: "form to sign",
 };
 
 // ── The form → what is stored ───────────────────────────────────────────────

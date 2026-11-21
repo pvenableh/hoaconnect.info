@@ -99,3 +99,16 @@ export function isFormOverdue(form: Pick<SignForm, "due_date">, today: string): 
 export function signKey(formId: string, memberId: string): string {
   return `${formId}:${memberId}`;
 }
+
+/**
+ * The typed name that counts as a signature (decision 1): a real name, not a
+ * blank or a single letter. It is not required to equal the member's profile
+ * name (nicknames, "Jr.", married names); the audit trail is what binds it.
+ * Returns the trimmed, single-spaced name, or null when it does not count.
+ */
+export function cleanSignedName(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const name = raw.replace(/\s+/g, " ").trim();
+  if (name.length < 2 || name.length > 120) return null;
+  return /\p{L}/u.test(name) ? name : null;
+}

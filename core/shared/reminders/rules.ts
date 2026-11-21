@@ -173,6 +173,20 @@ export interface AckNoticeInput {
   ackedUserIds: string[];
 }
 
+/** A form to sign that is open: same shape as a notice to acknowledge, with signers in place of acknowledgers. */
+export interface FormInput {
+  id: string;
+  title: string;
+  /** `sent_at`, or the row's creation: when the form was opened. */
+  sentAt: string | null;
+  /** `due_date` — a calendar day. */
+  dueDate: string | null;
+  /** Everyone the form is addressed to (user ids). */
+  audienceUserIds: string[];
+  /** Users who have signed it already. */
+  signedUserIds: string[];
+}
+
 export interface ReminderSnapshot {
   org: { id: string; slug: string; name: string; timeZone: string; graceDays: number };
   settings: ResolvedReminderSettings;
@@ -183,6 +197,8 @@ export interface ReminderSnapshot {
   vendors: VendorInput[];
   /** Optional so snapshots built before this rule existed still type-check. */
   notices?: AckNoticeInput[];
+  /** Optional for the same reason as `notices`. */
+  forms?: FormInput[];
   adminUserIds: string[];
 }
 
@@ -596,11 +612,61 @@ export const ACK_NUDGE_SPAN_DAYS = 3;
  * and neither goes out after the due date: past it, the admin's list is the tool.
  */
 function acknowledgments(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit) {
+  owedNudges(
+    snap,
+    clock,
+    emit,
+    "acknowledgment",
+    (snap.notices ?? []).map((n) => ({
+      id: n.id,
+      title: n.title,
+      sent: n.publishedAt,
+      due: n.ackDue,
+      audience: n.audienceUserIds,
+      done: n.ackedUserIds,
+      collection: "hoa_announcements",
+      path: "/announcements",
+    }))
+  );
+}
+
+/** Forms to sign: the same two-stage rule as acknowledgments, over open forms. */
+function forms(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit) {
+  owedNudges(
+    snap,
+    clock,
+    emit,
+    "form",
+    (snap.forms ?? []).map((f) => ({
+      id: f.id,
+      title: f.title,
+      sent: f.sentAt,
+      due: f.dueDate,
+      audience: f.audienceUserIds,
+      done: f.signedUserIds,
+      collection: "hoa_forms",
+      path: "/",
+    }))
+  );
+}
+
+interface Owed {
+  id: string;
+  title: string;
+  sent: string | null;
+  due: string | null;
+  audience: string[];
+  done: string[];
+  collection: string;
+  path: string;
+}
+
+function owedNudges(snap: ReminderSnapshot, clock: ReminderClock, emit: Emit, rule: "acknowledgment" | "form", items: Owed[]) {
   if (!clock.awake) return;
-  const lead = snap.settings.rules.acknowledgment.days;
-  for (const n of snap.notices ?? []) {
-    const due = localDay(n.ackDue, clock.timeZone);
-    const sent = localDay(n.publishedAt, clock.timeZone);
+  const lead = snap.settings.rules[rule].days;
+  for (const n of items) {
+    const due = localDay(n.due, clock.timeZone);
+    const sent = localDay(n.sent, clock.timeZone);
     const toDue = due ? daysBetween(clock.today, due) : null; // whole days until due; negative once past
     let stage: "nudge" | "before" | null = null;
     let anchor = "";
@@ -615,14 +681,14 @@ function acknowledgments(snap: ReminderSnapshot, clock: ReminderClock, emit: Emi
       }
     }
     if (!stage) continue;
-    const acked = new Set(n.ackedUserIds);
-    for (const member of new Set(n.audienceUserIds)) {
-      if (acked.has(member)) continue;
+    const done = new Set(n.done);
+    for (const member of new Set(n.audience)) {
+      if (done.has(member)) continue;
       emit({
-        rule: "acknowledgment",
+        rule,
         stage,
         anchor,
-        entity: { collection: "hoa_announcements", id: n.id },
+        entity: { collection: n.collection, id: n.id },
         member,
         audience: "member",
         template: "notice",
@@ -630,13 +696,13 @@ function acknowledgments(snap: ReminderSnapshot, clock: ReminderClock, emit: Emi
           title: n.title,
           due: due ? formatDay(due) : "",
           days_left: toDue === null ? "" : String(toDue),
-          path: "/announcements",
+          path: n.path,
         },
         urgency: stage === "before" ? "normal" : "low",
         channels: ALL,
         essential: false,
         category: "announcement",
-        group: `acknowledgment:${n.id}:${stage}`,
+        group: `${rule}:${n.id}:${stage}`,
       });
     }
   }
@@ -668,6 +734,7 @@ export function evaluateReminders(
   polls(snap, clock, emit);
   coverage(snap, clock, emit);
   acknowledgments(snap, clock, emit);
+  forms(snap, clock, emit);
   return [...out.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 

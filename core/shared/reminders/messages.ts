@@ -194,6 +194,24 @@ function defaultCopy(rule: ReminderRule, stage: ReminderStage, v: Record<string,
             path: "/",
             ctaLabel: "Acknowledge",
           };
+    case "form":
+      return stage === "before"
+        ? {
+            subject: `Please sign by ${v.due}: ${v.title}`,
+            message: `${q(v.title!)} needs your signature by ${v.due}.`,
+            heading: `Sign by ${v.due}`,
+            intro: `The board asked you to sign ${q(v.title!)} by ${v.due}. Read it, type your name, and you're done.`,
+            path: "/",
+            ctaLabel: "Sign",
+          }
+        : {
+            subject: `Please sign: ${v.title}`,
+            message: `${q(v.title!)} is waiting for your signature.`,
+            heading: "A form is waiting for you",
+            intro: `The board asked you to sign ${q(v.title!)}, and we haven't seen it yet. Read it, type your name, and you're done.`,
+            path: "/",
+            ctaLabel: "Sign",
+          };
     case "coverage":
       return stage === "expired"
         ? {

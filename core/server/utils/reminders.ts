@@ -52,6 +52,7 @@ import {
   type RequestInput,
   type VendorInput,
   type AckNoticeInput,
+  type FormInput,
 } from "#core/shared/reminders/rules";
 import { composeReminder, reminderPushActions, type ComposedReminder } from "#core/shared/reminders/messages";
 import { isNotUnique } from "./email-send-queue";
@@ -575,6 +576,7 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
         polls: [],
         vendors: [],
         notices: [],
+        forms: [],
         adminUserIds: [],
       };
       const { orgAudienceUserIds, adminUserIds } = await import("./notification-events");
@@ -812,6 +814,40 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
                   .map((a) => idOf(a.member?.user))
                   .filter(Boolean) as string[],
               } satisfies AckNoticeInput))
+            );
+          })()
+        );
+      }
+
+      if (want.has("form")) {
+        tasks.push(
+          (async () => {
+            const rows = await read<any>("hoa_forms", {
+              filter: { organization: { _eq: org.id }, status: { _eq: "open" } },
+              fields: ["id", "title", "sent_at", "date_created", "due_date", "audience"],
+            });
+            const sigs = rows.length
+              ? await read<any>("hoa_form_signatures", {
+                  filter: { form: { _in: rows.map((f) => f.id) }, organization: { _eq: org.id } },
+                  fields: ["form", "member.user"],
+                })
+              : [];
+            snap.forms = await Promise.all(
+              rows.map(
+                async (f) =>
+                  ({
+                    id: String(f.id),
+                    title: String(f.title || "A form"),
+                    sentAt: f.sent_at ?? f.date_created ?? null,
+                    dueDate: f.due_date ?? null,
+                    // The form audience is owners | tenants | board | all; the helper's tag for the board is board_members.
+                    audienceUserIds: await audience(f.audience === "board" ? "board_members" : (f.audience ?? "owners")),
+                    signedUserIds: sigs
+                      .filter((s) => idOf(s.form) === String(f.id))
+                      .map((s) => idOf(s.member?.user))
+                      .filter(Boolean) as string[],
+                  }) satisfies FormInput
+              )
             );
           })()
         );

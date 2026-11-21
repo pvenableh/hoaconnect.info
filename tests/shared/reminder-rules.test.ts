@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateReminders,
   type AckNoticeInput,
+  type FormInput,
   groupReminders,
   localDay,
   reminderClock,
@@ -469,6 +470,60 @@ describe("acknowledgment — a notice nobody has acknowledged yet (bell, push, e
     const [before] = run(s(), "2026-11-10T14:30:00Z");
     expect(composeReminder([nudge!])).toMatchObject({ subject: "Please acknowledge: Water shutoff Thursday", ctaLabel: "Acknowledge" });
     expect(composeReminder([before!]).subject).toBe("Please acknowledge by Thu, Nov 12: Water shutoff Thursday");
+  });
+});
+
+describe("form — a form nobody has signed yet (bell, push, email)", () => {
+  const form = (over: Partial<FormInput> = {}): FormInput => ({
+    id: "f1",
+    title: "Pool waiver",
+    // Sun, Nov 1, 10 am in New York.
+    sentAt: "2026-11-01T15:00:00Z",
+    dueDate: "2026-11-12",
+    audienceUserIds: ["u1", "u2", "u3"],
+    signedUserIds: ["u2"],
+    ...over,
+  });
+  const s = (f = form()) => snap({ forms: [f] });
+
+  it.each([
+    ["2026-11-03T14:30:00Z", null],
+    ["2026-11-04T14:30:00Z", "nudge"],
+    ["2026-11-07T14:30:00Z", null],
+    ["2026-11-10T14:30:00Z", "before"],
+    ["2026-11-12T14:30:00Z", "before"],
+    ["2026-11-13T14:30:00Z", null],
+  ] as const)("at %s → %s", (iso, want) => {
+    expect(run(s(), iso).map((r) => r.stage)).toEqual(want ? [want, want] : []);
+  });
+
+  it("goes only to people the form reaches who have not signed it", () => {
+    const rs = run(s(), "2026-11-04T14:30:00Z");
+    expect(rs.map((r) => r.member).sort()).toEqual(["u1", "u3"]);
+    expect(rs[0]).toMatchObject({
+      rule: "form",
+      audience: "member",
+      channels: ["bell", "push", "email"],
+      essential: false,
+      entity: { collection: "hoa_forms", id: "f1" },
+    });
+  });
+
+  it("is once per person per stage and never collides with an acknowledgment of the same id", () => {
+    expect(run(s(), "2026-11-04T14:30:00Z")[0]!.key).toBe("form:f1:nudge@20261101:u1");
+    expect(run(s(), "2026-11-10T14:30:00Z")[0]!.key).toBe("form:f1:before@20261112:u1");
+  });
+
+  it("everyone signed: nothing to send", () => {
+    expect(run(s(form({ signedUserIds: ["u1", "u2", "u3"] })), "2026-11-04T14:30:00Z")).toEqual([]);
+  });
+
+  it("is off until the board turns it on, and says what is owed", () => {
+    const off = snap({ forms: [form()], settings: allOn({ form: { enabled: false } }) });
+    expect(run(off, "2026-11-04T14:30:00Z").every((r) => !r.enabled)).toBe(true);
+    expect(resolveReminderSettings({}).rules.form.days).toBe(2);
+    const [before] = run(s(), "2026-11-10T14:30:00Z");
+    expect(composeReminder([before!])).toMatchObject({ subject: "Please sign by Thu, Nov 12: Pool waiver", ctaLabel: "Sign" });
   });
 });
 

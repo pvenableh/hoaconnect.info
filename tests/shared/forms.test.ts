@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanSignedName,
   formReaches,
   isFormOverdue,
   openForms,
@@ -83,5 +84,14 @@ describe("forms to sign", () => {
 
   it("builds the unique key", () => {
     expect(signKey("a", "m")).toBe("a:m");
+  });
+});
+
+describe("cleanSignedName", () => {
+  it("trims and single-spaces a real name", () => {
+    expect(cleanSignedName("  Ada   Lovelace ")).toBe("Ada Lovelace");
+  });
+  it("refuses blanks, one letter, digits only, non-strings and very long input", () => {
+    for (const bad of ["", "   ", "A", "12345", null, undefined, 42, "x".repeat(121)]) expect(cleanSignedName(bad)).toBeNull();
   });
 });
