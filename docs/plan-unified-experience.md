@@ -142,12 +142,14 @@ gets both sets, not a mode switch.
 
 | Role | Needs you | At a glance | Acts in place |
 |---|---|---|---|
-| **Tenant** | Notices to acknowledge · my open requests | `StatusTrack` per request · next building event | New request sheet · swipe to acknowledge |
-| **Owner** | Balance due with Pay · open votes · forms to sign | `Ring` paid this year · balance `Sparkline` · next meeting | Pay sheet · vote in the card · RSVP |
+| **Tenant** | Notices to acknowledge *(pending feature)* · my open requests | `StatusTrack` per request · next building event | New request sheet · swipe to acknowledge *(pending feature)* |
+| **Owner** | Balance due with Pay · open votes · forms to sign *(pending feature)* | `Ring` paid this year · balance `Sparkline` · next meeting | Pay sheet · vote in the card · RSVP |
 | **Board member** | Approvals waiting (with who has signed) · votes | `Ring` signatures per approval · arrears `Meter` · collections trend · contract dates `Heatstrip` | Approve or decline in the card · open the record over the home |
 | **Team / committee member** | My tasks · items in my area's queue | Team progress `Ring` · this week's schedule strip | Drag a task across the board · check off in place |
 | **Property manager** | Queue across delegated areas, oldest first | Per-community load bars · response time `Sparkline` | Reassign by drag · reply from the row |
 | **Admin** | Setup health · overdue across the community | Today's dashboard widgets, reorderable | Drag widgets · drag dock apps · everything above |
+
+*Pending feature* = no data model yet (an acknowledgment record for notices, a forms-to-sign flow). The config keeps the keys and the home renders nothing for them; §9 rules out the schema here. Peter to be reminded at the end of this plan to scope it as its own task.
 
 ## 6. Where drag and visuals land in the product
 
