@@ -396,7 +396,9 @@ const householdStats = computed(() => ({
 const roleContext = computed(() => {
   const c = emptyRoleContext(orgId.value);
   c.residency = isOwner.value ? "owner" : isTenant.value ? "tenant" : "none";
-  c.hats = { board: isBoardMember.value, manager: false, admin: isAdmin.value };
+  // No admin hat: this is the member view (an admin previewing it sees what a
+  // resident sees); the admin's own home is DashboardPage.
+  c.hats = { board: isBoardMember.value, manager: false, admin: false };
   return c;
 });
 const homeBands = computed(() => homeFor(roleContext.value));
@@ -649,7 +651,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     </NuxtLink>
                   </li>
                   <li
-                    v-if="!nextByKind('dues').length && !nextByKind('poll').length && !homeRequests.length"
+                    v-if="!(has.needs('balance-due') && nextByKind('dues').length) && !(has.needs('votes') && nextByKind('poll').length) && !(has.needs('my-requests') && homeRequests.length)"
                     class="px-4 py-3 text-sm t-text-muted"
                   >
                     Nothing needs you right now.
