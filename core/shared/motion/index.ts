@@ -24,6 +24,7 @@
  */
 
 export * from "./kit";
+export * from "./kit-b";
 
 export const EASING = {
   spring: "cubic-bezier(0.36, 0.66, 0.04, 1)",

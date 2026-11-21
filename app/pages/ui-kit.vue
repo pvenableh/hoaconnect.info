@@ -95,6 +95,41 @@ const segmentItems = [
 const countValue = ref(1284);
 const revealKey = ref(0);
 
+// Marks demo data
+const marksSpark = [12, 14, 13, 17, 16, 21, 19, 24, 23, 27, 26, 31];
+const marksTrackSteps = [
+  { key: "filed", label: "Filed" },
+  { key: "review", label: "Review" },
+  { key: "approved", label: "Approved" },
+  { key: "done", label: "Done" },
+];
+const marksHeat: Record<string, number> = (() => {
+  const out: Record<string, number> = {};
+  const start = Date.UTC(2026, 0, 1);
+  for (let i = 0; i < 365; i += 1) {
+    if ((i * 37) % 11 < 4) out[new Date(start + i * 864e5).toISOString().slice(0, 10)] = ((i * 13) % 7) + 1;
+  }
+  return out;
+})();
+
+// Motion kit B
+const kitSheetOpen = ref(false);
+const swipe = useSwipeRow({ actionWidth: 88 });
+const shared = useSharedElement();
+const sharedTile = ref<HTMLElement | null>(null);
+const sharedOpen = ref(false);
+const sharedPanel = ref<HTMLElement | null>(null);
+async function openShared() {
+  shared.capture(sharedTile.value);
+  sharedOpen.value = true;
+  await nextTick();
+  shared.grow(sharedPanel.value);
+}
+async function closeShared() {
+  await shared.shrink(sharedPanel.value);
+  sharedOpen.value = false;
+}
+
 const filterSegment = ref("all");
 const filterItems = [
   { value: "all", label: "All" },
@@ -714,6 +749,50 @@ const materials = [
         </div>
       </section>
 
+      <!-- ── Motion kit B ─────────────────────────────────────────────── -->
+      <section>
+        <h2 class="type-section">Motion: sheets, swipes, titles</h2>
+        <p class="type-body">
+          A tile grows into its panel, a sheet drags down to dismiss (or Escape),
+          a row swipes on touch, and a large title collapses into the bar.
+        </p>
+        <div class="ios-card p-5 mt-3 space-y-5">
+          <div class="space-y-2" data-kit="shared-element">
+            <!-- allow-raw-button: a tile standing in for a list row -->
+            <button ref="sharedTile" type="button" class="ios-card p-3 type-meta" @click="openShared">
+              Tile: open into panel
+            </button>
+            <div v-if="sharedOpen" ref="sharedPanel" class="ios-card p-5 space-y-2" data-kit="shared-panel">
+              <p class="type-body">The panel the tile grew into.</p>
+              <AppButton variant="outline" size="sm" @click="closeShared">Close</AppButton>
+            </div>
+          </div>
+          <div>
+            <AppButton variant="outline" size="sm" data-kit="sheet-open" @click="kitSheetOpen = true">Open sheet</AppButton>
+            <AppBottomSheet v-model:open="kitSheetOpen" title="Drag me down">
+              <p class="type-body">Pull the grabber down, or press Escape.</p>
+            </AppBottomSheet>
+          </div>
+          <div class="swipe-demo" data-kit="swipe-row">
+            <div class="swipe-demo__action type-meta">Archive</div>
+            <div
+              class="swipe-demo__row type-body"
+              :style="{ transform: `translate3d(${swipe.offset.value}px, 0, 0)`, transition: swipe.dragging.value ? 'none' : 'transform 240ms var(--spring-out)' }"
+              style="touch-action: pan-y"
+              @pointerdown="swipe.handlers.onPointerDown"
+              @pointermove="swipe.handlers.onPointerMove"
+              @pointerup="swipe.handlers.onPointerUp"
+              @pointercancel="swipe.handlers.onPointerCancel"
+            >
+              Swipe me left (touch)
+            </div>
+          </div>
+          <div class="ios-card p-3" data-kit="large-title">
+            <AppLargeTitle title="Large title" subtitle="Scroll the page: the bar title fades in." />
+          </div>
+        </div>
+      </section>
+
       <!-- ── Stats ────────────────────────────────────────────────────── -->
       <section>
         <h2 class="type-section">Stat cards</h2>
@@ -929,6 +1008,54 @@ const materials = [
             empty-hint="Once a charge is paid, the months fill in."
             :height="200"
           />
+        </div>
+      </section>
+
+      <!-- ── Marks ────────────────────────────────────────────────────── -->
+      <section data-kit="marks">
+        <h2 class="type-section">Marks</h2>
+        <p class="type-body">
+          Small figures that sit beside a number or inside a row. Each draws in
+          once, reads <code>--chart-1</code> or the status tokens, and has an
+          empty state of its own.
+        </p>
+        <div class="grid gap-4 lg:grid-cols-2 mt-3">
+          <div class="ios-card p-5 space-y-4" data-mark="sparkline">
+            <h3 class="type-card">Sparkline</h3>
+            <div class="flex flex-wrap items-center gap-4">
+              <AppChartSparkline :values="marksSpark" label="Dues, last 12 months" />
+              <AppChartSparkline :values="[]" label="No dues history" />
+            </div>
+          </div>
+
+          <div class="ios-card p-5 space-y-4" data-mark="ring">
+            <h3 class="type-card">Ring</h3>
+            <div class="flex flex-wrap items-center gap-6">
+              <AppChartRing :value="82" label="Dues collected" />
+              <AppChartRing :value="null" label="Inspections" />
+            </div>
+          </div>
+
+          <div class="ios-card p-5 space-y-4" data-mark="meter">
+            <h3 class="type-card">Meter</h3>
+            <AppChartMeter :value="6200" :limit="10000" label="Reserve fund" :format="chartCurrency" />
+            <AppChartMeter :value="9100" :limit="10000" label="Pool hours" />
+            <AppChartMeter :value="11400" :limit="10000" label="Budget" :format="chartCurrency" />
+            <AppChartMeter :value="null" :limit="10000" label="Water use" />
+          </div>
+
+          <div class="ios-card p-5 space-y-4" data-mark="status-track">
+            <h3 class="type-card">Status track</h3>
+            <AppChartStatusTrack :steps="marksTrackSteps" current="review" />
+            <AppChartStatusTrack :steps="marksTrackSteps" :current="null" />
+            <AppChartStatusTrack :steps="[]" :current="null" />
+          </div>
+
+          <div class="ios-card p-5 space-y-4 lg:col-span-2" data-mark="heatstrip">
+            <h3 class="type-card">Heatstrip</h3>
+            <AppChartHeatstrip :year="2026" :values="marksHeat" />
+            <AppChartHeatstrip :year="2019" :values="{}" />
+          </div>
         </div>
       </section>
 
@@ -1213,3 +1340,9 @@ class="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
     </AppBottomSheet>
   </div>
 </template>
+
+<style scoped>
+.swipe-demo { position: relative; overflow: hidden; border-radius: 0.75rem; }
+.swipe-demo__action { position: absolute; inset: 0 0 0 auto; width: 88px; display: grid; place-items: center; background: var(--theme-bg-secondary); }
+.swipe-demo__row { position: relative; padding: 0.875rem 1rem; background: var(--theme-card-bg, var(--background)); }
+</style>

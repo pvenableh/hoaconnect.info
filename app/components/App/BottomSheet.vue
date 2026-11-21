@@ -74,57 +74,24 @@ onUnmounted(() => mq?.removeEventListener("change", onMq));
 const asDialog = computed(() => isWide.value && !props.alwaysSheet);
 
 const sheetEl = ref<HTMLElement | null>(null);
-const dragY = ref(0);
-const dragging = ref(false);
 
-/** Past either of these on release, the sheet goes rather than springs back. */
-const DISMISS_DISTANCE = 100;
-const DISMISS_VELOCITY = 0.5; // px per ms
-
-let startY = 0;
-let startTime = 0;
-let lastY = 0;
-let lastTime = 0;
-
-function onPointerDown(e: PointerEvent) {
-  if (props.persistent || asDialog.value) return;
-  // Only the grabber starts a drag. If the whole sheet did, scrolling a long
-  // form or dragging to select text inside it would dismiss the sheet.
-  dragging.value = true;
-  startY = lastY = e.clientY;
-  startTime = lastTime = e.timeStamp;
-  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-}
-
-function onPointerMove(e: PointerEvent) {
-  if (!dragging.value) return;
-  const delta = e.clientY - startY;
-  // Downward tracks the finger 1:1; upward rubber-bands, so the sheet resists
-  // being pulled past its open position instead of detaching from the edge.
-  dragY.value = delta >= 0 ? delta : delta * 0.3;
-  lastY = e.clientY;
-  lastTime = e.timeStamp;
-}
-
-function onPointerUp() {
-  if (!dragging.value) return;
-  dragging.value = false;
-
-  const elapsed = Math.max(1, lastTime - startTime);
-  const velocity = (lastY - startY) / elapsed;
-
-  if (dragY.value > DISMISS_DISTANCE || velocity > DISMISS_VELOCITY) {
+// Dragging is useSheetDrag; only the grabber binds its handlers. A throw
+// carries through instead of snapping back to 0 and replaying a canned drop.
+const {
+  dragY,
+  dragging,
+  thrown: dragDismissed,
+  reset: resetDrag,
+  handlers: grabHandlers,
+} = useSheetDrag({
+  enabled: () => !props.persistent && !asDialog.value,
+  height: () => sheetEl.value?.offsetHeight ?? 400,
+  onDismiss: () => {
     haptic.tap();
-    // Carry the throw through instead of snapping back to 0 and replaying a
-    // canned drop — the panel should keep travelling the way the finger sent it.
-    dragDismissed.value = true;
-    dragY.value = (sheetEl.value?.offsetHeight ?? 400) + 40;
     close();
-  } else {
-    haptic.detentSnap();
-    dragY.value = 0;
-  }
-}
+  },
+  onSnapBack: () => haptic.detentSnap(),
+});
 
 function close() {
   emit("update:open", false);
@@ -148,8 +115,6 @@ function onKeydown(e: KeyboardEvent) {
 const LEAVE_MS = 220;
 const rendered = ref(props.open);
 const leaving = ref(false);
-/** Dismissed by dragging: the panel already left with the finger. */
-const dragDismissed = ref(false);
 let leaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 watch(
@@ -158,10 +123,9 @@ watch(
     if (leaveTimer) clearTimeout(leaveTimer);
     if (open) {
       leaving.value = false;
-      dragDismissed.value = false;
       // Reset the offset, or a sheet dismissed by a throw reopens already
       // pushed off-screen.
-      dragY.value = 0;
+      resetDrag();
       rendered.value = true;
       return;
     }
@@ -170,8 +134,7 @@ watch(
     leaveTimer = setTimeout(() => {
       rendered.value = false;
       leaving.value = false;
-      dragDismissed.value = false;
-      dragY.value = 0;
+      resetDrag();
     }, LEAVE_MS);
   },
 );
@@ -228,10 +191,10 @@ const backdropStyle = computed(() => ({
         <div
           v-if="!persistent && !asDialog"
           class="sheet__grabber-hit"
-          @pointerdown="onPointerDown"
-          @pointermove="onPointerMove"
-          @pointerup="onPointerUp"
-          @pointercancel="onPointerUp"
+          @pointerdown="grabHandlers.onPointerDown"
+          @pointermove="grabHandlers.onPointerMove"
+          @pointerup="grabHandlers.onPointerUp"
+          @pointercancel="grabHandlers.onPointerCancel"
         >
           <span class="sheet__grabber" :class="{ 'sheet__grabber--active': dragging }" />
         </div>

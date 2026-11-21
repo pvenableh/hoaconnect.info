@@ -14,6 +14,7 @@
 -->
 <script setup lang="ts">
 import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
+import { prefersReducedMotion } from "#core/shared/motion";
 
 const props = defineProps<{
   title?: string | null;
@@ -74,6 +75,11 @@ function clearFlipTimers() {
 
 async function startFlipFlight(flip: FlipFromPayload) {
   clearFlipTimers();
+  // Reduced motion: no flight, the hero is simply there.
+  if (prefersReducedMotion()) {
+    heroLanded.value = true;
+    return;
+  }
   const src = flip.rect;
   // Plant the ghost at the source rect with identity transform.
   ghostStyle.value = {
