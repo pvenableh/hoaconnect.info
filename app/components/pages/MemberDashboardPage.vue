@@ -1,5 +1,16 @@
 <script setup lang="ts">
 import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "#core/types/directus";
+import { homeFor } from "#core/shared/home/roles";
+import { emptyRoleContext } from "#core/shared/roles/role-context";
+import {
+  REQUEST_STEPS,
+  balanceSeries,
+  openRequests,
+  paidThisYear,
+  requestTrackKey,
+  type HomeCharge,
+  type HomeRequest,
+} from "#core/shared/home/member-home";
 
 const config = useRuntimeConfig();
 const { user } = useDirectusAuth();
@@ -379,6 +390,82 @@ const householdStats = computed(() => ({
     household.value?.vehicles?.filter((v: any) => v?.parking_spot)?.length || 0,
 }));
 
+// ── Role home (docs/plan-unified-experience.md §5): the owner and tenant rows.
+// `homeFor` picks which content each band holds; the reads below are the same
+// collections the rest of the portal uses, so nothing new is queried per role.
+const roleContext = computed(() => {
+  const c = emptyRoleContext(orgId.value);
+  c.residency = isOwner.value ? "owner" : isTenant.value ? "tenant" : "none";
+  c.hats = { board: isBoardMember.value, manager: false, admin: isAdmin.value };
+  return c;
+});
+const homeBands = computed(() => homeFor(roleContext.value));
+const has = {
+  needs: (k: string) => (homeBands.value.needs as string[]).includes(k),
+  glance: (k: string) => (homeBands.value.glance as string[]).includes(k),
+  acts: (k: string) => (homeBands.value.acts as string[]).includes(k),
+};
+
+const { items: upNext } = await useUpNextGlance(() => selectedOrgId.value, {
+  memberId: () => currentOrg.value?.id,
+  userId: () => user.value?.id,
+});
+const nextByKind = (kind: string) => upNext.value.filter((i) => i.kind === kind);
+
+const { list: listCharges } = useDirectusItems("payment_requests");
+const { list: listMyRequests } = useDirectusItems("hoa_requests");
+const memberId = computed(() => currentOrg.value?.id || null);
+
+const { data: homeCharges } = await useAsyncData(
+  `home-charges-${orgId.value}-${memberId.value}`,
+  async () => {
+    if (!orgId.value || !memberId.value || !isEnabled("payments")) return [];
+    try {
+      return ((await listCharges({
+        fields: ["amount", "amount_paid", "amount_remaining", "status", "due_date", "paid_at"],
+        filter: { organization: { _eq: orgId.value }, member: { _eq: memberId.value } },
+        sort: ["-due_date"],
+        limit: 60,
+      })) || []) as HomeCharge[];
+    } catch {
+      return [];
+    }
+  },
+  { watch: [orgId, memberId], server: false, default: () => [] as HomeCharge[] },
+);
+
+const { data: homeRequests } = await useAsyncData(
+  `home-requests-${orgId.value}-${user.value?.id}`,
+  async () => {
+    if (!orgId.value || !user.value?.id || !isEnabled("requests")) return [];
+    try {
+      const rows = (await listMyRequests({
+        fields: ["id", "title", "status"],
+        filter: { organization: { _eq: orgId.value }, submitted_by: { _eq: user.value.id } },
+        sort: ["-date_updated"],
+        limit: 20,
+      })) || [];
+      return openRequests(rows as HomeRequest[]).slice(0, 4);
+    } catch {
+      return [];
+    }
+  },
+  { watch: [orgId], server: false, default: () => [] as HomeRequest[] },
+);
+
+const nowYear = new Date().getFullYear();
+const paidYear = computed(() => paidThisYear(homeCharges.value || [], nowYear));
+const balancePoints = computed(() => balanceSeries(homeCharges.value || [], new Date()));
+const nextMeeting = computed(() => nextByKind("meeting")[0] || null);
+const fmtMoney = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+const showNewRequest = ref(false);
+async function onRequestCreated() {
+  showNewRequest.value = false;
+  await refreshNuxtData(`home-requests-${orgId.value}-${user.value?.id}`);
+}
+
 // Format date for display
 function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "";
@@ -517,8 +604,123 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
         <!-- Install (Phase 6): renders nothing unless this device can add the app and hasn't dismissed it on this build. -->
         <AppInstallCard />
 
-        <!-- Up next (Phase 5b): what the reminders are about, so the push lands on a page that knows. -->
-        <HomeUpNext :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
+        <!-- Role home (§5): Needs you · At a glance. The feed band is the
+             announcements and documents cards below, so it is left empty here. -->
+        <HomePage
+          v-if="isOwner || isTenant"
+          :role-context="roleContext"
+          :organization-id="selectedOrgId"
+          data-testid="member-home"
+        >
+          <template #needs>
+            <div class="space-y-3">
+              <h2 class="t-eyebrow">Needs you</h2>
+              <AppCard class="overflow-hidden py-0">
+                <ul class="divide-y">
+                  <li v-for="item in nextByKind('dues')" v-show="has.needs('balance-due')" :key="item.key">
+                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-balance-due">
+                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
+                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
+                      </span>
+                      <AppButton v-if="has.acts('pay-sheet')" size="sm" @click="navigateToOrg('/payments')">Pay</AppButton>
+                    </div>
+                  </li>
+                  <li v-for="item in nextByKind('poll')" v-show="has.needs('votes')" :key="item.key">
+                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-vote">
+                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
+                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
+                      </span>
+                      <AppButton v-if="has.acts('vote-in-card')" size="sm" variant="outline" @click="navigateToOrg(item.route)">Vote</AppButton>
+                    </div>
+                  </li>
+                  <li v-for="r in homeRequests" v-show="has.needs('my-requests')" :key="r.id">
+                    <NuxtLink
+                      :to="buildOrgPath(`/requests/${r.id}`)"
+                      class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
+                      data-testid="home-request"
+                    >
+                      <Icon name="i-lucide-wrench" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1 truncate text-sm font-medium t-text">{{ r.title }}</span>
+                      <Icon name="i-lucide-chevron-right" class="h-4 w-4 shrink-0 t-text-muted" />
+                    </NuxtLink>
+                  </li>
+                  <li
+                    v-if="!nextByKind('dues').length && !nextByKind('poll').length && !homeRequests.length"
+                    class="px-4 py-3 text-sm t-text-muted"
+                  >
+                    Nothing needs you right now.
+                  </li>
+                </ul>
+              </AppCard>
+              <AppButton
+                v-if="has.acts('new-request-sheet') && isEnabled('requests')"
+                variant="outline"
+                size="sm"
+                data-testid="home-new-request"
+                @click="showNewRequest = true"
+              >
+                <Icon name="i-lucide-plus" class="mr-1.5 h-4 w-4" />
+                New request
+              </AppButton>
+            </div>
+          </template>
+
+          <template #glance>
+            <div class="space-y-3">
+              <h2 class="t-eyebrow">At a glance</h2>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <AppCard v-if="has.glance('paid-ring') && isEnabled('payments')" class="flex items-center gap-4 p-4" data-testid="home-paid-ring">
+                  <AppChartRing :value="paidYear.paid" :max="paidYear.charged || 1" :size="84" label="Paid this year" />
+                  <div>
+                    <p class="text-sm font-medium t-text">Paid this year</p>
+                    <p class="text-xs t-text-muted">{{ fmtMoney(paidYear.paid) }} of {{ fmtMoney(paidYear.charged) }}</p>
+                  </div>
+                </AppCard>
+                <AppCard v-if="has.glance('balance-sparkline') && isEnabled('payments')" class="p-4" data-testid="home-balance-spark">
+                  <p class="text-sm font-medium t-text">Balance, last 12 months</p>
+                  <AppChartSparkline :values="balancePoints" :width="220" :height="40" label="Balance owed, last 12 months" />
+                </AppCard>
+                <AppCard v-if="has.glance('next-meeting') && nextMeeting" class="p-4" data-testid="home-next-meeting">
+                  <p class="t-eyebrow mb-1">Next meeting</p>
+                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
+                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
+                  <AppButton v-if="has.acts('rsvp')" class="mt-3" size="sm" variant="outline" @click="navigateToOrg('/meetings')">RSVP</AppButton>
+                </AppCard>
+                <AppCard
+                  v-if="has.glance('request-status-track') && homeRequests.length"
+                  class="space-y-4 p-4 sm:col-span-2"
+                  data-testid="home-status-tracks"
+                >
+                  <div v-for="r in homeRequests" :key="r.id">
+                    <p class="mb-2 truncate text-sm font-medium t-text">{{ r.title }}</p>
+                    <AppChartStatusTrack :steps="[...REQUEST_STEPS]" :current="requestTrackKey(r.status)" />
+                  </div>
+                </AppCard>
+                <AppCard v-if="has.glance('next-event') && nextMeeting && !has.glance('next-meeting')" class="p-4" data-testid="home-next-event">
+                  <p class="t-eyebrow mb-1">Next in your building</p>
+                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
+                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
+                </AppCard>
+              </div>
+            </div>
+          </template>
+
+          <template #feed><span class="hidden" /></template>
+        </HomePage>
+        <HomeUpNext v-else :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
+
+        <AppBottomSheet v-model:open="showNewRequest" title="New request">
+          <RequestsRequestForm
+            :organization-id="selectedOrgId"
+            :allowed-types="['question', 'maintenance', 'arc', 'complaint']"
+            @created="onRequestCreated"
+            @cancel="showNewRequest = false"
+          />
+        </AppBottomSheet>
 
         <!-- Board Member Stats (only for board members) -->
         <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
