@@ -34,6 +34,8 @@ const { data: access } = await useAsyncData(
 );
 const forms = computed(() => data.value?.forms ?? []);
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// due_date is a date-only value: read it in UTC so Dec 10 is not shown as Dec 9.
+const dueDay = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 const copyHref = (f: Tracked, memberId: string) => `/api/org/forms/${f.id}/signed-copy?orgId=${props.organizationId}&memberId=${memberId}`;
 </script>
 
@@ -47,7 +49,7 @@ const copyHref = (f: Tracked, memberId: string) => `/api/org/forms/${f.id}/signe
     <h2 class="t-eyebrow">Forms to sign</h2>
     <AppCard v-for="f in forms" :key="f.id" class="p-4" data-testid="home-form-tracking-form">
       <p class="text-sm font-medium t-text">{{ f.title }}</p>
-      <p class="text-sm t-text-muted">{{ f.signed.length }} of {{ f.reached }} signed<span v-if="f.dueDate"> · due {{ day(f.dueDate) }}</span></p>
+      <p class="text-sm t-text-muted">{{ f.signed.length }} of {{ f.reached }} signed<span v-if="f.dueDate"> · due {{ dueDay(f.dueDate) }}</span></p>
       <p v-if="!f.pending.length" class="text-sm t-text-muted">Everyone has signed.</p>
       <ul v-else class="mt-2 flex flex-wrap gap-1.5" aria-label="Not signed yet">
         <li v-for="p in f.pending" :key="p.memberId" class="rounded-full border px-2.5 py-0.5 text-xs t-text">{{ p.name }}</li>
