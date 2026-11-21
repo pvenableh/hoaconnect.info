@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * Property manager portal root. Not a screen — it sends the manager straight
- * into the first area their admin granted them.
+ * Property manager portal root. A manager sees the role home here (delegated
+ * queue, load bars, response sparkline); anyone else is sent straight into the
+ * first area their admin granted them.
  *
  * It used to be a grid of cards, one per granted capability. For the common
  * case that is a click to choose from a list of one: most managers hold a
@@ -23,6 +24,11 @@ import { NAV_LAYOUTS, meets, navEntry } from "#core/shared/nav/registry";
 const { buildOrgPath } = useOrgNavigation();
 const { isPropertyManagerOfCurrentDomain } = useCurrentDomainAccess();
 const nav = useNavContext();
+const { context: roleContext, load: loadRoleContext } = useRoleContext();
+await loadRoleContext();
+// A manager gets the home (docs/plan-unified-experience.md §5); anyone else who
+// reaches this root with a grant is still sent to their first area.
+const isManagerHome = computed(() => !!roleContext.value?.hats.manager);
 
 // The manager layout's order is the landing priority (nav registry): inquiries
 // is the manager's actual inbox, so a manager who holds it lands there
@@ -36,12 +42,19 @@ const home = computed(
 );
 
 // `replace` so Back leaves the portal rather than bouncing through this root.
-if (home.value) await navigateTo(buildOrgPath(home.value), { replace: true });
+if (home.value && !isManagerHome.value) await navigateTo(buildOrgPath(home.value), { replace: true });
 </script>
 
 <template>
   <div class="min-h-screen t-bg t-text t-transition">
-    <PageContainer>
+    <PageContainer v-if="isManagerHome">
+      <HomePage :role-context="roleContext" data-testid="manager-home">
+        <template #needs><HomeManagerQueue :role-context="roleContext" /></template>
+        <template #glance><HomeManagerGlance :role-context="roleContext" /></template>
+        <template #feed><span class="hidden" /></template>
+      </HomePage>
+    </PageContainer>
+    <PageContainer v-else>
       <div class="ios-card p-10 text-center t-text-muted">
         <Icon name="lucide:lock" class="h-8 w-8 mx-auto mb-3 opacity-50" />
         <p v-if="isPropertyManagerOfCurrentDomain">

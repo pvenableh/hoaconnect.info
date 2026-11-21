@@ -22,7 +22,8 @@ async function load() {
   try {
     // assignee=me scope is too narrow; fetch by a parent we don't know — so
     // hit the project list when we can. Fallback: the row is passed via FLIP.
-    const rows = await list({});
+    // A member without project access may only list their own tasks.
+    const rows = await list({}).catch(() => list({ assignee: "me" }));
     task.value = rows.find((t) => t.id === props.id) || null;
   } catch {
     task.value = null;

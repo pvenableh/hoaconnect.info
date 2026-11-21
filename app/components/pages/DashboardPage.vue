@@ -10,6 +10,8 @@ const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 // Await to ensure org is loaded during SSR
 const { selectedOrgId, currentOrg, currentRole, isAdmin, isBoardMember, isMember } = await useSelectedOrg();
+const { context: roleContext, load: loadRoleContext } = useRoleContext();
+await loadRoleContext();
 
 // Watch for org changes and refresh data
 const orgId = computed(() => selectedOrgId.value);
@@ -327,10 +329,19 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
             -->
             <ClientOnly>
               <div class="xl:grid xl:grid-cols-[minmax(0,1fr)_240px] xl:gap-6 xl:items-start">
-                <div class="space-y-4 min-w-0">
-                  <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
-                  <HomeGlanceRail />
-                </div>
+                <HomePage
+                  :role-context="roleContext"
+                  :organization-id="selectedOrgId"
+                  class="min-w-0"
+                  data-testid="admin-home"
+                >
+                  <template #needs>
+                    <HomeAdminSetup class="mb-4" />
+                    <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
+                  </template>
+                  <template #glance><HomeGlanceRail /></template>
+                  <template #feed><span class="hidden" /></template>
+                </HomePage>
                 <HomeChartRail class="mt-4 xl:mt-0" />
               </div>
             </ClientOnly>

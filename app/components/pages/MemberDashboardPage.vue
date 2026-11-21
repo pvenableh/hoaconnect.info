@@ -393,20 +393,41 @@ const householdStats = computed(() => ({
 // ── Role home (docs/plan-unified-experience.md §5): the owner and tenant rows.
 // `homeFor` picks which content each band holds; the reads below are the same
 // collections the rest of the portal uses, so nothing new is queried per role.
+const { context: serverContext, load: loadRoleContext } = useRoleContext();
+await loadRoleContext();
 const roleContext = computed(() => {
+  // The server's context carries the hats and helper grants (manager, team).
+  // The admin hat is dropped: this is the member view (an admin previewing it
+  // sees what a resident sees); the admin's own home is DashboardPage.
+  const server = serverContext.value;
+  if (server && server.orgId === orgId.value) {
+    return { ...server, hats: { ...server.hats, admin: false } };
+  }
   const c = emptyRoleContext(orgId.value);
   c.residency = isOwner.value ? "owner" : isTenant.value ? "tenant" : "none";
-  // No admin hat: this is the member view (an admin previewing it sees what a
-  // resident sees); the admin's own home is DashboardPage.
   c.hats = { board: isBoardMember.value, manager: false, admin: false };
   return c;
 });
 const homeBands = computed(() => homeFor(roleContext.value));
+const MEMBER_NEEDS = ["balance-due", "votes", "my-requests", "notices", "forms-to-sign"];
+const MEMBER_GLANCE = ["paid-ring", "balance-sparkline", "next-meeting", "request-status-track", "next-event"];
+const memberNeeds = computed(() => homeBands.value.needs.some((k) => MEMBER_NEEDS.includes(k)));
+const memberGlance = computed(() => homeBands.value.glance.some((k) => MEMBER_GLANCE.includes(k)));
+const otherNeeds = computed(() => ["approvals", "my-tasks", "delegated-queue"].some((k) => homeBands.value.needs.includes(k as any)));
+const otherGlance = computed(() => ["arrears-meter", "team-ring", "community-load"].some((k) => homeBands.value.glance.includes(k as any)));
 const has = {
   needs: (k: string) => (homeBands.value.needs as string[]).includes(k),
   glance: (k: string) => (homeBands.value.glance as string[]).includes(k),
   acts: (k: string) => (homeBands.value.acts as string[]).includes(k),
 };
+// Team role: the tasks assigned to this person (only read when the role is held).
+const { list: listTasks } = useTasks();
+const { data: myTasksData, refresh: refreshTasks } = useAsyncData(
+  () => `home-my-tasks-${orgId.value}`,
+  async () => (orgId.value && has.needs("my-tasks") ? await listTasks({ assignee: "me", parent: "none" }).catch(() => []) : []),
+  { watch: [orgId], server: false, default: () => [] as any[] },
+);
+const myTasks = computed(() => myTasksData.value ?? []);
 
 const { items: upNext } = await useUpNextGlance(() => selectedOrgId.value, {
   memberId: () => currentOrg.value?.id,
@@ -609,14 +630,20 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
         <!-- Role home (§5): Needs you · At a glance. The feed band is the
              announcements and documents cards below, so it is left empty here. -->
         <HomePage
-          v-if="isOwner || isTenant"
+          v-if="homeBands.roles.length"
           :role-context="roleContext"
           :organization-id="selectedOrgId"
           data-testid="member-home"
         >
           <template #needs>
-            <div class="space-y-3">
-              <h2 class="t-eyebrow">Needs you</h2>
+            <HomeManagerQueue v-if="has.needs('delegated-queue')" :role-context="roleContext" />
+            <HomeBoardNeeds v-if="has.needs('approvals')" />
+            <div v-if="has.needs('my-tasks')" class="space-y-3">
+              <HomeTeamNeeds :tasks="myTasks" @done="() => refreshTasks()" />
+              <HomeTeamQueue v-if="has.needs('area-queue')" :role-context="roleContext" />
+            </div>
+            <div v-if="memberNeeds" class="space-y-3">
+              <h2 v-if="!otherNeeds" class="t-eyebrow">Needs you</h2>
               <AppCard class="overflow-hidden py-0">
                 <ul class="divide-y">
                   <li v-for="item in nextByKind('dues')" v-show="has.needs('balance-due')" :key="item.key">
@@ -672,8 +699,11 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           </template>
 
           <template #glance>
-            <div class="space-y-3">
-              <h2 class="t-eyebrow">At a glance</h2>
+            <HomeManagerGlance v-if="has.glance('community-load')" :role-context="roleContext" />
+            <HomeBoardGlance v-if="has.glance('arrears-meter')" />
+            <HomeTeamGlance v-if="has.glance('team-ring')" :tasks="myTasks" />
+            <div v-if="memberGlance" class="space-y-3">
+              <h2 v-if="!otherGlance" class="t-eyebrow">At a glance</h2>
               <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <AppCard v-if="has.glance('paid-ring') && isEnabled('payments')" class="flex items-center gap-4 p-4" data-testid="home-paid-ring">
                   <AppChartRing :value="paidYear.paid" :max="paidYear.charged || 1" :size="84" label="Paid this year" />

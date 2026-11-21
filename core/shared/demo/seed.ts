@@ -19,6 +19,7 @@
  * still gets the rest of the demo.
  */
 import { dmSlug } from "../channels/rules";
+import { seedManagerSecondCommunity, seedScenario } from "./scenario";
 import { resolveReminderSettings } from "../reminders/settings";
 import {
   buildDemoLedger,
@@ -181,7 +182,8 @@ function makeClient({ baseUrl, token }: SeedIO) {
   return async function dx(endpoint: string, options: RequestInit = {}): Promise<any> {
     const res = await fetch(`${baseUrl}${endpoint}`, {
       ...options,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...options.headers },
+      // A FormData body (a file upload) sets its own multipart content type.
+      headers: { ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }), Authorization: `Bearer ${token}`, ...options.headers },
     });
     if (!res.ok) {
       const err = await res.text();
@@ -256,6 +258,7 @@ export async function seedDemos(io: SeedIO, user: DemoUser): Promise<void> {
       // it makes goes through mut(), which logs instead of sending on a dry run.
       if (!String(org.id).startsWith("DRY_")) {
         await seedRound3(ctx, def, { orgId: org.id, settingsId: org.settings ?? null, adminUserId: demoUserId, roleId });
+        if (def.slug === "demo") await runScenario(ctx, org.id, demoUserId);
       }
       continue;
     }
@@ -311,6 +314,20 @@ export async function seedDemos(io: SeedIO, user: DemoUser): Promise<void> {
     // org is read again because its settings row may have been made above.
     const fresh = await findOne("hoa_organizations", { id: { _eq: org.id } }, "id,settings");
     await seedRound3(ctx, def, { orgId: org.id, settingsId: fresh?.settings ?? null, adminUserId: demoUserId, roleId });
+    // The six-login scenario lives on Harborview Lofts only.
+    if (def.slug === "demo") await runScenario(ctx, org.id, demoUserId);
+    // The demo manager also works the second demo community.
+    if (def.slug === "demo-classic") await runScenario(ctx, org.id, demoUserId, true);
+  }
+}
+
+/** The scenario is extra: if it fails, the demo itself is already restored, so say so and go on. */
+async function runScenario(ctx: Round3Ctx, orgId: string, adminUserId: string, second = false): Promise<void> {
+  try {
+    if (second) await seedManagerSecondCommunity(ctx, { orgId, adminUserId });
+    else await seedScenario(ctx, { orgId, adminUserId });
+  } catch (e) {
+    ctx.log(`  Scenario skipped: ${(e as Error).message}`);
   }
 }
 
