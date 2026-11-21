@@ -273,5 +273,5 @@ order. Session 11 here supplies the board view that role-first Phase 6 expects.
 | | | Commit: 2fa274bb. Typecheck exit 0, test 4519 passed, audit:all 20 green. |
 | 7 | [x] | Shipped: `core/shared/home/roles.ts` (`ROLE_HOMES` = §5's six rows as needs/glance/acts keys; `homeRoles(ctx)`, `homeForRoles`, `homeFor(ctx)`: hats add, deduped, admin > manager > board > team > owner > tenant), and `App Home/Page.vue` (`HomePage`: three bands, each a slot receiving its keys, falling back to `HomeStacks` and `HomeGlanceRail`). `tests/shared/home-roles.test.ts` (11): each of the six roles, all 15 two-hat pairs, owner-on-board, empty context. |
 | | | Deviated: `role-context.ts` lives at `core/shared/roles/`, read as is, unchanged. `Stacks.vue` and `GlanceRail.vue` were read but not edited, and `HomePage` is not mounted on any page yet (Sessions 8 and 9). Team role = any helper or committee grant (`ctx.helps`). No browser check, since nothing renders it. |
-| | | Commit: not committed. Typecheck exit 0, test 4530 passed, audit:all 20 green. |
+| | | Commit: ba4305bc. Typecheck exit 0, test 4530 passed, audit:all 20 green. |
 | 8–15 | [ ] | — |
