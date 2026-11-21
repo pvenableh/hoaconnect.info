@@ -81,6 +81,7 @@
     "add:connect-fields": "dotenv -- tsx scripts/add-connect-fields.ts",
     "add:opening-balance": "dotenv -- tsx scripts/add-opening-balance-fields.ts",
     "create:comments": "dotenv -- tsx scripts/create-comments-collections.ts",
+    "create:acknowledgments": "dotenv -- tsx scripts/create-acknowledgments.ts",
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",
     "create:ai-wallets": "dotenv -- tsx scripts/create-ai-wallet-collections.ts",
