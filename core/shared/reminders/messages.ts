@@ -201,7 +201,7 @@ function defaultCopy(rule: ReminderRule, stage: ReminderStage, v: Record<string,
             message: `${q(v.title!)} needs your signature by ${v.due}.`,
             heading: `Sign by ${v.due}`,
             intro: `The board asked you to sign ${q(v.title!)} by ${v.due}. Read it, type your name, and you're done.`,
-            path: "/",
+            path: `/?sign=${v.id}`,
             ctaLabel: "Sign",
           }
         : {
@@ -209,7 +209,7 @@ function defaultCopy(rule: ReminderRule, stage: ReminderStage, v: Record<string,
             message: `${q(v.title!)} is waiting for your signature.`,
             heading: "A form is waiting for you",
             intro: `The board asked you to sign ${q(v.title!)}, and we haven't seen it yet. Read it, type your name, and you're done.`,
-            path: "/",
+            path: `/?sign=${v.id}`,
             ctaLabel: "Sign",
           };
     case "coverage":

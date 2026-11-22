@@ -44,6 +44,22 @@ const busy = ref(false);
 const live = ref("");
 const canSign = computed(() => agreed.value && !!cleanSignedName(typedName.value) && !busy.value);
 
+// A reminder's button lands on /?sign=<id>: open that form's sheet once the list is in.
+const route = useRoute();
+const wanted = ref<string | null>(typeof route.query.sign === "string" ? route.query.sign : null);
+watch(
+  rows,
+  (list) => {
+    if (!wanted.value) return;
+    const f = list.find((r) => r.id === wanted.value);
+    if (f) {
+      wanted.value = null;
+      openSheet(f);
+    }
+  },
+  { immediate: true }
+);
+
 function openSheet(f: OwedForm) {
   active.value = f;
   typedName.value = "";
