@@ -26,6 +26,8 @@ const props = defineProps<{
   holder: HolderView | null;
   handOver: (id: string, body: Record<string, unknown>) => Promise<boolean>;
   addHolder: (id: string, body: Record<string, unknown>) => Promise<boolean>;
+  /** Who a drop brought in (drag a person or office onto a job); empty when opened by a button. */
+  initialPick?: HolderPick | null;
 }>();
 const emit = defineEmits<{ "update:open": [value: boolean] }>();
 
@@ -38,12 +40,14 @@ const role = ref("owner");
 const saving = ref(false);
 
 watch(
-  () => [props.open, props.mode, props.holder?.id] as const,
+  () => [props.open, props.mode, props.holder?.id, props.initialPick?.kind, props.initialPick?.value] as const,
   ([open]) => {
     if (!open) return;
     date.value = registerToday();
-    // A hand-over may leave the job empty; an assign must name someone.
-    next.value = { kind: handing.value ? "none" : "member", value: "" };
+    // A hand-over may leave the job empty; an assign must name someone. A drop
+    // arrives with the person or office already picked.
+    const pick = props.initialPick;
+    next.value = pick && pick.kind !== "none" && pick.value ? { kind: pick.kind, value: pick.value } : { kind: handing.value ? "none" : "member", value: "" };
     role.value = props.holder?.role ?? "owner";
   },
   { immediate: true },

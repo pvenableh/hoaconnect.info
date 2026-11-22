@@ -35,7 +35,6 @@ const selectedDocuments = ref<Map<string, HoaDocument>>(new Map());
 
 // Drag state
 const draggedDocument = ref<HoaDocument | null>(null);
-const dragOverCategory = ref<string | null>(null);
 
 // Status filter
 const statusFilter = ref<"published" | "draft" | "archived">("published");
@@ -178,31 +177,15 @@ const onDragStart = (doc: HoaDocument, event: DragEvent) => {
 
 const onDragEnd = () => {
   draggedDocument.value = null;
-  dragOverCategory.value = null;
 };
 
-const onDragOver = (categoryId: string, event: DragEvent) => {
-  event.preventDefault();
-  if (event.dataTransfer) {
-    event.dataTransfer.dropEffect = "move";
-  }
-  dragOverCategory.value = categoryId;
-};
-
-const onDragLeave = () => {
-  dragOverCategory.value = null;
-};
-
-const onDrop = async (targetCategoryId: string, event: DragEvent) => {
-  event.preventDefault();
-  dragOverCategory.value = null;
-
-  if (!draggedDocument.value) return;
-
+// The one move path: a drop and the "Move to…" menu both call this, so both
+// write the same field through the same update.
+const moveDocumentTo = async (doc: HoaDocument, targetCategoryId: string) => {
   const currentCategoryId =
-    typeof draggedDocument.value.document_category === "string"
-      ? draggedDocument.value.document_category
-      : draggedDocument.value.document_category?.id || null;
+    typeof doc.document_category === "string"
+      ? doc.document_category
+      : doc.document_category?.id || null;
 
   // If same category, no update needed
   if (
@@ -214,7 +197,7 @@ const onDrop = async (targetCategoryId: string, event: DragEvent) => {
   }
 
   try {
-    await updateDocument(draggedDocument.value.id, {
+    await updateDocument(doc.id, {
       document_category: targetCategoryId === "uncategorized" ? null : targetCategoryId,
     });
     toast.success("Document moved to category");
@@ -225,6 +208,34 @@ const onDrop = async (targetCategoryId: string, event: DragEvent) => {
   } finally {
     onDragEnd();
   }
+};
+
+// A folder column is an AppDropTarget: it shows the landing ring and hands over the
+// dragged document's id. The document comes from the drag the card started.
+const onFolderDrop = async (targetCategoryId: string, documentId: string) => {
+  const doc = draggedDocument.value;
+  if (!doc || doc.id !== documentId) return;
+  await moveDocumentTo(doc, targetCategoryId);
+};
+
+// Keyboard and menu path: the same move, chosen from a select on the card.
+// Folders the document is not in, plus Uncategorized when it has a folder.
+const moveOptions = (doc: HoaDocument) => {
+  const currentId =
+    typeof doc.document_category === "string"
+      ? doc.document_category
+      : doc.document_category?.id || null;
+  const folders = (categories.value ?? [])
+    .filter((c) => c.id !== currentId)
+    .map((c) => ({ value: c.id, label: c.name }));
+  return currentId ? [{ value: "uncategorized", label: "Uncategorized" }, ...folders] : folders;
+};
+
+const onMoveSelect = async (doc: HoaDocument, event: Event) => {
+  const select = event.target as HTMLSelectElement;
+  const value = select.value;
+  select.value = "";
+  if (value) await moveDocumentTo(doc, value);
 };
 
 // Batch operations
@@ -391,15 +402,9 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
     <!-- Category Columns -->
     <div class="flex gap-4 overflow-x-auto pb-4">
       <!-- Uncategorized Column -->
-      <div
+      <AppDropTarget
         class="flex-shrink-0 w-80 t-bg-subtle rounded-xl border-2 transition-colors"
-        :class="{
-          'border-blue-400 bg-blue-50': dragOverCategory === 'uncategorized',
-          'border-transparent': dragOverCategory !== 'uncategorized',
-        }"
-        @dragover="onDragOver('uncategorized', $event)"
-        @dragleave="onDragLeave"
-        @drop="onDrop('uncategorized', $event)"
+        @drop="(p: string) => onFolderDrop('uncategorized', p)"
       >
         <!-- Column Header -->
         <div class="p-4 border-b t-border">
@@ -440,6 +445,17 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
             @dragend="onDragEnd"
             @click="toggleDocumentSelection(doc)"
           >
+            <label class="mb-2 block" @click.stop>
+              <span class="sr-only">Move {{ doc.title }} to</span>
+              <select
+                class="w-full rounded border t-border t-bg-subtle px-2 py-1 text-sm"
+                :disabled="moveOptions(doc).length === 0"
+                @change="onMoveSelect(doc, $event)"
+              >
+                <option value="">Move to…</option>
+                <option v-for="o in moveOptions(doc)" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </label>
             <div class="flex items-start gap-3">
               <!-- Selection checkbox -->
               <div class="flex-shrink-0 pt-0.5">
@@ -489,20 +505,14 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
             <p class="text-sm">No uncategorized documents</p>
           </div>
         </div>
-      </div>
+      </AppDropTarget>
 
       <!-- Category Columns -->
-      <div
+      <AppDropTarget
         v-for="category in categories"
         :key="category.id"
         class="flex-shrink-0 w-80 t-bg-subtle rounded-xl border-2 transition-colors"
-        :class="{
-          'border-blue-400 bg-blue-50': dragOverCategory === category.id,
-          'border-transparent': dragOverCategory !== category.id,
-        }"
-        @dragover="onDragOver(category.id, $event)"
-        @dragleave="onDragLeave"
-        @drop="onDrop(category.id, $event)"
+        @drop="(p: string) => onFolderDrop(category.id, p)"
       >
         <!-- Column Header -->
         <div class="p-4 border-b t-border">
@@ -546,6 +556,17 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
             @dragend="onDragEnd"
             @click="toggleDocumentSelection(doc)"
           >
+            <label class="mb-2 block" @click.stop>
+              <span class="sr-only">Move {{ doc.title }} to</span>
+              <select
+                class="w-full rounded border t-border t-bg-subtle px-2 py-1 text-sm"
+                :disabled="moveOptions(doc).length === 0"
+                @change="onMoveSelect(doc, $event)"
+              >
+                <option value="">Move to…</option>
+                <option v-for="o in moveOptions(doc)" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </label>
             <div class="flex items-start gap-3">
               <!-- Selection checkbox -->
               <div class="flex-shrink-0 pt-0.5">
@@ -596,7 +617,7 @@ const getCategoryById = (id: string): HoaDocumentCategory | undefined => {
             <p class="text-xs mt-1">Drag documents here to categorize</p>
           </div>
         </div>
-      </div>
+      </AppDropTarget>
 
       <!-- Empty state if no categories -->
       <div

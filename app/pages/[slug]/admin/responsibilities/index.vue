@@ -24,10 +24,10 @@
 // the URL (`?holder=`, `?unassigned=0`), so Grid and Map share them and a link
 // reopens them; the rules are pure (core/shared/responsibilities/focus.ts).
 import { CATEGORIES, FLORIDA_CONDOMINIUM, cadenceLabel, basisLabel } from "#core/shared/responsibilities/config";
-import { REGISTER_GROUPS, whoLine } from "#core/shared/responsibilities/register-view";
+import { PICK_KINDS, REGISTER_GROUPS, whoLine, type HolderPick } from "#core/shared/responsibilities/register-view";
 import { changeDays, mapModel } from "#core/shared/responsibilities/map";
 import { focusLabel, focusMap, focusOptions } from "#core/shared/responsibilities/focus";
-import type { RegisterRow } from "#core/shared/responsibilities/views";
+import type { HolderView, RegisterRow } from "#core/shared/responsibilities/views";
 
 definePageMeta({
   middleware: ["nav-gate", "subscription"],
@@ -40,6 +40,47 @@ const { resource: register, viewer, visibility, asOf, asOfIsToday, meta } = reg;
 const { confirm } = useConfirm();
 
 const creating = ref(false);
+
+// ── Drag a person or office onto a job (Session 13) ─────────────────────────
+// A drop opens the holder sheet with the pick already made. The sheet confirms
+// the date and calls the same route it always calls: hand-over when the job has
+// someone open, otherwise add a holder. Nothing is saved on the drop itself.
+const HOLDER_MIME = "application/x-responsibility-holder";
+const dropJob = ref<RegisterRow | null>(null);
+const dropPick = ref<HolderPick | null>(null);
+const dropHolder = ref<HolderView | null>(null);
+const dropMode = ref<"hand-over" | "assign">("assign");
+const dropSheet = ref(false);
+
+const pickKinds = new Set<string>(PICK_KINDS.map((k) => k.key));
+// Focus options are keyed `kind:ref`; only the kinds the holder sheet can take.
+const draggable = computed(() =>
+  holders.value
+    .map((o) => ({ ...o, kind: o.value.slice(0, Math.max(0, o.value.indexOf(":"))), ref: o.value.slice(o.value.indexOf(":") + 1) }))
+    .filter((o) => pickKinds.has(o.kind) && o.ref),
+);
+
+function startHolderDrag(e: DragEvent, o: { kind: string; ref: string }) {
+  if (!e.dataTransfer) return;
+  e.dataTransfer.setData(HOLDER_MIME, JSON.stringify({ kind: o.kind, value: o.ref }));
+  e.dataTransfer.effectAllowed = "move";
+}
+
+function onHolderDrop(job: RegisterRow, payload: string) {
+  let pick: HolderPick;
+  try {
+    pick = JSON.parse(payload) as HolderPick;
+  } catch {
+    return;
+  }
+  if (!pick?.value || !pickKinds.has(pick.kind)) return;
+  const open: HolderView | null = job.assignees.find((a) => !a.end_date) ?? null;
+  dropJob.value = job;
+  dropPick.value = pick;
+  dropHolder.value = open;
+  dropMode.value = open ? "hand-over" : "assign";
+  dropSheet.value = true;
+}
 
 const columns = [
   { key: "title", label: "Job", sortable: true },
@@ -226,6 +267,25 @@ const emptyDescription = computed(() =>
         </template>
       </AppEmptyState>
 
+      <div
+        v-if="viewer.canEdit && view === 'grid' && draggable.length"
+        class="flex flex-wrap items-center gap-2"
+        aria-label="People and offices you can drag onto a job"
+      >
+        <span class="type-meta t-text-muted">Drag onto a job to hand it over or add a holder:</span>
+        <AppButton
+          v-for="o in draggable"
+          :key="o.value"
+          variant="outline"
+          size="sm"
+          class="rounded-full cursor-grab"
+          draggable="true"
+          @dragstart="startHolderDrag($event, o)"
+        >
+          {{ o.label }}
+        </AppButton>
+      </div>
+
       <AppResourceIndex
         v-if="view === 'grid' && !emptyFocus"
         :resource="register"
@@ -290,7 +350,9 @@ const emptyDescription = computed(() =>
         </template>
 
         <template #cell-title="{ row }">
-          <span class="t-text" :class="{ 'line-through': row.status === 'retired' }">{{ row.title }}</span>
+          <AppDropTarget :accepts="[HOLDER_MIME]" :type="HOLDER_MIME" :disabled="!viewer.canEdit" @drop="(p: string) => onHolderDrop(row, p)">
+            <span class="t-text" :class="{ 'line-through': row.status === 'retired' }">{{ row.title }}</span>
+          </AppDropTarget>
         </template>
         <template #cell-who="{ row }">
           <span v-if="row.status === 'retired'" class="t-text-muted">—</span>
@@ -357,6 +419,17 @@ const emptyDescription = computed(() =>
         :job="null"
         :create-job="reg.createJob"
         :patch-job="reg.patchJob"
+      />
+      <ResponsibilitiesHolderForm
+        v-if="viewer.canEdit && selectedOrgId"
+        v-model:open="dropSheet"
+        :org-id="selectedOrgId"
+        :job="dropJob"
+        :mode="dropMode"
+        :holder="dropHolder"
+        :initial-pick="dropPick"
+        :hand-over="reg.handOver"
+        :add-holder="reg.addHolder"
       />
     </PageContainer>
   </div>

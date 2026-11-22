@@ -268,8 +268,27 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
     await mut("waiver approval on Owen's overdue dues", "POST", "/items/money_approvals", { ...org, kind: "waive", charge: overdueCharge, round: 1, state: "pending", mode: "majority", needed: 2, requested_by: t.adminUserId, excluded: [t.adminUserId], reason: "Owen was travelling; asks to waive the late fee." });
 
   // ── Published documents, each with a small real PDF ──
-  const publishDoc = async (title: string, body: string) => {
-    if (await findOne("hoa_documents", { organization: { _eq: t.orgId }, title: { _eq: title } })) return;
+  // ── Folders (document categories): find or create by slug; each document is filed in one ──
+  const folderIds: Record<string, string> = {};
+  for (const name of ["Governing documents", "Financials", "Meetings"]) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const found = await findOne("hoa_document_categories", { organization: { _eq: t.orgId }, slug: { _eq: slug } });
+    if (found) {
+      // The folder list only shows published folders, so a folder left unpublished is set right here.
+      await mut(`hoa_document_categories: ${name} (published)`, "PATCH", `/items/hoa_document_categories/${found.id}`, { status: "published" });
+      folderIds[name] = found.id;
+    } else {
+      folderIds[name] = (await mut(`hoa_document_categories: ${name}`, "POST", "/items/hoa_document_categories", { ...org, name, slug, status: "published" }))?.data?.id ?? "DRY";
+    }
+  }
+
+  const publishDoc = async (title: string, body: string, folder: string) => {
+    const existing = await findOne("hoa_documents", { organization: { _eq: t.orgId }, title: { _eq: title } });
+    if (existing) {
+      // Filing is re-applied each run, so a document seeded before folders existed gets one.
+      await mut(`hoa_documents: file ${title} in ${folder}`, "PATCH", `/items/hoa_documents/${existing.id}`, { document_category: folderIds[folder] });
+      return;
+    }
     let fileId: string | null = null;
     if (!dry) {
       const form = new FormData();
@@ -277,11 +296,11 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
       form.append("file", new Blob([demoPdf(title, body)], { type: "application/pdf" }), `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
       fileId = (await dx("/files", { method: "POST", body: form }))?.data?.id ?? null;
     }
-    await mut(`hoa_documents: ${title}`, "POST", "/items/hoa_documents", { ...org, title, status: "published", date_published: at(-20), ...(fileId ? { file: fileId } : {}) });
+    await mut(`hoa_documents: ${title}`, "POST", "/items/hoa_documents", { ...org, title, status: "published", date_published: at(-20), document_category: folderIds[folder], ...(fileId ? { file: fileId } : {}) });
   };
-  await publishDoc("Bylaws", "Harborview Lofts bylaws (demo copy).");
-  await publishDoc("2026 Operating Budget", "Approved operating budget for the year (demo copy).");
-  await publishDoc("November Board Minutes", "Minutes of the November board meeting (demo copy).");
+  await publishDoc("Bylaws", "Harborview Lofts bylaws (demo copy).", "Governing documents");
+  await publishDoc("2026 Operating Budget", "Approved operating budget for the year (demo copy).", "Financials");
+  await publishDoc("November Board Minutes", "Minutes of the November board meeting (demo copy).", "Meetings");
 
   // ── A draft document for the team's queue ──
   await ensure("hoa_documents", "Parking rules (draft)", { status: "draft" });
