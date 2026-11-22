@@ -23,6 +23,7 @@ import {
   type RequestInput,
 } from "#core/shared/reminders/rules";
 import { composeReminder } from "#core/shared/reminders/messages";
+import { buildPushPayload } from "#core/shared/notifications/push";
 import {
   anyReminderEnabled,
   REMINDER_RULES,
@@ -524,6 +525,13 @@ describe("form — a form nobody has signed yet (bell, push, email)", () => {
     expect(resolveReminderSettings({}).rules.form.days).toBe(2);
     const [before] = run(s(), "2026-11-10T14:30:00Z");
     expect(composeReminder([before!])).toMatchObject({ subject: "Please sign by Thu, Nov 12: Pool waiver", ctaLabel: "Sign", path: "/?sign=f1" });
+  });
+
+  it("links org-relative, so a push lands on the community's own dashboard with the form id", () => {
+    const [before] = run(s(), "2026-11-10T14:30:00Z");
+    const c = composeReminder([before!]);
+    const payload = buildPushPayload({ title: c.subject, body: c.message, org: { id: "o1", slug: "pines" }, path: c.path, origin: "https://app.test" });
+    expect(payload.url).toBe("https://app.test/pines/?sign=f1");
   });
 });
 
