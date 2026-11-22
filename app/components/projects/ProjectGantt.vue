@@ -233,7 +233,7 @@ function onBarPointerDown(ev: PointerEvent, r: { e: ProjectEventRow }, kind: "mo
   drag.startX = ev.clientX;
   drag.dx = 0;
   drag.moved = false;
-  (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
+  try { (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId); } catch { /* pointer already gone */ }
   if (kind === "resize") ev.stopPropagation();
 }
 function onBarPointerMove(ev: PointerEvent) {
@@ -245,7 +245,7 @@ async function onBarPointerUp(ev: PointerEvent, r: { e: ProjectEventRow }) {
   if (drag.id !== r.e.id) return;
   const days = daysFromPixels(drag.dx, PX_PER_DAY);
   const kind = drag.kind;
-  (ev.currentTarget as HTMLElement).releasePointerCapture?.(ev.pointerId);
+  try { (ev.currentTarget as HTMLElement).releasePointerCapture?.(ev.pointerId); } catch { /* not captured */ }
   drag.id = null;
   drag.dx = 0;
   if (!drag.moved) return;
