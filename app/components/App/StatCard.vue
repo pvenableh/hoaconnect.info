@@ -53,7 +53,10 @@ const showTrend = computed(() => props.trend != null && props.trend !== 0);
 
       <div class="min-w-0 flex-1">
         <div v-if="loading" class="river-skeleton h-7 w-24" />
-        <p v-else class="stat-card__value">{{ value }}</p>
+        <p v-else class="stat-card__value">
+          <AppCountUp v-if="typeof value === 'number'" :value="value" />
+          <template v-else>{{ value }}</template>
+        </p>
 
         <p class="type-meta truncate">{{ heading }}</p>
         <p v-if="description" class="type-micro stat-card__description truncate">

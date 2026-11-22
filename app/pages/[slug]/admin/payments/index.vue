@@ -190,6 +190,14 @@ const scheduleColumns = [
   { key: "actions", label: "Actions", align: "right" as const },
 ];
 
+// Summary chart on the Charges tab: one bar per status filter. Tapping a bar
+// filters the table to that status; tapping it again, or Clear filter, lifts it.
+const statusBars = computed(() => [
+  { label: "Outstanding", status: "outstanding", amount: totalOutstanding.value },
+  { label: "Paid", status: "paid", amount: totalCollected.value },
+]);
+const statusSeries = [{ key: "amount", label: "Amount" }];
+
 const TYPE_FILTERS = [
   { value: "all", label: "All types" },
   { value: "monthly_dues", label: "Monthly Dues" },
@@ -222,14 +230,16 @@ const TYPE_FILTERS = [
       <div class="grid grid-cols-2 gap-4">
         <div class="ios-card p-5">
           <p class="text-xs uppercase tracking-wide t-text-muted">Outstanding</p>
-          <p class="text-2xl font-semibold tabular-nums t-text mt-1">{{ currency(totalOutstanding) }}</p>
+          <p class="text-2xl font-semibold tabular-nums t-text mt-1">
+            <AppCountUp :value="totalOutstanding" :decimals="2" prefix="$" />
+          </p>
         </div>
         <div class="ios-card p-5">
           <p class="text-xs uppercase tracking-wide t-text-muted">Collected</p>
           <!-- Status colour from the theme, not a raw palette class, so it
                follows light/dark like every other positive figure. -->
           <p class="text-2xl font-semibold tabular-nums mt-1" style="color: var(--success)">
-            {{ currency(totalCollected) }}
+            <AppCountUp :value="totalCollected" :decimals="2" prefix="$" />
           </p>
         </div>
       </div>
@@ -345,6 +355,21 @@ const TYPE_FILTERS = [
         empty-icon="lucide:receipt"
         @create="openNew"
       >
+        <template #summary="{ activeStatus, setStatus, clear, isFiltered }">
+          <div class="ios-card p-4 flex-1 min-w-[16rem]">
+            <AppChartBars
+              :data="statusBars"
+              :series="statusSeries"
+              :height="140"
+              :format="currency"
+              hide-legend
+              @select="(r: any) => (activeStatus === r.status ? clear() : setStatus(r.status))"
+            />
+          </div>
+          <AppButton v-if="isFiltered" variant="outline" size="sm" class="rounded-full" @click="clear()">
+            Clear filter
+          </AppButton>
+        </template>
         <template #filters>
           <Select v-model="charges.filters.type">
             <AppSelectTrigger class="w-40 rounded-full" aria-label="Charge type">

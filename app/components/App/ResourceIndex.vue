@@ -103,6 +103,21 @@ watch(
   },
 );
 
+// The summary's filter writes the same status field as the segmented control.
+// `reset()` clears search and filters only, so clearing a summary tap also puts
+// the status back on its first item, the one a fresh visit opens on.
+const defaultStatus = computed(() => props.resource.statusItems[0]?.value as typeof view.value.status | undefined);
+const statusNotDefault = computed(
+  () => !!defaultStatus.value && view.value.status !== defaultStatus.value,
+);
+function setSummaryStatus(v: string | null) {
+  view.value.status = v as typeof view.value.status;
+}
+function clearSummaryStatus() {
+  props.resource.reset();
+  if (defaultStatus.value) view.value.status = defaultStatus.value;
+}
+
 const countLabel = computed(() => {
   // "0 charges" while the first load is in flight would be a false statement.
   if (props.resource.pending && !props.resource.total) return "Loading…";
@@ -162,6 +177,19 @@ function rowClasses(row: Row) {
         </AppButton>
       </template>
     </AppPageHeader>
+
+    <!-- Summary strip: a page may draw a chart here whose taps filter the table
+         (`select` gives the page the tapped row; `setStatus` writes the same field
+         the segmented filter uses). Clear returns the view to its default. -->
+    <div v-if="$slots.summary" class="resource-index__summary">
+      <slot
+        name="summary"
+        :activeStatus="view.status"
+        :setStatus="setSummaryStatus"
+        :clear="clearSummaryStatus"
+        :isFiltered="resource.isFiltered || statusNotDefault"
+      />
+    </div>
 
     <div class="resource-index__toolbar">
       <span v-if="!title" class="type-meta t-text-muted tabular-nums" aria-live="polite">{{ countLabel }}</span>
@@ -276,6 +304,12 @@ function rowClasses(row: Row) {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+.resource-index__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
 }
 .resource-index__toolbar {
   display: flex;

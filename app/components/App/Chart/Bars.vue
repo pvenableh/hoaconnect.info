@@ -9,6 +9,7 @@
  * from "Jan" produces an axis that lies.
  */
 import { VisXYContainer, VisStackedBar, VisGroupedBar, VisAxis, VisTooltip } from "@unovis/vue";
+import { StackedBar, GroupedBar } from "@unovis/ts";
 import { resolveSeries, type ChartSeries } from "#core/app/composables/useChartColors";
 
 interface Row {
@@ -36,6 +37,16 @@ const props = withDefaults(
   }>(),
   { height: 200, stacked: true },
 );
+
+/**
+ * A bar was tapped. Emits the category's row, so a page can turn it into a
+ * filter (ResourceIndex's summary slot). Per bar, not per stacked piece.
+ */
+const emit = defineEmits<{ select: [row: Row] }>();
+// unovis hands the handler its bar record; the row the page gave us is `datum`.
+const onBarClick = (d: unknown) => emit("select", ((d as { datum?: Row })?.datum ?? d) as Row);
+const stackedEvents = { [StackedBar.selectors.bar]: { click: onBarClick } };
+const groupedEvents = { [GroupedBar.selectors.bar]: { click: onBarClick } };
 
 const fmt = (n: number) => (props.format ? props.format(n) : String(n));
 
@@ -77,6 +88,7 @@ const rowTotal = (d: Row) =>
         :color="color"
         :roundedCorners="4"
         :barPadding="0.25"
+        :events="stackedEvents"
       />
       <VisGroupedBar
         v-else
@@ -86,6 +98,7 @@ const rowTotal = (d: Row) =>
         :roundedCorners="4"
         :barPadding="0.2"
         :groupPadding="0.1"
+        :events="groupedEvents"
       />
       <VisAxis type="x" :tickFormat="tickFormat" :numTicks="data.length" :gridLine="false" />
       <VisAxis type="y" :tickFormat="(v: number) => fmt(v)" :gridLine="true" :numTicks="4" />
