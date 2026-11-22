@@ -15,7 +15,14 @@ import type { ProjectEventRow } from "#core/app/composables/useProjectEvents";
 import { useProjectEvents, EVENT_TYPE_META } from "#core/app/composables/useProjectEvents";
 import type { ScheduleShift } from "#core/shared/projects/schedule";
 import { parseDateOnly } from "#core/shared/projects/schedule";
-import { eventProgress } from "#core/shared/projects/timeline";
+import {
+  eventProgress,
+  daysFromPixels,
+  planBarMove,
+  planBarResize,
+  barKeyAction,
+  type BarPlan,
+} from "#core/shared/projects/timeline";
 
 const { confirm, prompt } = useConfirm();
 
@@ -171,12 +178,15 @@ async function addEvent() {
 // ── Reschedule (dependency cascade + confirm) ────────────────────────────────
 const reForm = reactive({ event_date: "", duration_days: "" });
 const pendingShifts = ref<ScheduleShift[] | null>(null);
+/** The events as they will be once the pending shifts apply (carries a resized duration). */
+const pendingEvents = ref<ProjectEventRow[] | null>(null);
 const rescheduling = ref(false);
 
 function openReschedule(e: ProjectEventRow) {
   reForm.event_date = e.event_date || "";
   reForm.duration_days = e.duration_days != null ? String(e.duration_days) : "";
   pendingShifts.value = null;
+  pendingEvents.value = null;
 }
 
 function reviewReschedule(e: ProjectEventRow) {
@@ -186,20 +196,109 @@ function reviewReschedule(e: ProjectEventRow) {
     toast.info("No date changes to apply");
     return;
   }
+  pendingEvents.value = withDuration(events.value, e.id, dur);
   pendingShifts.value = shifts;
+}
+
+function withDuration(list: ProjectEventRow[], id: string, duration: number | null) {
+  return list.map((x) => (x.id === id ? { ...x, duration_days: duration } : x));
 }
 
 async function confirmReschedule() {
   if (!pendingShifts.value) return;
   rescheduling.value = true;
   try {
-    await applyReschedule(props.projectId, pendingShifts.value, events.value);
+    await applyReschedule(props.projectId, pendingShifts.value, pendingEvents.value ?? events.value);
     pendingShifts.value = null;
+    pendingEvents.value = null;
     await load();
     emit("changed");
   } finally {
     rescheduling.value = false;
   }
+}
+
+// ── Drag and keys: move a bar, drag its right edge ───────────────────────────
+// Every path ends in commitPlan, which uses the same cascade preview and the
+// same reschedule route as the form above. A single-bar change saves at once
+// with an Undo toast; a change that shifts dependents asks first.
+const drag = reactive<{ id: string | null; kind: "move" | "resize"; startX: number; dx: number; moved: boolean }>({
+  id: null, kind: "move", startX: 0, dx: 0, moved: false,
+});
+
+function onBarPointerDown(ev: PointerEvent, r: { e: ProjectEventRow }, kind: "move" | "resize") {
+  if (!props.canWrite || ev.button > 0) return;
+  drag.id = r.e.id;
+  drag.kind = kind;
+  drag.startX = ev.clientX;
+  drag.dx = 0;
+  drag.moved = false;
+  (ev.currentTarget as HTMLElement).setPointerCapture?.(ev.pointerId);
+  if (kind === "resize") ev.stopPropagation();
+}
+function onBarPointerMove(ev: PointerEvent) {
+  if (!drag.id) return;
+  drag.dx = ev.clientX - drag.startX;
+  if (Math.abs(drag.dx) > 4) drag.moved = true;
+}
+async function onBarPointerUp(ev: PointerEvent, r: { e: ProjectEventRow }) {
+  if (drag.id !== r.e.id) return;
+  const days = daysFromPixels(drag.dx, PX_PER_DAY);
+  const kind = drag.kind;
+  (ev.currentTarget as HTMLElement).releasePointerCapture?.(ev.pointerId);
+  drag.id = null;
+  drag.dx = 0;
+  if (!drag.moved) return;
+  await applyBarChange(r.e, kind, days);
+}
+function onBarPointerCancel() {
+  drag.id = null;
+  drag.dx = 0;
+}
+/** A drag ends in a click event; swallow it so the bar is not also selected. */
+function onBarClick(r: { e: ProjectEventRow }) {
+  if (drag.moved) { drag.moved = false; return; }
+  selectEvent(r.e.id);
+}
+async function onBarKeydown(ev: KeyboardEvent, r: { e: ProjectEventRow }) {
+  if (!props.canWrite) return;
+  const act = barKeyAction(ev.key, ev.shiftKey);
+  if (!act) return;
+  ev.preventDefault();
+  await applyBarChange(r.e, act.kind, act.days);
+}
+async function applyBarChange(e: ProjectEventRow, kind: "move" | "resize", days: number) {
+  const plan = kind === "move" ? planBarMove(e, days) : planBarResize(e, days);
+  if (plan) await commitPlan(e, plan);
+}
+async function commitPlan(e: ProjectEventRow, plan: BarPlan) {
+  const before = events.value;
+  const shifts = previewShifts(before, e.id, plan.start, plan.duration);
+  if (!shifts.length) return;
+  const next = withDuration(before, e.id, plan.duration);
+  if (shifts.length > 1) {
+    pendingEvents.value = next;
+    pendingShifts.value = shifts;
+    return;
+  }
+  try {
+    await applyReschedule(props.projectId, shifts, next, { quiet: true });
+  } catch {
+    return;
+  }
+  await load();
+  emit("changed");
+  const back = shifts.map((s) => ({ ...s, newStart: s.oldStart }));
+  toast("Dates changed", {
+    action: {
+      label: "Undo",
+      onClick: async () => {
+        await applyReschedule(props.projectId, back, before, { quiet: true });
+        await load();
+        emit("changed");
+      },
+    },
+  });
 }
 
 // ── Approval ─────────────────────────────────────────────────────────────────
@@ -362,18 +461,22 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                   v-for="r in rows"
                   :key="r.e.id"
                   class="absolute"
-                  :style="{ top: r.y + (ROW_H - 22) / 2 + 'px', left: r.startX + 'px' }"
+                  :style="{
+                    top: r.y + (ROW_H - 22) / 2 + 'px',
+                    left: r.startX + (drag.id === r.e.id && drag.kind === 'move' ? drag.dx : 0) + 'px',
+                  }"
                 >
                   <button
                     data-bar
                     type="button"
-                    class="h-[22px] rounded-full flex items-center px-2 gap-1 transition-shadow hover:shadow-md ring-1 ring-inset"
+                    class="h-[22px] relative rounded-full flex items-center px-2 gap-1 transition-shadow hover:shadow-md ring-1 ring-inset touch-none"
                     :class="[
                       r.e.status === 'completed' ? 'opacity-70' : '',
+                      canWrite ? 'cursor-grab active:cursor-grabbing' : '',
                       selectedId === r.e.id ? 'ring-2' : 'ring-[var(--theme-border-secondary)]',
                     ]"
                     :style="{
-                      width: r.isMilestone ? '22px' : (r.endX - r.startX) + 'px',
+                      width: r.isMilestone ? '22px' : Math.max(12, (r.endX - r.startX) + (drag.id === r.e.id && drag.kind === 'resize' ? drag.dx : 0)) + 'px',
                       background: r.e.status === 'completed' ? 'var(--theme-accent-primary)' : 'var(--theme-bg-elevated)',
                       ...(selectedId === r.e.id ? { '--tw-ring-color': 'var(--theme-accent-primary)' } : {}),
                     }"
@@ -382,7 +485,13 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                         ? `${r.e.title || 'Milestone'} — ${r.progress.done} of ${r.progress.total} tasks done`
                         : r.e.title || 'Milestone'
                     "
-                    @click="selectEvent(r.e.id)"
+                    :title="canWrite ? 'Drag to move. Arrow keys nudge a day; Shift+arrows change the length.' : undefined"
+                    @click="onBarClick(r)"
+                    @keydown="onBarKeydown($event, r)"
+                    @pointerdown="onBarPointerDown($event, r, 'move')"
+                    @pointermove="onBarPointerMove"
+                    @pointerup="onBarPointerUp($event, r)"
+                    @pointercancel="onBarPointerCancel"
                   >
                     <span
                       v-if="r.isMilestone"
@@ -418,6 +527,12 @@ const APPROVAL_META: Record<string, { label: string; cls: string }> = {
                         }"
                       />
                     </span>
+                    <span
+                      v-if="canWrite && !r.isMilestone"
+                      class="absolute right-0 top-0 bottom-0 w-2.5 cursor-ew-resize touch-none"
+                      aria-hidden="true"
+                      @pointerdown="onBarPointerDown($event, r, 'resize')"
+                    />
                   </button>
                   <!-- spawned-project branch chips -->
                   <div

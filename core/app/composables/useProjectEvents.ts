@@ -107,7 +107,12 @@ export const useProjectEvents = () => {
     computeDependencyShifts(events as unknown as ScheduleEvent[], editedId, newStart, newDuration);
 
   /** Apply a confirmed reschedule (the edited event + its cascade) in one call. */
-  const applyReschedule = async (projectId: string, shifts: ScheduleShift[], events: ProjectEventRow[]) => {
+  const applyReschedule = async (
+    projectId: string,
+    shifts: ScheduleShift[],
+    events: ProjectEventRow[],
+    opts: { quiet?: boolean } = {}
+  ) => {
     const durById = new Map(events.map((e) => [e.id, e.duration_days ?? null]));
     const changes = shifts.map((s) => ({
       id: s.id,
@@ -119,7 +124,9 @@ export const useProjectEvents = () => {
         method: "POST",
         body: { orgId: orgId(), projectId, changes },
       });
-      toast.success(res.updated > 1 ? `Rescheduled ${res.updated} milestones` : "Milestone rescheduled");
+      if (!opts.quiet) {
+        toast.success(res.updated > 1 ? `Rescheduled ${res.updated} milestones` : "Milestone rescheduled");
+      }
       return res;
     } catch (e: any) {
       toast.error(e?.statusMessage || e?.message || "Could not reschedule");

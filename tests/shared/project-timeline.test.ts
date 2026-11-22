@@ -5,6 +5,12 @@ import {
   isScheduled,
   listOpensOnTimeline,
   TIMELINE_MIN_DATED,
+  daysFromPixels,
+  addCalendarDays,
+  businessDaysInclusive,
+  planBarMove,
+  planBarResize,
+  barKeyAction,
 } from "#core/shared/projects/timeline";
 
 describe("eventProgress", () => {
@@ -100,5 +106,47 @@ describe("listOpensOnTimeline", () => {
 
   it("both rules share one threshold", () => {
     expect(TIMELINE_MIN_DATED).toBe(2);
+  });
+});
+
+describe("bar drag maths", () => {
+  it("turns pixels into whole days and ignores a nudge", () => {
+    expect(daysFromPixels(36, 18)).toBe(2);
+    expect(daysFromPixels(-27, 18)).toBe(-1);
+    expect(daysFromPixels(5, 18)).toBe(0);
+    expect(daysFromPixels(10, 0)).toBe(0);
+  });
+
+  it("adds calendar days across a month end", () => {
+    expect(addCalendarDays("2026-06-29", 3)).toBe("2026-07-02");
+    expect(addCalendarDays("2026-06-01", -1)).toBe("2026-05-31");
+    expect(addCalendarDays(null, 1)).toBeNull();
+  });
+
+  it("counts working days inclusive of both ends", () => {
+    expect(businessDaysInclusive("2026-06-11", "2026-06-11")).toBe(1);
+    expect(businessDaysInclusive("2026-06-11", "2026-06-15")).toBe(3); // Thu Fri Mon
+  });
+
+  it("moves a bar and keeps its length", () => {
+    const e = { event_date: "2026-06-11", duration_days: 3, end_date: "2026-06-15" };
+    expect(planBarMove(e, 7)).toEqual({ start: "2026-06-18", duration: 3 });
+    expect(planBarMove(e, 0)).toBeNull();
+    expect(planBarMove({ event_date: null }, 2)).toBeNull();
+  });
+
+  it("resizes by the right edge and never goes below one day", () => {
+    const e = { event_date: "2026-06-11", duration_days: 3, end_date: "2026-06-15" };
+    expect(planBarResize(e, 1)).toEqual({ start: "2026-06-11", duration: 4 });
+    expect(planBarResize(e, -30)).toEqual({ start: "2026-06-11", duration: 1 });
+    // Dragging the edge over a weekend changes no working day.
+    expect(planBarResize({ event_date: "2026-06-11", duration_days: 2, end_date: "2026-06-12" }, 1)).toBeNull();
+  });
+
+  it("maps arrow keys to a one-day move, Shift to a resize", () => {
+    expect(barKeyAction("ArrowRight", false)).toEqual({ kind: "move", days: 1 });
+    expect(barKeyAction("ArrowLeft", false)).toEqual({ kind: "move", days: -1 });
+    expect(barKeyAction("ArrowRight", true)).toEqual({ kind: "resize", days: 1 });
+    expect(barKeyAction("Enter", false)).toBeNull();
   });
 });
