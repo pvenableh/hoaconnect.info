@@ -12,6 +12,25 @@ const { list } = useRequests();
 
 const basePath = computed(() => buildOrgPath("/admin/requests"));
 
+// Table or board: remembered per person (D4); the table is the default, and the only
+// choice a phone starts with.
+const view = ref<string>("table");
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem("requests-view-v1");
+    if (saved === "board" || saved === "table") view.value = saved;
+  } catch {
+    /* private mode: stay on the table */
+  }
+});
+watch(view, (v) => {
+  try {
+    localStorage.setItem("requests-view-v1", v);
+  } catch {
+    /* not saved */
+  }
+});
+
 const typeFilter = ref<string>("all");
 const statusFilter = ref<string>("open");
 const showNew = ref(false);
@@ -112,7 +131,14 @@ watch(
             :class="{ 'filter-pill--active': typeFilter === opt.key }"
           >{{ opt.label }}</button>
         </div>
-        <div class="flex gap-1.5 ml-auto">
+        <AppSegmentedControl
+          v-model="view"
+          class="ml-auto"
+          size="sm"
+          label="View"
+          :items="[{ value: 'table', label: 'Table' }, { value: 'board', label: 'Board' }]"
+        />
+        <div class="flex gap-1.5">
           <button
             v-for="opt in [{ key: 'open', label: 'Open' }, { key: 'resolved', label: 'Resolved' }, { key: 'all', label: 'All' }]"
             :key="opt.key"
@@ -123,7 +149,8 @@ watch(
         </div>
       </div>
 
-      <div class="ios-card p-2">
+      <RequestsRequestBoard v-if="view === 'board' && filtered.length" :requests="filtered" :base-path="basePath" @moved="refresh" />
+      <div v-else class="ios-card p-2">
         <RequestsRequestList
           :requests="filtered"
           :base-path="basePath"
