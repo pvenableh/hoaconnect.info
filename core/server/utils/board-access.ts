@@ -94,45 +94,49 @@ export async function getBoardPosition(
  */
 export async function resolveActors(
   event: H3Event,
-  organizationId: string
+  organizationId: string,
+  /** Manager grants a caller already has in flight, so they are read once. */
+  grantsRead?: Promise<Record<string, boolean> | null>
 ): Promise<Actor[]> {
   const actors = new Set<Actor>();
 
-  const admin = await checkAdminAccess(event, organizationId);
+  // None of these reads needs another's result: one round trip, not five.
+  const [admin, membership, office, grants, isTeamLead] = await Promise.all([
+    checkAdminAccess(event, organizationId),
+    checkMembership(event, organizationId),
+    getBoardPosition(event, organizationId),
+    grantsRead ?? getManagerGrants(event, organizationId),
+    // Team lead of any team in the org.
+    (async () => {
+      try {
+        const session = await getUserSession(event);
+        const userId = session?.user?.id;
+        if (!userId) return false;
+        const rows = await getTypedDirectus().request(
+          readItems("hoa_team_members", {
+            filter: {
+              user: { _eq: userId },
+              organization: { _eq: organizationId },
+              role: { _eq: "lead" },
+            },
+            fields: ["id"],
+            limit: 1,
+          })
+        );
+        return !!rows?.length;
+      } catch (e) {
+        console.error("[board-access] team-lead lookup failed:", e);
+        return false;
+      }
+    })(),
+  ]);
+
   if (admin.isAdmin) actors.add("admin");
-
-  const membership = await checkMembership(event, organizationId);
   if (membership.isMember) actors.add("member");
-
-  const office = await getBoardPosition(event, organizationId);
   const boardActor = boardTitleToActor(office);
   if (boardActor) actors.add(boardActor);
-
-  const grants = await getManagerGrants(event, organizationId);
   if (grants) actors.add("property_manager");
-
-  // Team lead of any team in the org.
-  try {
-    const session = await getUserSession(event);
-    const userId = session?.user?.id;
-    if (userId) {
-      const directus = getTypedDirectus();
-      const rows = await directus.request(
-        readItems("hoa_team_members", {
-          filter: {
-            user: { _eq: userId },
-            organization: { _eq: organizationId },
-            role: { _eq: "lead" },
-          },
-          fields: ["id"],
-          limit: 1,
-        })
-      );
-      if (rows?.length) actors.add("team_lead");
-    }
-  } catch (e) {
-    console.error("[board-access] team-lead lookup failed:", e);
-  }
+  if (isTeamLead) actors.add("team_lead");
 
   return [...actors];
 }

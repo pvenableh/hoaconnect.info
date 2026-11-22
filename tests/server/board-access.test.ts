@@ -60,11 +60,12 @@ describe("getBoardPosition", () => {
 
 describe("resolveActors", () => {
   it("a plain member with no office gets just ['member']", async () => {
-    // getBoardPosition: getMemberId → member, board lookup → none; team-lead → none
+    // resolveActors reads in one batch: getMemberId, then team-lead (both
+    // start at once), then getBoardPosition's board lookup once it has a member.
     directusRequest
-      .mockResolvedValueOnce([{ id: "m1" }])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: "m1" }]) // getMemberId
+      .mockResolvedValueOnce([]) // team-lead → none
+      .mockResolvedValueOnce([]); // board lookup → none
     expect(await resolveActors(event, ORG)).toEqual(["member"]);
   });
 
@@ -72,8 +73,8 @@ describe("resolveActors", () => {
     adminResult = { isAdmin: true };
     directusRequest
       .mockResolvedValueOnce([{ id: "m1" }]) // getMemberId
-      .mockResolvedValueOnce([{ title: "president" }]) // board lookup
-      .mockResolvedValueOnce([{ id: "tm1" }]); // team-lead lookup
+      .mockResolvedValueOnce([{ id: "tm1" }]) // team-lead lookup (batched with getMemberId)
+      .mockResolvedValueOnce([{ title: "president" }]); // board lookup
     const actors = await resolveActors(event, ORG);
     expect(actors).toContain("admin");
     expect(actors).toContain("member");
@@ -84,9 +85,9 @@ describe("resolveActors", () => {
   it("adds property_manager when manager grants resolve", async () => {
     managerGrants = { projects: true };
     directusRequest
-      .mockResolvedValueOnce([{ id: "m1" }])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([{ id: "m1" }]) // getMemberId
+      .mockResolvedValueOnce([]) // team-lead
+      .mockResolvedValueOnce([]); // board lookup
     const actors = await resolveActors(event, ORG);
     expect(actors).toContain("property_manager");
   });

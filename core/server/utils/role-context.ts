@@ -47,16 +47,17 @@ async function readBillingAccount(orgId: string, userId: string): Promise<RoleBi
   )) as { billing_account?: string | { id?: string } | null } | null;
   const accountId = roleIdOf(org?.billing_account);
   if (!accountId) return null;
-  const account = (await directus.request(
-    readItem("billing_accounts", accountId, { fields: ["id", "owner"] })
-  )) as { owner?: string | { id?: string } | null } | null;
-  const members = (await directus.request(
-    readItems("billing_account_members", {
-      filter: { billing_account: { _eq: accountId }, user: { _eq: userId } },
-      fields: ["user", "role"],
-      limit: 10,
-    })
-  )) as RoleBillingAccount["members"];
+  // The account and the caller's seat on it both need only the account id.
+  const [account, members] = (await Promise.all([
+    directus.request(readItem("billing_accounts", accountId, { fields: ["id", "owner"] })),
+    directus.request(
+      readItems("billing_account_members", {
+        filter: { billing_account: { _eq: accountId }, user: { _eq: userId } },
+        fields: ["user", "role"],
+        limit: 10,
+      })
+    ),
+  ])) as [{ owner?: string | { id?: string } | null } | null, RoleBillingAccount["members"]];
   return { owner: account?.owner ?? null, members: members ?? [] };
 }
 
@@ -132,9 +133,11 @@ export async function resolveCapabilities(
   orgId: string
 ): Promise<{ actors: Actor[]; capabilities: Capability[] }> {
   // Actors, manager grants and helper areas are independent reads: one round trip.
+  // The grants are read once and shared with resolveActors.
+  const grantsRead = getManagerGrants(event, orgId);
   const [actors, grants, helps] = await Promise.all([
-    resolveActors(event, orgId),
-    getManagerGrants(event, orgId),
+    resolveActors(event, orgId, grantsRead),
+    grantsRead,
     getHelperAreas(event, orgId),
   ]);
   const caps = new Set(capabilitiesFor(actors));

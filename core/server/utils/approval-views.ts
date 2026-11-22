@@ -20,8 +20,9 @@ const person = (id: string, names: Map<string, string>, seats: readonly Seat[]) 
 
 export async function describeApprovals(orgId: string, approvals: ApprovalRow[], userId: string | null, seatsArg?: readonly Seat[]) {
   // Every read below depends only on the approvals and the org, never on each
-  // other, so they go out in one round trip. Names are the one read that needs
-  // the people these return, so it stays after.
+  // other, so they go out in one round trip. The names of the people already
+  // known (requesters, exclusions, seats) ride in that trip too; only a
+  // decider outside them needs a second read, after the decisions.
   const expenseIds = [...new Set(approvals.map((a) => a.expense).filter((x): x is string => !!x))];
   // A waiver's charge names a household: these routes are money:read only
   // (every board seat, admins), the people who read the charges already.
@@ -29,8 +30,19 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
   const householdIds = [
     ...new Set(approvals.flatMap((a) => (a.kind === "move" ? [a.proposed?.member, a.proposed?.from_member] : [])).filter((x): x is string => !!x)),
   ];
-  const [seats, decisions, expenses, charges, feesByCharge, households] = await Promise.all([
-    seatsArg ? Promise.resolve(seatsArg) : loadCurrentSeats(orgId),
+  const seatsRead = seatsArg ? Promise.resolve(seatsArg) : loadCurrentSeats(orgId);
+  const known = new Set<string>();
+  for (const a of approvals) {
+    if (a.requested_by) known.add(a.requested_by);
+    a.excluded.forEach((u) => known.add(u));
+  }
+  const knownNames = seatsRead.then((rows) => {
+    const ids = new Set(known);
+    rows.forEach((s) => ids.add(s.userId));
+    return namesFor(orgId, ids).then((names) => ({ ids, names }));
+  });
+  const [seats, decisions, expenses, charges, feesByCharge, households, first] = await Promise.all([
+    seatsRead,
     loadDecisions(approvals.map((a) => a.id)),
     expenseIds.length
       ? getTypedDirectus()
@@ -67,19 +79,15 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
           )
           .then((r) => ((r ?? []) as any[]))
       : Promise.resolve([] as any[]),
+    knownNames,
   ]);
   const expenseById = new Map(expenses.map((e) => [String(e.id), e]));
   const chargeById = new Map(charges.map((c) => [String(c.id), c]));
   const householdName = new Map(households.map((m) => [String(m.id), chargeHousehold(m)]));
 
-  const people = new Set<string>();
-  for (const a of approvals) {
-    if (a.requested_by) people.add(a.requested_by);
-    a.excluded.forEach((u) => people.add(u));
-    for (const d of decisions.get(a.id) ?? []) if (d.decided_by) people.add(d.decided_by);
-  }
-  seats.forEach((s) => people.add(s.userId));
-  const names = await namesFor(orgId, people);
+  const stray = new Set<string>();
+  for (const list of decisions.values()) for (const d of list) if (d.decided_by && !first.ids.has(d.decided_by)) stray.add(d.decided_by);
+  const names = stray.size ? new Map([...first.names, ...(await namesFor(orgId, stray))]) : first.names;
 
   return approvals.map((a) => {
     const own = decisions.get(a.id) ?? [];

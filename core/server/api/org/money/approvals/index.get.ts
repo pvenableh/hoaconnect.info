@@ -11,8 +11,12 @@ export default defineEventHandler(async (event) => {
   const view = String(getQuery(event).view || "open");
   if (!["open", "awaiting-me", "all"].includes(view)) throw createError({ statusCode: 400, message: "view is open, awaiting-me or all" });
 
-  const rows = await loadApprovals(orgId, view === "all" ? {} : { state: { _in: [...OPEN_STATES] } });
-  const items = await describeApprovals(orgId, rows.slice(0, moneyLimit(event, 200)), userId);
+  // The approvals and the board seats need only the org: one round trip.
+  const [rows, seats] = await Promise.all([
+    loadApprovals(orgId, view === "all" ? {} : { state: { _in: [...OPEN_STATES] } }),
+    loadCurrentSeats(orgId),
+  ]);
+  const items = await describeApprovals(orgId, rows.slice(0, moneyLimit(event, 200)), userId, seats);
   const open = items.filter((i) => i.state === "pending" || i.state === "cannot_approve");
   return {
     approvals: view === "all" ? items : view === "awaiting-me" ? open.filter((i) => i.canDecide) : open,
