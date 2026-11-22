@@ -523,7 +523,7 @@ describe("form — a form nobody has signed yet (bell, push, email)", () => {
     expect(run(off, "2026-11-04T14:30:00Z").every((r) => !r.enabled)).toBe(true);
     expect(resolveReminderSettings({}).rules.form.days).toBe(2);
     const [before] = run(s(), "2026-11-10T14:30:00Z");
-    expect(composeReminder([before!])).toMatchObject({ subject: "Please sign by Thu, Nov 12: Pool waiver", ctaLabel: "Sign" });
+    expect(composeReminder([before!])).toMatchObject({ subject: "Please sign by Thu, Nov 12: Pool waiver", ctaLabel: "Sign", path: "/?sign=f1" });
   });
 });
 
