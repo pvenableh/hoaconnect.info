@@ -58,6 +58,8 @@ interface EmailTemplateOptions {
    * the plain-text part and the preheader.
    */
   contentPartial?: { name: string; source: string; vars: PartialVars } | null;
+  /** The header badge's text, in place of the email type's own ("Notice", "Reminder"). */
+  badgeLabel?: string | null;
 }
 
 // Email type configurations with colors and styling.
@@ -513,6 +515,9 @@ export function processHtmlForEmail(content: string, headingFont?: string): stri
   processed = processed.replace(
     /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>/gi,
     (match, before, href, after) => {
+      // A link that already says how it is decorated (the CTA button's
+      // text-decoration:none) keeps it: appending the underline would win.
+      if (/text-decoration/i.test(before + after)) return match;
       // Check if style already exists
       const hasStyle = /style=/i.test(before + after);
       const linkStyle = 'color: #3b82f6; text-decoration: underline;';
@@ -781,6 +786,7 @@ export function buildEmailMjml(options: EmailTemplateOptions): string {
     webViewUrl,
     complianceFooter,
     contentPartial,
+    badgeLabel,
   } = options;
 
   const orgName = organization.name || "Organization";
@@ -857,7 +863,7 @@ export function buildEmailMjml(options: EmailTemplateOptions): string {
       headingFont: fonts.heading,
       headerText: processedHeaderText,
       headerSubTextColor: isBasic ? "#6b7280" : style.headerSubTextColor,
-      label: style.label,
+      label: badgeLabel || style.label,
       icon: style.icon,
     },
     "_header"

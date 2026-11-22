@@ -476,6 +476,7 @@ export const sendReminder: ReminderSender = async (org, c) => {
           bodyHtml: email.bodyHtml,
           cta: email.cta,
           emailType: email.emailType,
+          badgeLabel: email.badgeLabel,
           contentPartial: email.contentPartial,
         }
       : null,

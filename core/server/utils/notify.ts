@@ -70,6 +70,8 @@ export interface NotifyEmail {
   cta?: { label: string; path: string };
   /** Header treatment. Defaults to "notice". */
   emailType?: "basic" | "notice" | "alert" | "reminder";
+  /** The header badge's text, in place of the type's own ("Notice"). */
+  badgeLabel?: string;
   /** Subject line, when it should differ from the bell's. */
   subject?: string;
   /** A content partial for the body (the reminder templates); `bodyHtml` then makes the text part. */
@@ -244,6 +246,7 @@ export async function notifyUsers(
         bodyHtml: opts.email.bodyHtml,
         cta: opts.email.cta,
         emailType: opts.email.emailType || "notice",
+        badgeLabel: opts.email.badgeLabel,
         category: opts.category,
         essential: opts.essential === true,
         contentPartial: opts.email.contentPartial ?? null,

@@ -53,6 +53,8 @@ function factRows(c: ComposedReminder): string {
 
 export interface ReminderEmailParts {
   emailType: "reminder" | "notice";
+  /** The header badge's text when the type's own would mislead (a form to sign is not a "Notice"). */
+  badgeLabel?: string;
   heading: string;
   /** The plain-text part's and preheader's source (and the whole body of a `notice`). */
   bodyHtml: string;
@@ -78,7 +80,14 @@ export function reminderEmail(c: ComposedReminder): ReminderEmailParts {
   const bodyHtml = [`<p>${esc(c.intro)}</p>`, ...facts.filter(Boolean).map((f) => `<p>${esc(f)}</p>`)].join("");
 
   if (c.template === "notice") {
-    return { emailType: "notice", heading: c.heading, bodyHtml, cta, contentPartial: null };
+    return {
+      emailType: "notice",
+      ...(c.rule === "form" ? { badgeLabel: "Form to sign" } : {}),
+      heading: c.heading,
+      bodyHtml,
+      cta,
+      contentPartial: null,
+    };
   }
 
   const vars: PartialVars = { heading: esc(c.heading), intro: esc(c.intro) };

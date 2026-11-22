@@ -53,6 +53,8 @@ export interface BrandedTransactionalOptions {
   cta?: BrandedCta;
   /** Visual treatment (header colour/icon). Defaults to "notice". */
   emailType?: EmailType;
+  /** The header badge's text, in place of the type's own ("Notice"). */
+  badgeLabel?: string;
   /** A user id to skip (e.g. the actor who triggered the event). */
   excludeUserId?: string | null;
   /**
@@ -262,6 +264,7 @@ export async function sendBrandedTransactionalEmail(opts: BrandedTransactionalOp
         homepageUrl: branding.homepageUrl,
         complianceFooter,
         contentPartial,
+        badgeLabel: opts.badgeLabel,
       });
       const text = buildEmailText({
         organization: orgForEmail,
