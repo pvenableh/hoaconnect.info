@@ -120,7 +120,7 @@ const onSubmit = handleSubmit(async (values) => {
         </p>
       </div>
 
-      <form @submit="onSubmit" class="space-y-2">
+      <form @submit="onSubmit" method="post" class="space-y-2">
         <!-- Form-level error alert -->
         <Transition
           enter-active-class="transition-all duration-300 ease-out"

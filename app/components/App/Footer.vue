@@ -120,7 +120,7 @@ const footerLinks = computed(() =>
                 :href="link.path"
                 :target="link.external ? '_blank' : undefined"
                 :rel="link.external ? 'noopener noreferrer' : undefined"
-                class="text-sm hover:text-white transition"
+                class="inline-flex items-center text-sm hover:text-white transition max-md:min-h-11"
               >
                 {{ link.label }}
               </a>
@@ -128,7 +128,7 @@ const footerLinks = computed(() =>
               <NuxtLink
                 v-else
                 :to="link.path"
-                class="text-sm hover:text-white transition"
+                class="inline-flex items-center text-sm hover:text-white transition max-md:min-h-11"
               >
                 {{ link.label }}
               </NuxtLink>

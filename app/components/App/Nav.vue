@@ -266,7 +266,7 @@ const userAvatarUrl = computed(() => {
         >
         <NuxtLink
           :to="isOnOrgPage ? `/${route.params.slug}` : '/'"
-          class="app-nav__brand flex min-w-0 max-w-full items-center gap-2 hover:opacity-80 transition"
+          class="app-nav__brand flex min-h-[24px] min-w-0 max-w-full items-center gap-2 hover:opacity-80 transition"
           :tabindex="showChromeTitle ? -1 : undefined"
           :aria-hidden="showChromeTitle ? 'true' : undefined"
         >

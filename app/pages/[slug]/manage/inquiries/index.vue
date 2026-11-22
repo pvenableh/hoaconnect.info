@@ -118,7 +118,7 @@ const createViolation = async () => {
 
       <!-- Filters -->
       <div class="flex flex-wrap items-center gap-2">
-        <div class="flex gap-1.5 overflow-x-auto">
+        <div class="flex gap-1.5 overflow-x-auto [mask-image:linear-gradient(to_right,#000_85%,transparent)]">
           <button
             v-for="opt in [{ key: 'all', label: 'All types' }, ...requestTypeList.map((t) => ({ key: t.type, label: t.label }))]"
             :key="opt.key"

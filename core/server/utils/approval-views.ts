@@ -19,48 +19,57 @@ const person = (id: string, names: Map<string, string>, seats: readonly Seat[]) 
 };
 
 export async function describeApprovals(orgId: string, approvals: ApprovalRow[], userId: string | null, seatsArg?: readonly Seat[]) {
-  const seats = seatsArg ?? (await loadCurrentSeats(orgId));
-  const decisions = await loadDecisions(approvals.map((a) => a.id));
-
+  // Every read below depends only on the approvals and the org, never on each
+  // other, so they go out in one round trip. Names are the one read that needs
+  // the people these return, so it stays after.
   const expenseIds = [...new Set(approvals.map((a) => a.expense).filter((x): x is string => !!x))];
-  const expenses = expenseIds.length
-    ? (((await getTypedDirectus().request(
-        readItems("payment_expenses", {
-          filter: { id: { _in: expenseIds }, organization: { _eq: orgId } } as any,
-          fields: ["id", "title", "vendor", "amount", "status", "category", "paid_without_approval", "expense_date"] as any,
-          limit: -1,
-        })
-      )) ?? []) as any[])
-    : [];
-  const expenseById = new Map(expenses.map((e) => [String(e.id), e]));
-
   // A waiver's charge names a household: these routes are money:read only
   // (every board seat, admins), the people who read the charges already.
   const chargeIds = [...new Set(approvals.map((a) => a.charge).filter((x): x is string => !!x))];
-  const charges = chargeIds.length
-    ? (((await getTypedDirectus().request(
-        readItems("payment_requests", {
-          filter: { id: { _in: chargeIds }, organization: { _eq: orgId } } as any,
-          fields: ["id", "title", "amount", "amount_remaining", "status", "member.first_name", "member.last_name", "member.email"] as any,
-          limit: -1,
-        })
-      )) ?? []) as any[])
-    : [];
-  const chargeById = new Map(charges.map((c) => [String(c.id), c]));
-  // A full waiver takes its charge's unpaid late fees; a move names both households.
-  const feesByCharge = await lateFeesOf(orgId, chargeIds);
   const householdIds = [
     ...new Set(approvals.flatMap((a) => (a.kind === "move" ? [a.proposed?.member, a.proposed?.from_member] : [])).filter((x): x is string => !!x)),
   ];
-  const households = householdIds.length
-    ? (((await getTypedDirectus().request(
-        readItems("hoa_members", {
-          filter: { id: { _in: householdIds }, organization: { _eq: orgId } } as any,
-          fields: ["id", "first_name", "last_name", "email"] as any,
-          limit: -1,
-        })
-      )) ?? []) as any[])
-    : [];
+  const [seats, decisions, expenses, charges, feesByCharge, households] = await Promise.all([
+    seatsArg ? Promise.resolve(seatsArg) : loadCurrentSeats(orgId),
+    loadDecisions(approvals.map((a) => a.id)),
+    expenseIds.length
+      ? getTypedDirectus()
+          .request(
+            readItems("payment_expenses", {
+              filter: { id: { _in: expenseIds }, organization: { _eq: orgId } } as any,
+              fields: ["id", "title", "vendor", "amount", "status", "category", "paid_without_approval", "expense_date"] as any,
+              limit: -1,
+            })
+          )
+          .then((r) => ((r ?? []) as any[]))
+      : Promise.resolve([] as any[]),
+    chargeIds.length
+      ? getTypedDirectus()
+          .request(
+            readItems("payment_requests", {
+              filter: { id: { _in: chargeIds }, organization: { _eq: orgId } } as any,
+              fields: ["id", "title", "amount", "amount_remaining", "status", "member.first_name", "member.last_name", "member.email"] as any,
+              limit: -1,
+            })
+          )
+          .then((r) => ((r ?? []) as any[]))
+      : Promise.resolve([] as any[]),
+    // A full waiver takes its charge's unpaid late fees; a move names both households.
+    lateFeesOf(orgId, chargeIds),
+    householdIds.length
+      ? getTypedDirectus()
+          .request(
+            readItems("hoa_members", {
+              filter: { id: { _in: householdIds }, organization: { _eq: orgId } } as any,
+              fields: ["id", "first_name", "last_name", "email"] as any,
+              limit: -1,
+            })
+          )
+          .then((r) => ((r ?? []) as any[]))
+      : Promise.resolve([] as any[]),
+  ]);
+  const expenseById = new Map(expenses.map((e) => [String(e.id), e]));
+  const chargeById = new Map(charges.map((c) => [String(c.id), c]));
   const householdName = new Map(households.map((m) => [String(m.id), chargeHousehold(m)]));
 
   const people = new Set<string>();

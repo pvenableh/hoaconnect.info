@@ -192,7 +192,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
                   v-for="col in sortable"
                   :key="col.key"
                   type="button"
-                  class="data-table__sort type-micro"
+                  class="data-table__sort type-micro inline-flex min-h-[24px] items-center"
                   :aria-sort="ariaSort(col)"
                   @click="toggleSort(col)"
                 >
@@ -211,7 +211,7 @@ const alignClass = (col: DataTableColumn<Row>) =>
               <button
                 v-if="col.sortable"
                 type="button"
-                class="data-table__sort type-micro"
+                class="data-table__sort type-micro inline-flex min-h-[24px] items-center"
                 :aria-sort="ariaSort(col)"
                 @click="toggleSort(col)"
               >

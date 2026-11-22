@@ -38,7 +38,7 @@ const countText = computed(() => (unassigned.value ? jobs(props.unassignedCount)
     <span v-else aria-hidden="true" />
 
     <div v-if="unassignedCount" class="flex items-center gap-2">
-      <Switch :id="switchId" v-model="unassigned" data-register-unassigned />
+      <Switch :id="switchId" v-model="unassigned" data-register-unassigned class="min-h-[24px]" />
       <Label :for="switchId" class="type-meta t-text-secondary cursor-pointer">
         Unassigned
         <span class="tabular-nums" :class="{ 'text-warning': !unassigned }">· {{ countText }}</span>

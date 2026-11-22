@@ -87,30 +87,35 @@ export async function getRoleContext(event: H3Event, orgId: string): Promise<Res
   )) as RoleMembership[];
   const membership = pickMembership(rows ?? []);
 
+  // Terms, billing and helper areas all need only the membership above (or
+  // nothing), never each other: read them in one round trip.
+  const active = membership?.id && membership.status === "active";
+  const today = new Date().toISOString().split("T")[0];
   // Current terms, read exactly as getBoardPosition reads them.
-  let terms: RoleBoardTerm[] = [];
-  if (membership?.id && membership.status === "active") {
-    const today = new Date().toISOString().split("T")[0];
-    terms = ((await directus.request(
-      readItems("hoa_board_members", {
-        filter: {
-          _and: [
-            { hoa_member: { _eq: membership.id } },
-            { status: { _eq: "published" } },
-            { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
-            { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
-          ],
-        } as any,
-        fields: ["title"],
-        sort: ["sort"],
-      })
-    )) ?? []) as RoleBoardTerm[];
-  }
-
-  const billing = await readBillingAccount(orgId, userId);
-  // Helper and committee areas (docs/spec-delegation.md). The reader requires
-  // an active membership, and the resolver ignores them on any other status.
-  const helperAreas = membership?.status === "active" ? await getHelperAreas(event, orgId) : [];
+  const [terms, billing, helperAreas] = await Promise.all([
+    active
+      ? directus
+          .request(
+            readItems("hoa_board_members", {
+              filter: {
+                _and: [
+                  { hoa_member: { _eq: membership.id } },
+                  { status: { _eq: "published" } },
+                  { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
+                  { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
+                ],
+              } as any,
+              fields: ["title"],
+              sort: ["sort"],
+            })
+          )
+          .then((r) => ((r ?? []) as RoleBoardTerm[]))
+      : Promise.resolve([] as RoleBoardTerm[]),
+    readBillingAccount(orgId, userId),
+    // Helper and committee areas (docs/spec-delegation.md). The reader requires
+    // an active membership, and the resolver ignores them on any other status.
+    membership?.status === "active" ? getHelperAreas(event, orgId) : Promise.resolve([]),
+  ]);
   const context = resolveRoleContext(membership, terms, billing, { userId, globalRoleId, roles, orgId, helperAreas });
   const isAppAdmin = !!roles.appAdmin && globalRoleId === roles.appAdmin;
   const live = membership?.status === "active" || membership?.status === "pending";
@@ -126,11 +131,13 @@ export async function resolveCapabilities(
   event: H3Event,
   orgId: string
 ): Promise<{ actors: Actor[]; capabilities: Capability[] }> {
-  const actors = await resolveActors(event, orgId);
+  // Actors, manager grants and helper areas are independent reads: one round trip.
+  const [actors, grants, helps] = await Promise.all([
+    resolveActors(event, orgId),
+    getManagerGrants(event, orgId),
+    getHelperAreas(event, orgId),
+  ]);
   const caps = new Set(capabilitiesFor(actors));
-
-  const grants = await getManagerGrants(event, orgId);
-  const helps = await getHelperAreas(event, orgId);
   if (grants?.projects === true || helps.includes("projects")) {
     caps.add("projects:write");
     caps.add("milestone:approve");

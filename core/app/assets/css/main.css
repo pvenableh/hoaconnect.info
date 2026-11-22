@@ -199,3 +199,8 @@ img {
 .layout-leave-to {
   opacity: 0;
 }
+
+/* An empty toast list is a fixed, zero-height-content <ol>; keep it out of the layout. */
+.toaster ol:empty {
+  display: none;
+}

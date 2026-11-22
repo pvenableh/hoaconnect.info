@@ -682,7 +682,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                     </NuxtLink>
                   </li>
                   <li
-                    v-if="!(has.needs('balance-due') && nextByKind('dues').length) && !(has.needs('votes') && nextByKind('poll').length) && !(has.needs('my-requests') && homeRequests.length)"
+                    v-if="!has.needs('approvals') && !(has.needs('balance-due') && nextByKind('dues').length) && !(has.needs('votes') && nextByKind('poll').length) && !(has.needs('my-requests') && homeRequests.length)"
                     class="px-4 py-3 text-sm t-text-muted"
                   >
                     Nothing needs you right now.
