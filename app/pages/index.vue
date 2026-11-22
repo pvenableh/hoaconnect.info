@@ -43,6 +43,7 @@
 
 <script setup>
 import { isMarketingHost } from "#core/shared/domains/host";
+import { customDomainRootDeepLink } from "#core/shared/domains/org-routes";
 
 definePageMeta({
   // Chromeless: a custom domain's clean root only ever renders the org's public
@@ -50,13 +51,21 @@ definePageMeta({
   // landing supplies its own theme + shell, so one layout covers all three.
   layout: "auth-blank",
   middleware: [
-    function rootRedirect() {
+    function rootRedirect(to) {
       // On the main app host, the root is not a public page — route visitors
       // into the app. Custom domains have isCustomDomain=true (set from the
       // request Host by domain-detector.global, which runs before page
       // middleware) and fall through to render the org landing below.
       const isCustomDomain = useState("isCustomDomain", () => false);
-      if (isCustomDomain.value) return;
+      if (isCustomDomain.value) {
+        // The clean root renders the public landing, so a signed-in member's
+        // dashboard deep link (`/?sign=<id>`) is carried on to `/{slug}`.
+        if (useUserSession().loggedIn.value) {
+          const target = customDomainRootDeepLink(to.query, useActiveHoa().activeHoa.value?.slug);
+          if (target) return navigateTo({ path: target, query: to.query }, { replace: true });
+        }
+        return;
+      }
 
       // The apex is the marketing site, for signed-in visitors too — it is the
       // public front door, not an app route. The product lives at /dashboard,
@@ -73,7 +82,8 @@ definePageMeta({
 
       const { loggedIn } = useUserSession();
       // Logged-in → /dashboard (org-redirect.global carries on to /{slug}).
-      return navigateTo(loggedIn.value ? "/dashboard" : "/auth/login");
+      // Signed in: keep the query so `/?sign=<id>` (a form reminder) survives the hop.
+      return loggedIn.value ? navigateTo({ path: "/dashboard", query: to.query }) : navigateTo("/auth/login");
     },
   ],
 });

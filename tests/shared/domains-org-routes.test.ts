@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import {
   orgScopedRedirect,
   sessionOrgRedirect,
+  customDomainRootDeepLink,
   UNREDIRECTED_TWINS,
 } from "#core/shared/domains/org-routes";
 
@@ -249,5 +250,18 @@ describe("the org-route mapping matches the real page tree", () => {
       expect(sessionOrgRedirect(path, SLUG)).toBeNull();
       expect(orgScopedRedirect(path, SLUG)).toBeNull();
     }
+  });
+});
+
+describe("customDomainRootDeepLink", () => {
+  it("sends a form reminder's ?sign to the org's dashboard", () => {
+    expect(customDomainRootDeepLink({ sign: "f1" }, SLUG)).toBe(`/${SLUG}`);
+  });
+  it("leaves a plain root and unrelated queries on the landing", () => {
+    expect(customDomainRootDeepLink({}, SLUG)).toBeNull();
+    expect(customDomainRootDeepLink({ utm_source: "x" }, SLUG)).toBeNull();
+  });
+  it("does nothing without a host slug", () => {
+    expect(customDomainRootDeepLink({ sign: "f1" }, null)).toBeNull();
   });
 });

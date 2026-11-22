@@ -138,3 +138,27 @@ export function sessionOrgRedirect(
   if (normalizePath(path) === "/") return `/${s}`;
   return orgScopedRedirect(path, s);
 }
+
+/**
+ * Query params that mean "open this on the member's dashboard". A custom
+ * domain's clean root `/` renders the public landing, so a link like
+ * `/?sign=<id>` (a form reminder's Sign button) must be carried to the org's
+ * dashboard at `/{slug}` for a signed-in person, or the landing swallows it.
+ * Add a param here when a new reminder or email deep-links into the dashboard.
+ */
+const DASHBOARD_DEEP_LINK_PARAMS = ["sign"];
+
+/**
+ * Where should a SIGNED-IN visitor at a custom domain's clean root go, given
+ * the query? Returns `/{hostSlug}` when the query carries a dashboard deep-link
+ * param, else null (plain `/` keeps rendering the public landing). The caller
+ * re-attaches the query.
+ */
+export function customDomainRootDeepLink(
+  query: Record<string, unknown>,
+  hostSlug?: string | null
+): string | null {
+  const slug = (hostSlug || "").trim();
+  if (!slug) return null;
+  return DASHBOARD_DEEP_LINK_PARAMS.some((k) => k in query) ? `/${slug}` : null;
+}

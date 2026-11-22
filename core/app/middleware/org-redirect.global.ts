@@ -61,7 +61,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
     // other direction: forget to add a page and it simply does not redirect.
     const targetPath = sessionOrgRedirect(to.path, org.slug);
     if (!targetPath || targetPath === to.path) return;
-    return navigateTo(targetPath);
+    // Keep the query and hash: a reminder's button lands on `/?sign=<id>`, and
+    // the dashboard reads `sign` after this hop.
+    return navigateTo({ path: targetPath, query: to.query, hash: to.hash });
   } catch (error) {
     // If there's an error fetching org data, don't redirect
     console.error('[org-redirect] Error fetching organization:', error);
