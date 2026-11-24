@@ -12,14 +12,21 @@
 import type { H3Event } from "h3";
 
 export async function canReadMoney(event: H3Event, orgId: string): Promise<boolean> {
-  const admin = await checkAdminAccess(event, orgId);
+  // Money:read comes from the actor hats alone (a helper area never adds it),
+  // so the helper-area reads are skipped and the admin and actor questions go
+  // out together.
+  const [admin, caps] = await Promise.all([
+    checkAdminAccess(event, orgId),
+    (async () => {
+      try {
+        return await resolveCapabilities(event, orgId, { helpers: false });
+      } catch {
+        return null;
+      }
+    })(),
+  ]);
   if (admin.isAdmin) return true;
-  try {
-    const { capabilities } = await resolveCapabilities(event, orgId);
-    return capabilities.includes("money:read");
-  } catch {
-    return false;
-  }
+  return !!caps && caps.capabilities.includes("money:read");
 }
 
 /** 401 without a session, 400 without `orgId`, 403 unless admin or money:read. Returns the orgId. */

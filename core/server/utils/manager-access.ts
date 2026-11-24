@@ -111,15 +111,20 @@ async function readHelperAreas(event: H3Event, organizationId: string): Promise<
 
     const directus = getTypedDirectus();
     // Paused while their posting is (docs/spec-member-restrictions.md). A failed
-    // read throws into the catch below: no areas.
-    if ((await restrictedNow(directus, [memberId])).has(memberId)) return [];
-    const teamRows = ((await directus.request(
-      readItems("hoa_team_members" as any, {
-        filter: { user: { _eq: userId }, organization: { _eq: organizationId } },
-        fields: ["team.id", "team.status", "team.organization"] as any,
-        limit: 100,
-      })
-    )) ?? []) as any[];
+    // read throws into the catch below: no areas. The team read does not need
+    // its answer, so the two go out together.
+    const [restricted, teamReadRows] = await Promise.all([
+      restrictedNow(directus, [memberId]),
+      directus.request(
+        readItems("hoa_team_members" as any, {
+          filter: { user: { _eq: userId }, organization: { _eq: organizationId } },
+          fields: ["team.id", "team.status", "team.organization"] as any,
+          limit: 100,
+        })
+      ),
+    ]);
+    if (restricted.has(memberId)) return [];
+    const teamRows = (teamReadRows ?? []) as any[];
     const teamIds = teamRows
       .map((r) => r?.team)
       .filter((t) => t && (t.status ?? "active") === "active" && refId(t.organization) === organizationId)

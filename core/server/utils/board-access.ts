@@ -58,7 +58,8 @@ export async function getBoardPosition(
   if (!userId) return null;
 
   try {
-    const memberId = await getMemberId(userId, organizationId);
+    // The same active-membership read getMemberId makes, once per request.
+    const memberId = (await checkMembership(event, organizationId)).memberId ?? null;
     if (!memberId) return null;
 
     const now = new Date().toISOString().split("T")[0]; // YYYY-MM-DD

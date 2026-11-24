@@ -130,7 +130,9 @@ export async function getRoleContext(event: H3Event, orgId: string): Promise<Res
  */
 export async function resolveCapabilities(
   event: H3Event,
-  orgId: string
+  orgId: string,
+  /** `helpers: false` leaves out the helper-area read, for a caller that only asks about capabilities no helper area adds (money:read). */
+  opts: { helpers?: boolean } = {}
 ): Promise<{ actors: Actor[]; capabilities: Capability[] }> {
   // Actors, manager grants and helper areas are independent reads: one round trip.
   // The grants are read once and shared with resolveActors.
@@ -138,7 +140,7 @@ export async function resolveCapabilities(
   const [actors, grants, helps] = await Promise.all([
     resolveActors(event, orgId, grantsRead),
     grantsRead,
-    getHelperAreas(event, orgId),
+    opts.helpers === false ? Promise.resolve([] as Awaited<ReturnType<typeof getHelperAreas>>) : getHelperAreas(event, orgId),
   ]);
   const caps = new Set(capabilitiesFor(actors));
   if (grants?.projects === true || helps.includes("projects")) {
