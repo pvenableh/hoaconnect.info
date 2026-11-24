@@ -40,11 +40,25 @@ export async function openChargeApprovals(orgId: string, chargeId: string): Prom
 
 /** The late fees on each charge (`source_id`), canceled ones included. */
 export async function lateFeesOf(orgId: string, chargeIds: readonly string[]): Promise<Map<string, LateFeeFacts[]>> {
+  if (!chargeIds.length) return new Map();
+  return readLateFees({ organization: { _eq: orgId }, request_type: { _eq: "late_fee" }, source_id: { _in: [...chargeIds] } });
+}
+
+/**
+ * The community's late fees that still have something owed, grouped by charge,
+ * for a caller that does not know its charges yet (a canceled or paid fee owes
+ * nothing, so it never moves `openLateFeesTotal`). Lets the read start with the
+ * approvals instead of after them.
+ */
+export async function owedLateFeesByCharge(orgId: string): Promise<Map<string, LateFeeFacts[]>> {
+  return readLateFees({ organization: { _eq: orgId }, request_type: { _eq: "late_fee" }, amount_remaining: { _gt: 0 } });
+}
+
+async function readLateFees(filter: Record<string, unknown>): Promise<Map<string, LateFeeFacts[]>> {
   const out = new Map<string, LateFeeFacts[]>();
-  if (!chargeIds.length) return out;
   const rows = ((await getTypedDirectus().request(
     readItems("payment_requests", {
-      filter: { organization: { _eq: orgId }, request_type: { _eq: "late_fee" }, source_id: { _in: [...chargeIds] } } as any,
+      filter: filter as any,
       fields: ["id", "status", "amount", "amount_paid", "amount_remaining", "source_id"] as any,
       limit: -1,
     })

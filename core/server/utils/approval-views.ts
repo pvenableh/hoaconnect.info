@@ -94,9 +94,9 @@ async function gatherByIds(orgId: string, approvals: ApprovalRow[], seatsArg?: r
 }
 
 /** The same facts from `readApprovalList`; only a full waiver's late fees still need a read of their own. */
-async function gatherFromList(orgId: string, approvals: ApprovalRow[], list: ApprovalList): Promise<Gathered> {
+async function gatherFromList(approvals: ApprovalRow[], list: ApprovalList): Promise<Gathered> {
   const fullWaiverCharges = [...new Set(approvals.filter((a) => a.kind === "waive" && a.amount == null).map((a) => a.charge).filter((x): x is string => !!x))];
-  const feesByCharge = fullWaiverCharges.length ? await lateFeesOf(orgId, fullWaiverCharges) : new Map<string, LateFeeFacts[]>();
+  const feesByCharge = new Map(fullWaiverCharges.flatMap((c) => (list.owedLateFees.has(c) ? [[c, list.owedLateFees.get(c)!] as const] : [])));
   const householdName = new Map(list.members.map((m) => [String(m.id), chargeHousehold(m)]));
   const names = namesByUser(list.members.filter((m) => !!m.user));
   return { seats: list.seats, decisions: list.decisions, expenseById: list.expenseById, chargeById: list.chargeById, feesByCharge, householdName, names };
@@ -130,6 +130,8 @@ export interface ApprovalList {
   expenseById: Map<string, any>;
   chargeById: Map<string, any>;
   members: any[];
+  /** Late fees with something still owed, by charge: a full waiver's cost, read without waiting for its charge. */
+  owedLateFees: Map<string, LateFeeFacts[]>;
 }
 
 /**
@@ -138,11 +140,12 @@ export interface ApprovalList {
  * them needs another's answer. The subjects ride in the approvals read as
  * nested fields; the decisions are filtered by their approval's community
  * instead of by id; the names and households come from one read of the
- * community's memberships (the same rows `memberNamesFor` filters by user).
+ * community's memberships (the same rows `memberNamesFor` filters by user),
+ * and the late fees still owed, which a full waiver would take with it.
  * `describeApprovals` picks out what the page shows.
  */
 export async function readApprovalList(orgId: string, approvalFilter: Record<string, unknown>): Promise<ApprovalList> {
-  const [raw, seats, decisions, members] = await Promise.all([
+  const [raw, seats, decisions, members, owedLateFees] = await Promise.all([
     readApprovalRows(orgId, approvalFilter, [...EXPENSE_NESTED, ...CHARGE_NESTED]),
     loadCurrentSeats(orgId),
     loadOrgDecisions(orgId, approvalFilter),
@@ -159,6 +162,7 @@ export async function readApprovalList(orgId: string, approvalFilter: Record<str
         console.error("[member-names] lookup failed:", e?.message ?? e);
         return [] as any[];
       }),
+    owedLateFeesByCharge(orgId),
   ]);
   // The subject must be the community's own, as the id-filtered reads required.
   const expenseById = new Map<string, any>();
@@ -170,7 +174,7 @@ export async function readApprovalList(orgId: string, approvalFilter: Record<str
     if (c && String(c.organization?.id ?? c.organization ?? "") === orgId) chargeById.set(String(c.id), c);
   }
   const rows = raw.map(normaliseApproval).filter((a) => a.organization === orgId);
-  return { rows, seats, decisions, expenseById, chargeById, members };
+  return { rows, seats, decisions, expenseById, chargeById, members, owedLateFees };
 }
 
 export async function describeApprovals(
@@ -180,7 +184,7 @@ export async function describeApprovals(
   seatsArg?: readonly Seat[],
   list?: ApprovalList
 ) {
-  const g = list ? await gatherFromList(orgId, approvals, list) : await gatherByIds(orgId, approvals, seatsArg);
+  const g = list ? await gatherFromList(approvals, list) : await gatherByIds(orgId, approvals, seatsArg);
   const { seats, decisions, expenseById, chargeById, feesByCharge, householdName, names } = g;
 
   return approvals.map((a) => {
