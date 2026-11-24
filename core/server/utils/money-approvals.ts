@@ -149,15 +149,19 @@ export async function loadCurrentSeats(orgId: string, today = todayUtc()): Promi
 }
 
 export async function loadApprovals(orgId: string, filter: Record<string, unknown> = {}): Promise<ApprovalRow[]> {
-  const rows = ((await getTypedDirectus().request(
+  return (await readApprovalRows(orgId, filter)).map(normaliseApproval).filter((a) => a.organization === orgId);
+}
+
+/** The raw rows, with any extra (nested) fields a caller wants read in the same trip. */
+export async function readApprovalRows(orgId: string, filter: Record<string, unknown> = {}, extraFields: readonly string[] = []): Promise<any[]> {
+  return ((await getTypedDirectus().request(
     readItems("money_approvals" as any, {
       filter: { organization: { _eq: orgId }, ...filter } as any,
-      fields: [...APPROVAL_FIELDS] as any,
+      fields: [...APPROVAL_FIELDS, ...extraFields] as any,
       sort: ["-date_created"] as any,
       limit: -1,
     })
   )) ?? []) as any[];
-  return rows.map(normaliseApproval).filter((a) => a.organization === orgId);
 }
 
 /** One approval, 404 unless it is the community's. */
@@ -168,11 +172,20 @@ export async function loadApproval(orgId: string, id: string): Promise<ApprovalR
 }
 
 export async function loadDecisions(approvalIds: readonly string[]): Promise<Map<string, DecisionRow[]>> {
+  if (!approvalIds.length) return new Map();
+  return readDecisions({ approval: { _in: [...approvalIds] } });
+}
+
+/** Every decision on the community's approvals (narrowed by `approvalFilter`), without waiting to know their ids. */
+export async function loadOrgDecisions(orgId: string, approvalFilter: Record<string, unknown> = {}): Promise<Map<string, DecisionRow[]>> {
+  return readDecisions({ approval: { organization: { _eq: orgId }, ...approvalFilter } });
+}
+
+async function readDecisions(filter: Record<string, unknown>): Promise<Map<string, DecisionRow[]>> {
   const out = new Map<string, DecisionRow[]>();
-  if (!approvalIds.length) return out;
   const rows = ((await getTypedDirectus().request(
     readItems("money_approval_decisions" as any, {
-      filter: { approval: { _in: [...approvalIds] } } as any,
+      filter: filter as any,
       fields: [...DECISION_FIELDS] as any,
       sort: ["date_created"] as any,
       limit: -1,

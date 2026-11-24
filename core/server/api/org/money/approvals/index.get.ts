@@ -5,16 +5,13 @@
  * docs/spec-money-approvals.md.
  */
 export default defineEventHandler(async (event) => {
-  // The reads below need only the org, so they start while the money:read check
-  // runs; nothing is returned or described until it passes.
+  // Every read below needs only the org, so they all start together while the
+  // money:read check runs; nothing is returned or described until it passes.
   const queryView = String(getQuery(event).view || "open");
   const queryOrg = String(getQuery(event).orgId ?? "");
   const early =
     queryOrg && ["open", "awaiting-me", "all"].includes(queryView)
-      ? Promise.all([
-          loadApprovals(queryOrg, queryView === "all" ? {} : { state: { _in: [...OPEN_STATES] } }),
-          loadCurrentSeats(queryOrg),
-        ])
+      ? readApprovalList(queryOrg, queryView === "all" ? {} : { state: { _in: [...OPEN_STATES] } })
       : null;
   early?.catch(() => {});
   const orgId = await requireMoneyRead(event);
@@ -23,12 +20,9 @@ export default defineEventHandler(async (event) => {
   const view = String(getQuery(event).view || "open");
   if (!["open", "awaiting-me", "all"].includes(view)) throw createError({ statusCode: 400, message: "view is open, awaiting-me or all" });
 
-  // The approvals and the board seats need only the org: one round trip.
-  const [rows, seats] = await (early ?? Promise.all([
-    loadApprovals(orgId, view === "all" ? {} : { state: { _in: [...OPEN_STATES] } }),
-    loadCurrentSeats(orgId),
-  ]));
-  const items = await describeApprovals(orgId, rows.slice(0, moneyLimit(event, 200)), userId, seats);
+  // Approvals, seats, decisions, subjects and names: one round trip.
+  const list = await (early ?? readApprovalList(orgId, view === "all" ? {} : { state: { _in: [...OPEN_STATES] } }));
+  const items = await describeApprovals(orgId, list.rows.slice(0, moneyLimit(event, 200)), userId, list.seats, list);
   const open = items.filter((i) => i.state === "pending" || i.state === "cannot_approve");
   return {
     approvals: view === "all" ? items : view === "awaiting-me" ? open.filter((i) => i.canDecide) : open,

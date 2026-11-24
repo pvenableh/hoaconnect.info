@@ -11,14 +11,15 @@
 import type { Seat } from "#core/shared/money/approval-rule";
 import { OFFICE_LABELS, progressLabel } from "#core/shared/money/approval-rule";
 import { readItems } from "@directus/sdk";
-import { openLateFeesTotal } from "#core/shared/money/charge-corrections";
+import { openLateFeesTotal, type LateFeeFacts } from "#core/shared/money/charge-corrections";
+import { namesByUser } from "#core/shared/members/display-name";
 
 const person = (id: string, names: Map<string, string>, seats: readonly Seat[]) => {
   const { label } = officeLabelOf(seats, id);
   return { userId: id, name: names.get(id) ?? "A board member", office: label };
 };
 
-export async function describeApprovals(orgId: string, approvals: ApprovalRow[], userId: string | null, seatsArg?: readonly Seat[]) {
+async function gatherByIds(orgId: string, approvals: ApprovalRow[], seatsArg?: readonly Seat[]): Promise<Gathered> {
   // Every read below depends only on the approvals and the org, never on each
   // other, so they go out in one round trip. The names of the people already
   // known (requesters, exclusions, seats) ride in that trip too; only a
@@ -88,6 +89,99 @@ export async function describeApprovals(orgId: string, approvals: ApprovalRow[],
   const stray = new Set<string>();
   for (const list of decisions.values()) for (const d of list) if (d.decided_by && !first.ids.has(d.decided_by)) stray.add(d.decided_by);
   const names = stray.size ? new Map([...first.names, ...(await namesFor(orgId, stray))]) : first.names;
+
+  return { seats, decisions, expenseById, chargeById, feesByCharge, householdName, names };
+}
+
+/** The same facts from `readApprovalList`; only a full waiver's late fees still need a read of their own. */
+async function gatherFromList(orgId: string, approvals: ApprovalRow[], list: ApprovalList): Promise<Gathered> {
+  const fullWaiverCharges = [...new Set(approvals.filter((a) => a.kind === "waive" && a.amount == null).map((a) => a.charge).filter((x): x is string => !!x))];
+  const feesByCharge = fullWaiverCharges.length ? await lateFeesOf(orgId, fullWaiverCharges) : new Map<string, LateFeeFacts[]>();
+  const householdName = new Map(list.members.map((m) => [String(m.id), chargeHousehold(m)]));
+  const names = namesByUser(list.members.filter((m) => !!m.user));
+  return { seats: list.seats, decisions: list.decisions, expenseById: list.expenseById, chargeById: list.chargeById, feesByCharge, householdName, names };
+}
+
+/** Everything `describeApprovals` reads besides the approvals themselves. */
+interface Gathered {
+  seats: readonly Seat[];
+  decisions: Map<string, DecisionRow[]>;
+  expenseById: Map<string, any>;
+  chargeById: Map<string, any>;
+  feesByCharge: Map<string, LateFeeFacts[]>;
+  householdName: Map<string, string | null>;
+  names: Map<string, string>;
+}
+
+const EXPENSE_NESTED = [
+  "expense.id", "expense.organization", "expense.title", "expense.vendor", "expense.amount", "expense.status",
+  "expense.category", "expense.paid_without_approval", "expense.expense_date",
+] as const;
+const CHARGE_NESTED = [
+  "charge.id", "charge.organization", "charge.title", "charge.amount", "charge.amount_remaining", "charge.status",
+  "charge.member.first_name", "charge.member.last_name", "charge.member.email",
+] as const;
+
+/** What the list route starts from the org alone, in one round trip (see `readApprovalList`). */
+export interface ApprovalList {
+  rows: ApprovalRow[];
+  seats: Seat[];
+  decisions: Map<string, DecisionRow[]>;
+  expenseById: Map<string, any>;
+  chargeById: Map<string, any>;
+  members: any[];
+}
+
+/**
+ * The approvals, the board seats, every decision, every membership and each
+ * approval's expense/charge subject, all started at once from the org: none of
+ * them needs another's answer. The subjects ride in the approvals read as
+ * nested fields; the decisions are filtered by their approval's community
+ * instead of by id; the names and households come from one read of the
+ * community's memberships (the same rows `memberNamesFor` filters by user).
+ * `describeApprovals` picks out what the page shows.
+ */
+export async function readApprovalList(orgId: string, approvalFilter: Record<string, unknown>): Promise<ApprovalList> {
+  const [raw, seats, decisions, members] = await Promise.all([
+    readApprovalRows(orgId, approvalFilter, [...EXPENSE_NESTED, ...CHARGE_NESTED]),
+    loadCurrentSeats(orgId),
+    loadOrgDecisions(orgId, approvalFilter),
+    getTypedDirectus()
+      .request(
+        readItems("hoa_members", {
+          filter: { organization: { _eq: orgId } } as any,
+          fields: ["id", "user", "first_name", "last_name", "email", "status"] as any,
+          limit: -1,
+        })
+      )
+      .then((r) => ((r ?? []) as any[]))
+      .catch((e: any) => {
+        console.error("[member-names] lookup failed:", e?.message ?? e);
+        return [] as any[];
+      }),
+  ]);
+  // The subject must be the community's own, as the id-filtered reads required.
+  const expenseById = new Map<string, any>();
+  const chargeById = new Map<string, any>();
+  for (const r of raw) {
+    const e = r.expense && typeof r.expense === "object" ? r.expense : null;
+    if (e && String(e.organization?.id ?? e.organization ?? "") === orgId) expenseById.set(String(e.id), e);
+    const c = r.charge && typeof r.charge === "object" ? r.charge : null;
+    if (c && String(c.organization?.id ?? c.organization ?? "") === orgId) chargeById.set(String(c.id), c);
+  }
+  const rows = raw.map(normaliseApproval).filter((a) => a.organization === orgId);
+  return { rows, seats, decisions, expenseById, chargeById, members };
+}
+
+export async function describeApprovals(
+  orgId: string,
+  approvals: ApprovalRow[],
+  userId: string | null,
+  seatsArg?: readonly Seat[],
+  list?: ApprovalList
+) {
+  const g = list ? await gatherFromList(orgId, approvals, list) : await gatherByIds(orgId, approvals, seatsArg);
+  const { seats, decisions, expenseById, chargeById, feesByCharge, householdName, names } = g;
 
   return approvals.map((a) => {
     const own = decisions.get(a.id) ?? [];
