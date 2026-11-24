@@ -12,7 +12,7 @@ const HOA_ADMIN_ROLE = "role-hoa-admin";
 const MEMBER_ROLE = "role-member";
 const ORG = "org-1";
 
-const event = {} as H3Event;
+let event: H3Event;
 
 // Mutable per-test fixtures the stubbed globals read from.
 let session: { user?: { id: string; role?: string | { id: string } } } | null;
@@ -20,6 +20,7 @@ let memberRows: Array<{ id: string; role: string | { id: string } }>;
 let directusRequest: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
+  event = {} as H3Event; // a fresh request: the access reads are cached per event
   session = null;
   memberRows = [];
   directusRequest = vi.fn(async () => memberRows);

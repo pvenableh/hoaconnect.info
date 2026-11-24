@@ -31,6 +31,32 @@ export async function checkAdminAccess(
   event: H3Event,
   organizationId: string
 ): Promise<AdminCheckResult> {
+  return perRequest(event, "admin", organizationId, () => readAdminAccess(event, organizationId));
+}
+
+/**
+ * One read per request, user and org: canReadMoney, resolveActors and
+ * getHelperAreas all ask the same two questions of `hoa_members`. A request
+ * that changes membership and then re-checks should not reach for this.
+ */
+async function perRequest<T>(event: H3Event, kind: string, organizationId: string, run: () => Promise<T>): Promise<T> {
+  const session = await getUserSession(event);
+  const userId = session?.user?.id;
+  if (!userId) return run();
+  const context = ((event as any).context ??= {}) as Record<string, any>;
+  const cache = (context.__accessReads ??= new Map<string, Promise<unknown>>()) as Map<string, Promise<unknown>>;
+  const key = `${kind}:${userId}:${organizationId}`;
+  const hit = cache.get(key);
+  if (hit) return hit as Promise<T>;
+  const read = run();
+  cache.set(key, read);
+  return read;
+}
+
+async function readAdminAccess(
+  event: H3Event,
+  organizationId: string
+): Promise<AdminCheckResult> {
   const config = useRuntimeConfig();
   const session = await getUserSession(event);
 
@@ -199,6 +225,13 @@ export async function requireAuthenticatedUser(event: H3Event) {
  * Check if user is a member of the specified organization
  */
 export async function checkMembership(
+  event: H3Event,
+  organizationId: string
+): Promise<{ isMember: boolean; memberId?: string; memberRole?: string }> {
+  return perRequest(event, "membership", organizationId, () => readMembership(event, organizationId));
+}
+
+async function readMembership(
   event: H3Event,
   organizationId: string
 ): Promise<{ isMember: boolean; memberId?: string; memberRole?: string }> {

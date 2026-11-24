@@ -54,7 +54,7 @@ const setupOrganization = (await import("#core/server/api/hoa/setup-organization
 const subscribeBand = (await import("#core/server/api/stripe/subscribe-band.post")).default as Handler;
 const promotionPreview = (await import("#core/server/api/stripe/promotion-preview.post")).default as Handler;
 
-const event = {} as H3Event;
+let event: H3Event;
 const ROLE_HOA_ADMIN = "role-hoa-admin";
 const USER = "user-1";
 const ORG = "org-1";
@@ -123,6 +123,7 @@ const seedUnits = (n: number) =>
   db.seed("hoa_units", Array.from({ length: n }, () => ({ organization: ORG })));
 
 beforeEach(() => {
+  event = {} as H3Event; // a fresh request: the access reads are cached per event
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 
