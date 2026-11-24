@@ -28,6 +28,7 @@ export async function stubMoney(state: { who: Who; db: Db }): Promise<MoneyCaptu
     if (org === ORG && state.who.grants?.projects === true) caps.add("money:enter");
     return { actors, capabilities: [...caps] };
   });
+  vi.stubGlobal("getBoardSeatActor", async (_e: unknown, org: string) => (org === ORG ? boardTitleToActor(state.who.office ?? null) : null));
   vi.stubGlobal("serverRoleIds", () => ({ appAdmin: null, propertyManager: ROLE.pm, adminRoleIds: [ROLE.admin] }));
   vi.stubGlobal("safeRequestOrigin", async () => "https://app.test");
   vi.stubGlobal("notifyUsers", async (opts: any) => {

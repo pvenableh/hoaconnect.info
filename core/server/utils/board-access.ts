@@ -88,6 +88,36 @@ export async function getBoardPosition(
   }
 }
 
+/** The caller's current-term board seat as an actor, or null (one read; fails closed). */
+export async function getBoardSeatActor(event: H3Event, orgId: string): Promise<Actor | null> {
+  try {
+    const session = await getUserSession(event);
+    const userId = session?.user?.id;
+    if (!userId) return null;
+    const today = new Date().toISOString().split("T")[0];
+    // Same term rule getBoardPosition applies, with the membership as a join: one round trip where
+    // getBoardPosition needs two (the membership, then the seat).
+    const rows = await getTypedDirectus().request(
+      readItems("hoa_board_members", {
+        filter: {
+          _and: [
+            { hoa_member: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } } },
+            { status: { _eq: "published" } },
+            { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
+            { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
+          ],
+        } as any,
+        fields: ["title"],
+        sort: ["sort"],
+        limit: 1,
+      })
+    );
+    return boardTitleToActor(((rows?.[0] as any)?.title as BoardTitle) ?? null);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The full set of actor hats the caller wears in an org. Used by the
  * capabilities endpoint (UI gating) and by routes that need a capability check.

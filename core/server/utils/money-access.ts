@@ -10,23 +10,18 @@
  * board seats only (core/shared/money/approval-rule.ts).
  */
 import type { H3Event } from "h3";
+import { capabilitiesFor } from "#core/shared/permissions";
 
 export async function canReadMoney(event: H3Event, orgId: string): Promise<boolean> {
-  // Money:read comes from the actor hats alone (a helper area never adds it),
-  // so the helper-area reads are skipped and the admin and actor questions go
-  // out together.
-  const [admin, caps] = await Promise.all([
-    checkAdminAccess(event, orgId),
-    (async () => {
-      try {
-        return await resolveCapabilities(event, orgId, { helpers: false });
-      } catch {
-        return null;
-      }
-    })(),
-  ]);
+  // Money:read belongs to the admin hat and the board seats, nothing else, so
+  // the check asks only those two questions and asks them together: the admin
+  // read, and one read of the caller's current-term board seat joined through
+  // their active membership. (resolveCapabilities also reads the manager
+  // grants, the team-lead row and the membership first, then the seat: four
+  // reads and two round trips for an answer these two give in one.)
+  const [admin, seat] = await Promise.all([checkAdminAccess(event, orgId), getBoardSeatActor(event, orgId)]);
   if (admin.isAdmin) return true;
-  return !!caps && caps.capabilities.includes("money:read");
+  return !!seat && capabilitiesFor([seat]).includes("money:read");
 }
 
 /** 401 without a session, 400 without `orgId`, 403 unless admin or money:read. Returns the orgId. */

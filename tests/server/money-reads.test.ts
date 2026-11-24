@@ -48,6 +48,8 @@ beforeEach(async () => {
     if (caps instanceof Error) throw caps;
     return { actors: [], capabilities: caps };
   });
+  // The check reads the caller's board seat; `caps` stands in for what it grants.
+  vi.stubGlobal("getBoardSeatActor", async () => (caps instanceof Error || !caps.includes("money:read") ? null : "board_member"));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
       reads.push(op);
