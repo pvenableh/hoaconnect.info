@@ -1,6 +1,6 @@
 # Scope: notice acknowledgments and forms to sign
 
-Status: scoped, not built. Two items in `docs/plan-unified-experience.md` §5 are marked
+Status: built (Ack 1 to 5 in `docs/plan-unified-experience.md` §10). Original scope follows. Two items in `docs/plan-unified-experience.md` §5 are marked
 *pending feature* because they have no data model: **notices to acknowledge**
 (Tenant) and **forms to sign** (Owner). `core/shared/home/roles.ts` already keeps the
 keys, and the home renders nothing for them until this ships. Nothing here changes
