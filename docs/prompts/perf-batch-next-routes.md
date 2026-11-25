@@ -2,6 +2,11 @@
 
 Model: Sonnet 5.5 (`claude-sonnet-5-5`). Already batched on `main` (local, unpushed): money routes, the ledger, ai/notices, responsibilities, the home cards, channels/unread, hoa/find, then `0aa07caf` (org/my-household, 9 → 1 request), `f3330980` (governing overview/documents/search, 7 → 2) and `a0a03502` (support/context, 6–12 → 1).
 
+Parked for later, not part of this prompt:
+
+- **Cache the public find route in Nuxt.** `hoa/find` returns a community's public record, the same for every visitor, so a short Nitro cache (`defineCachedEventHandler` or route rules, keyed by community) would skip Directus entirely on repeat visits. Batching can't beat that. Needs a decision on how stale a public record may be and how an edit clears it. Only public, per-community responses qualify; per-user routes do not.
+- **More Directus instances.** Batching works around one CPU-bound Directus process. Running one copy per spare vCPU on the droplet (the Docker image's `PM2_INSTANCES`; confirm the name in the Directus config docs) would speed every route. Blocked on knowing the droplet's vCPU count.
+
 Start it with (the prompt itself is the one code block below):
 
 > Read docs/prompts/perf-batch-next-routes.md and carry out the prompt in its code block exactly: measure, then batch the three slowest unbatched routes, on main, committing each locally and asking before you push.
