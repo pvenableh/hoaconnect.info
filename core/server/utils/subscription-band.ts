@@ -19,6 +19,7 @@ import {
   type BandPriceIds,
 } from "#core/shared/billing/band-checkout";
 import { getStripe, isStripeLiveMode } from "./stripe";
+import type { BatchSpec } from "./directus-graphql";
 
 /** Fields needed to render/select a band. */
 const BAND_FIELDS = [
@@ -118,6 +119,44 @@ export async function resolveBandForOrg(orgId: string): Promise<{
   const units = Math.max(realUnits, declaredUnits);
   const band = await selectBandForUnits(units);
   return { units, band };
+}
+
+// ── The band in one request ─────────────────────────────────────────────────
+
+export type BandKey = "bd_units" | "bd_org" | "bd_bands";
+
+/**
+ * resolveBandForOrg's and getActiveBands' reads as one batch (readItemsBatch,
+ * or batchWithAccessSnapshot to bring the caller's standing along): the
+ * community's unit count, its declared units and the active bands, which the
+ * band selection and the ladder share. Keys are prefixed `bd_` so they can
+ * share a batch.
+ *
+ * Where those reads forgave a failure (a count that failed reads as 0, a
+ * missing `declared_units` field as 0), the batch fails as a whole instead,
+ * and the caller reads them one by one as before.
+ */
+export function bandSpecs(orgId: string): Record<BandKey, BatchSpec> {
+  return {
+    bd_units: { collection: "hoa_units", count: "*", filter: { organization: { _eq: orgId } } },
+    bd_org: { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["declared_units"], limit: 1 },
+    bd_bands: {
+      collection: "subscription_plans",
+      filter: { status: { _eq: "published" }, is_active: { _eq: true } },
+      fields: BAND_FIELDS,
+      sort: ["sort"],
+      limit: -1,
+    },
+  };
+}
+
+/** resolveBandForOrg's answer and getActiveBands' rows, from `bandSpecs`' rows. */
+export function bandFrom(read: Record<BandKey, any[]>): { units: number; band: SubscriptionPlan | null; bands: SubscriptionPlan[] } {
+  const realUnits = Number(read.bd_units?.[0]?.count ?? 0);
+  const declaredUnits = Number(read.bd_org?.[0]?.declared_units) || 0;
+  const units = Math.max(realUnits, declaredUnits);
+  const bands = (read.bd_bands ?? []) as SubscriptionPlan[];
+  return { units, band: selectBand(units, bands as unknown as PlanBand[]) as SubscriptionPlan | null, bands };
 }
 
 // ── This mode's prices, by lookup key ───────────────────────────────────────

@@ -11,9 +11,15 @@ import { isCheckoutRefusal, planBandCheckout } from "#core/shared/billing/band-c
 export default defineEventHandler(async (event) => {
   const organizationId = String(getQuery(event).organizationId || "");
   if (!organizationId) throw createError({ statusCode: 400, message: "organizationId is required" });
+  // The unit counts, the bands and the caller's standing as ONE request
+  // (bandSpecs); the admin check then answers from that standing and refuses
+  // before any of these rows is used. A failed batch reads as before.
+  const read = await batchWithAccessSnapshot(event, organizationId, bandSpecs(organizationId), "base").catch(() => null);
   await requireAdminAccess(event, organizationId);
 
-  const [{ units, band: storedBand }, bands] = await Promise.all([resolveBandForOrg(organizationId), getActiveBands()]);
+  const { units, band: storedBand, bands } = read
+    ? bandFrom(read)
+    : await Promise.all([resolveBandForOrg(organizationId), getActiveBands()]).then(([r, b]) => ({ ...r, bands: b }));
   // Quote against this mode's prices (by lookup key), exactly as subscribe-band
   // will charge. If Stripe can't be reached, quote with no prices: the page then
   // says self-serve checkout is unavailable rather than failing to load.
