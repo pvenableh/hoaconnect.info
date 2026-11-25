@@ -165,13 +165,7 @@ export async function readApprovalList(orgId: string, approvalFilter: Record<str
       limit: -1,
     },
     // The seats and the money:read answer come from these rows.
-    members: {
-      collection: "hoa_members",
-      filter: { organization: { _eq: orgId } },
-      fields: ["id", "user", "first_name", "last_name", "email", "status", "role", ...MEMBER_TERM_FIELDS],
-      deep: { board_member_terms: { _filter: { status: { _eq: "published" } }, _limit: -1 } },
-      limit: -1,
-    },
+    members: orgMembersSpec(orgId),
     lateFees: { collection: "payment_requests", filter: owedLateFeesFilter(orgId), fields: LATE_FEE_FIELDS, limit: -1 },
   });
   const raw = read.approvals;

@@ -36,6 +36,7 @@ import {
 } from "#core/shared/ledger/entries";
 import type { LedgerActor } from "#core/shared/ledger/entry";
 import { roleIdOf } from "#core/shared/ops/permissions";
+import type { ReadSpec } from "./directus-graphql";
 import { expenseCommunity } from "#core/shared/expenses/expense-writes";
 import { ledgerActorFor } from "./member-names";
 import { orgName } from "./org-name";
@@ -152,6 +153,21 @@ export async function loadCurrentSeats(orgId: string, today = todayUtc()): Promi
 export const MEMBER_TERM_FIELDS = [
   "board_member_terms.title", "board_member_terms.status", "board_member_terms.term_start", "board_member_terms.term_end",
 ] as const;
+
+/**
+ * The community's memberships, every status, as one batch read
+ * (readItemsBatch): names and households, the board seats (seatsOfMembers)
+ * and who may read and enter money (moneyAccessFrom), all from the same rows.
+ */
+export function orgMembersSpec(orgId: string): ReadSpec {
+  return {
+    collection: "hoa_members",
+    filter: { organization: { _eq: orgId } },
+    fields: ["id", "user", "first_name", "last_name", "email", "status", "role", "manager_permissions", ...MEMBER_TERM_FIELDS],
+    deep: { board_member_terms: { _filter: { status: { _eq: "published" } }, _limit: -1 } },
+    limit: -1,
+  };
+}
 
 /**
  * loadCurrentSeats' answer from the community's memberships read with

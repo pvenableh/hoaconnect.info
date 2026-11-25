@@ -25,22 +25,48 @@ export async function canReadMoney(event: H3Event, orgId: string): Promise<boole
   return !!seat && capabilitiesFor([seat]).includes("money:read");
 }
 
+/** What the caller may do with a community's money, from rows already read. */
+export interface MoneyAccess {
+  userId: string;
+  isAdmin: boolean;
+  /** money:read: admin, or a current board seat. */
+  canRead: boolean;
+  /** money:enter: admin, a current board seat, or a property manager with the projects grant. */
+  canEnter: boolean;
+}
+
 /**
- * canReadMoney's answer from rows a route already read for the org: its
- * memberships (with `role`, any status) and its current board seats. The same
- * two questions (the admin hat: App Administrator, or HOA Admin on an active
- * or pending membership; a current seat whose office has money:read) with no
- * reads of their own. 401 without a session, 403 otherwise.
+ * canReadMoney's and canEnterMoney's answers from rows a route already read for
+ * the org: its memberships (orgMembersSpec: `role`, `manager_permissions`, any
+ * status) and its current board seats (seatsOfMembers). The same questions
+ * with no reads of their own: the admin hat (App Administrator, or HOA Admin
+ * on an active or pending membership), a current seat (every office has
+ * money:read and money:enter), and a property manager's projects grant on an
+ * active membership (getManagerGrants).
  */
-export async function requireMoneyReadFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<void> {
+export async function moneyAccessFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<MoneyAccess> {
   const session = await requireUserSession(event);
   const userId = String((session.user as { id?: unknown } | undefined)?.id ?? "");
-  const own = (m: any) => String(m?.user?.id ?? m?.user ?? "") === userId;
-  const ok =
-    isAppAdminSession(session) ||
-    members.some((m) => own(m) && ["active", "pending"].includes(m.status) && isHoaAdminRole(m.role)) ||
-    seats.some((s) => s.userId === userId && capabilitiesFor([boardTitleToActor(s.office)].filter((a): a is Actor => !!a)).includes("money:read"));
-  if (!ok) throw createError({ statusCode: 403, message: "Board or admin access required" });
+  const own = members.filter((m) => String(m?.user?.id ?? m?.user ?? "") === userId);
+  const isAdmin = isAppAdminSession(session) || own.some((m) => ["active", "pending"].includes(m.status) && isHoaAdminRole(m.role));
+  const offices = seats.filter((s) => s.userId === userId).map((s) => boardTitleToActor(s.office)).filter((a): a is Actor => !!a);
+  const caps = capabilitiesFor(offices);
+  const managesProjects = own.some(
+    (m) => m.status === "active" && isPropertyManagerRole(m.role) && (m.manager_permissions as Record<string, unknown> | null)?.projects === true
+  );
+  return {
+    userId,
+    isAdmin,
+    canRead: isAdmin || caps.includes("money:read"),
+    canEnter: isAdmin || caps.includes("money:enter") || managesProjects,
+  };
+}
+
+/** moneyAccessFrom, 403 unless the caller may read the books. 401 without a session. */
+export async function requireMoneyReadFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<MoneyAccess> {
+  const access = await moneyAccessFrom(event, members, seats);
+  if (!access.canRead) throw createError({ statusCode: 403, message: "Board or admin access required" });
+  return access;
 }
 
 /** 401 without a session, 400 without `orgId`, 403 unless admin or money:read. Returns the orgId. */

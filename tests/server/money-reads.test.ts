@@ -2,7 +2,10 @@
  * The community's books are read through the server only (plan decision 16):
  * GET /api/org/money/charges, /api/org/money/schedules and /api/org/expenses
  * admit admins and every board seat (money:read) — never a plain member, a
- * manager or a non-member — and read only the org asked for.
+ * manager or a non-member — and read only the org asked for. Charges and
+ * schedules check first and read nothing for a refused caller; expenses reads
+ * in one batch (readItemsBatch) and answers money:read from the memberships it
+ * read, so a refused caller gets a 403 and no rows, never the data.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -15,6 +18,9 @@ let session: { user: { id: string } } | null;
 let isAdmin: boolean;
 let caps: string[] | Error;
 let reads: any[];
+let batches: any[];
+/** The caller's membership in Lenox as the batch reads it: admin role, a seat, or a manager grant. */
+let manager: { projects: boolean } | null;
 
 const TABLES: Record<string, any[]> = {
   payment_requests: [
@@ -37,6 +43,8 @@ beforeEach(async () => {
   isAdmin = false;
   caps = [];
   reads = [];
+  batches = [];
+  manager = null;
   vi.stubGlobal("defineEventHandler", (fn: any) => fn);
   vi.stubGlobal("getQuery", (e: any) => e?.__query ?? {});
   vi.stubGlobal("requireUserSession", async () => {
@@ -79,7 +87,42 @@ beforeEach(async () => {
   vi.stubGlobal("namesFor", async () => new Map());
   // Each row's approval and actions are tests/server/money-approvals.test.ts's; here, the read gate.
   vi.stubGlobal("describeExpenses", async (_o: string, rows: any[]) => rows.map(() => ({})));
+  // Expenses: one batch, with money:read answered from the memberships it read.
+  const approvalsMod = await import("#core/server/utils/money-approvals");
+  for (const k of ["orgMembersSpec", "seatsOfMembers", "APPROVAL_FIELDS", "DECISION_FIELDS", "orgDecisionsFilter", "decisionsByApproval"]) {
+    vi.stubGlobal(k, (approvalsMod as any)[k]);
+  }
+  vi.stubGlobal("requireMoneyReadFrom", access.requireMoneyReadFrom);
+  vi.stubGlobal("isAppAdminSession", () => false);
+  vi.stubGlobal("isHoaAdminRole", (r: unknown) => r === "role-admin");
+  vi.stubGlobal("isPropertyManagerRole", (r: unknown) => r === "role-pm");
+  const membersOf = (org: string) =>
+    org !== LENOX || caps instanceof Error || !session
+      ? []
+      : [
+          {
+            id: "m-1",
+            user: session.user.id,
+            status: "active",
+            role: isAdmin ? "role-admin" : manager ? "role-pm" : null,
+            manager_permissions: manager,
+            board_member_terms: caps.includes("money:read") ? [{ title: "director", status: "published", term_start: null, term_end: null }] : [],
+          },
+        ];
+  vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+    batches.push(specs);
+    return Object.fromEntries(
+      Object.entries(specs).map(([k, spec]) => {
+        const org = spec.filter?.organization?._eq;
+        if (spec.collection === "hoa_members") return [k, membersOf(org)];
+        return [k, (TABLES[spec.collection] ?? []).filter((r) => r.organization === org)];
+      })
+    );
+  });
 });
+
+/** The org filter of the route's first read, whichever way it read. */
+const firstOrgFilter = () => reads[0]?.query.filter.organization ?? batches[0]?.expenses?.filter.organization;
 
 const ROUTES = {
   charges: "#core/server/api/org/money/charges.get",
@@ -106,7 +149,7 @@ describe("money reads", () => {
         const rows = Object.values(res)[0] as any[];
         expect(rows.length).toBeGreaterThan(0);
         expect(rows.every((r) => r.organization === LENOX)).toBe(true);
-        expect(reads[0].query.filter.organization).toEqual({ _eq: LENOX });
+        expect(firstOrgFilter()).toEqual({ _eq: LENOX });
       });
 
       it("admits an admin", async () => {
@@ -115,12 +158,16 @@ describe("money reads", () => {
         expect((Object.values(res)[0] as any[]).length).toBeGreaterThan(0);
       });
 
-      it("refuses a member, a manager or a non-member, and reads nothing", async () => {
+      it(route === "expenses" ? "refuses a member, a manager or a non-member, and returns nothing" : "refuses a member, a manager or a non-member, and reads nothing", async () => {
         caps = ["documents:read", "projects:read", "governing:read"];
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
+        caps = ["documents:read"];
+        manager = { projects: true }; // a manager's projects grant enters money; it never reads the books
+        await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
+        manager = null;
         caps = new Error("not a member");
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
-        expect(reads).toHaveLength(0);
+        if (route !== "expenses") expect(reads).toHaveLength(0);
       });
     });
   }

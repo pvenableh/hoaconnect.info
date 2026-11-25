@@ -22,6 +22,13 @@ export type { ManagerGrantKey } from "#core/shared/transition/grants";
  * Return the calling user's Property Manager grant flags for an org, or null if
  * they are not an active Property Manager of that org.
  */
+/** A membership's `role` (id or expanded) is Property Manager. */
+export function isPropertyManagerRole(role: unknown): boolean {
+  const id = typeof role === "string" ? role : (role as { id?: string } | null | undefined)?.id;
+  const pm = useRuntimeConfig().public.directusRolePropertyManager;
+  return !!id && !!pm && id === pm;
+}
+
 export async function getManagerGrants(
   event: H3Event,
   organizationId: string

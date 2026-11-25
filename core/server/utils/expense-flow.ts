@@ -77,15 +77,21 @@ export async function describeExpenses(
   orgId: string,
   rows: readonly any[],
   viewer: { userId: string | null; isAdmin: boolean; canEnter: boolean },
-  seatsArg?: readonly Seat[]
+  seatsArg?: readonly Seat[],
+  /**
+   * What a caller already read (the expenses list, in one batch): the seats,
+   * the community's expense approvals (a superset of these rows' is fine:
+   * they are looked up by id and by expense), their decisions, and the names.
+   */
+  pre?: { approvals: readonly ApprovalRow[]; decisions: Map<string, DecisionRow[]>; names: Map<string, string> }
 ): Promise<ExpenseExtras[]> {
   const seats = seatsArg ?? (await loadCurrentSeats(orgId));
   const expenseIds = rows.map((r) => String(r.id));
-  const approvals = expenseIds.length ? await loadApprovals(orgId, { expense: { _in: expenseIds } }) : [];
+  const approvals = pre ? pre.approvals : expenseIds.length ? await loadApprovals(orgId, { expense: { _in: expenseIds } }) : [];
   const byId = new Map(approvals.map((a) => [a.id, a]));
-  const decisions = await loadDecisions(approvals.map((a) => a.id));
+  const decisions = pre ? pre.decisions : await loadDecisions(approvals.map((a) => a.id));
   const voidOpen = new Set(approvals.filter((a) => a.kind === "void" && isOpen(a.state)).map((a) => a.expense));
-  const names = await namesFor(orgId, rows.flatMap((r) => [idOf(r.entered_by), idOf(r.paid_by)]));
+  const names = pre ? pre.names : await namesFor(orgId, rows.flatMap((r) => [idOf(r.entered_by), idOf(r.paid_by)]));
 
   return rows.map((r) => {
     const current = byId.get(idOf(r.approval) ?? "") ?? null;
