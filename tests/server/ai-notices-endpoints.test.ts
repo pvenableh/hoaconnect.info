@@ -21,6 +21,7 @@ import { cronSecretMatches } from "#core/server/utils/cron-auth";
 
 vi.mock("@directus/sdk", () => ({
   readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
+  aggregate: (collection: string, query: unknown) => ({ op: "aggregate", collection, query }),
   createItem: (collection: string, payload: unknown) => ({ op: "create", collection, payload }),
 }));
 
@@ -101,6 +102,12 @@ beforeEach(() => {
   }));
   vi.stubGlobal("isActiveBoardMember", async (_d: any, _u: string, orgId: string) =>
     isBoardOf.includes(orgId)
+  );
+  // No snapshot of the caller's standing: the board check falls back to isActiveBoardMember.
+  vi.stubGlobal("accessSnapshot", async () => null);
+  // The org sweep reads in one batch; here the batch is the same reads as REST.
+  vi.stubGlobal("readItemsBatch", async (specs: any) =>
+    (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
   );
   vi.stubGlobal("safeRequestOrigin", async () => "https://app.example.com");
   vi.stubGlobal("getOrgChannelEnrollees", async () => [
@@ -192,6 +199,28 @@ describe("GET /api/ai/notices — org scope", () => {
     const handler = await loadNotices();
     const res = await handler({ __query: { orgId: HOME } });
     expect(res.notices.length).toBeGreaterThan(0);
+  });
+
+  it("answers the board seat from the caller's access snapshot, without the seat's own reads", async () => {
+    isAdminOf = [];
+    const { activeBoardMemberFrom } = await import("#core/server/utils/access-snapshot");
+    vi.stubGlobal("activeBoardMemberFrom", activeBoardMemberFrom);
+    vi.stubGlobal("isActiveBoardMember", async () => {
+      throw new Error("the snapshot should have answered");
+    });
+    const standing = (terms: any[]) => async (_e: any, orgId: string) => ({
+      userId: "board-1",
+      orgId,
+      mine: [{ id: "hm-2", status: "active", board_member_terms: terms }],
+    });
+    rows.hoa_requests = [agedRequest("r1", HOME)];
+
+    vi.stubGlobal("accessSnapshot", standing([{ status: "published", term_start: "2020-01-01", term_end: null }]));
+    const handler = await loadNotices();
+    expect((await handler({ __query: { orgId: HOME } })).notices.length).toBeGreaterThan(0);
+
+    vi.stubGlobal("accessSnapshot", standing([{ status: "published", term_start: "2020-01-01", term_end: "2021-01-01" }]));
+    await expect(handler({ __query: { orgId: HOME } })).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it("refuses a plain member — a notice names other people's arrears", async () => {

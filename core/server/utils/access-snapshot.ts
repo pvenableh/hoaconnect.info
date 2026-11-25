@@ -202,6 +202,28 @@ export function boardSeatActorFrom(s: AccessBase, today = todayUtc()): Actor | n
   return boardTitleToActor(titles[0] ?? null);
 }
 
+/**
+ * isActiveBoardMember's answer (channel-enrollment.ts): an active membership
+ * holding a published term that has started and not ended, compared against
+ * the current timestamp as that read compares it. A date-only `term_end`
+ * sorts before the same day's timestamp, so a term reads as over on its last
+ * day here exactly as it does there.
+ */
+export function activeBoardMemberFrom(s: AccessBase, now = new Date()): boolean {
+  const nowIso = now.toISOString();
+  return s.mine
+    .filter((m) => m.status === "active")
+    .flatMap((m) => (m.board_member_terms ?? []) as any[])
+    .some(
+      (t) =>
+        t &&
+        typeof t === "object" &&
+        t.status === "published" &&
+        (!t.term_start || String(t.term_start) <= nowIso) &&
+        (!t.term_end || String(t.term_end) >= nowIso)
+    );
+}
+
 /** getManagerGrants's answer: an active Property Manager membership's grants ({} when unset), else null. */
 export function managerGrantsFrom(s: AccessBase, roles: AccessRoles): Record<string, boolean> | null {
   if (!roles.propertyManager) return null;

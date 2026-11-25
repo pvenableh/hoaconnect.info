@@ -33,7 +33,13 @@ export default defineEventHandler(async (event) => {
   // community they have no standing in gets 403 rather than a filtered list —
   // which is the right answer, because an empty list is itself information.
   const admin = await checkAdminAccess(event, orgId);
-  const allowed = admin.isAdmin || (await isActiveBoardMember(directus, userId, orgId));
+  // The board seat comes from the same snapshot of the caller's standing that
+  // checkAdminAccess read (no further request); without it, the seat's own reads.
+  const allowed =
+    admin.isAdmin ||
+    (await accessSnapshot(event, orgId, "base").then((s) =>
+      s ? activeBoardMemberFrom(s) : isActiveBoardMember(directus, userId, orgId)
+    ));
   if (!allowed) {
     throw createError({ statusCode: 403, message: "Admin or board access required" });
   }

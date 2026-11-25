@@ -35,6 +35,7 @@
  */
 
 import { readItems } from "@directus/sdk";
+import type { BatchSpec, ReadSpec } from "./directus-graphql";
 import { actionByKey } from "#core/shared/ai/actions";
 import {
   attentionPriority,
@@ -139,6 +140,29 @@ const plural = (n: number, one: string, many = `${one}s`): string => (n === 1 ? 
 /** The untyped-SDK `never` convention — the schema-less client types every collection arg as `never`. */
 const ri = readItems as any;
 
+/**
+ * One row by id, inside this org, or null. Every single-entity read goes
+ * through here so the org filter cannot be forgotten; a failed read is null.
+ */
+async function readOwn(
+  directus: any,
+  collection: string,
+  id: string,
+  organizationId: string,
+  fields: readonly string[]
+): Promise<any | null> {
+  const rows = (await directus
+    .request(
+      ri(collection, {
+        filter: { id: { _eq: id }, organization: { _eq: organizationId } },
+        fields: [...fields],
+        limit: 1,
+      })
+    )
+    .catch(() => [])) as any[];
+  return rows?.[0] ?? null;
+}
+
 /** A bare `YYYY-MM-DD`, which is what a Directus `date` column returns. */
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -234,28 +258,24 @@ export const NOTICE_THRESHOLDS = {
 
 const OPEN_REQUEST_STATUSES = ["open", "in_progress", "waiting"];
 
+const REQUEST_FIELDS = [
+  "id", "title", "status", "type", "priority", "due_date",
+  "assigned_to", "date_created", "date_updated",
+] as const;
+
 export async function generateRequestNotices(
   directus: any,
   requestId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const request = await readOwn(directus, "hoa_requests", requestId, organizationId, REQUEST_FIELDS);
+  return request ? requestNoticesOf(request, requestId, now) : [];
+}
+
+/** The notices for one request row (REQUEST_FIELDS). Pure. */
+export function requestNoticesOf(request: any, requestId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const request = ((await directus
-    .request(
-      ri("hoa_requests", {
-        filter: { id: { _eq: requestId }, organization: { _eq: organizationId } },
-        fields: [
-          "id", "title", "status", "type", "priority", "due_date",
-          "assigned_to", "date_created", "date_updated",
-        ],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!request) return notices;
   if (!OPEN_REQUEST_STATUSES.includes(String(request.status))) return notices;
 
   const label = request.title || "Untitled request";
@@ -337,28 +357,25 @@ export async function generateRequestNotices(
 
 // ── Members (dues) ───────────────────────────────────────────────────────────
 
+const MEMBER_FIELDS = [
+  "id", "first_name", "last_name", "status",
+  "outstanding_balance", "payment_status", "last_payment_date",
+] as const;
+
 export async function generateMemberNotices(
   directus: any,
   memberId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const member = await readOwn(directus, "hoa_members", memberId, organizationId, MEMBER_FIELDS);
+  return member ? memberNoticesOf(member, memberId, now) : [];
+}
+
+/** The notices for one member row (MEMBER_FIELDS). Pure. */
+export function memberNoticesOf(member: any, memberId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const member = ((await directus
-    .request(
-      ri("hoa_members", {
-        filter: { id: { _eq: memberId }, organization: { _eq: organizationId } },
-        fields: [
-          "id", "first_name", "last_name", "status",
-          "outstanding_balance", "payment_status", "last_payment_date",
-        ],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!member || member.status !== "active") return notices;
+  if (member.status !== "active") return notices;
 
   const balance = num(member.outstanding_balance);
   if (balance <= 0) return notices;
@@ -403,28 +420,24 @@ export async function generateMemberNotices(
 
 // ── Projects ─────────────────────────────────────────────────────────────────
 
+const PROJECT_FIELDS = [
+  "id", "title", "status", "due_date", "date_updated", "date_created",
+  "budget_amount", "actual_spend",
+] as const;
+
 export async function generateProjectNotices(
   directus: any,
   projectId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const project = await readOwn(directus, "hoa_projects", projectId, organizationId, PROJECT_FIELDS);
+  return project ? projectNoticesOf(project, projectId, now) : [];
+}
+
+/** The notices for one project row (PROJECT_FIELDS). Pure. */
+export function projectNoticesOf(project: any, projectId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const project = ((await directus
-    .request(
-      ri("hoa_projects", {
-        filter: { id: { _eq: projectId }, organization: { _eq: organizationId } },
-        fields: [
-          "id", "title", "status", "due_date", "date_updated", "date_created",
-          "budget_amount", "actual_spend",
-        ],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!project) return notices;
   if (!["planning", "active", "on_hold"].includes(String(project.status))) return notices;
 
   const label = project.title || "Untitled project";
@@ -502,36 +515,35 @@ export async function generateProjectNotices(
 
 // ── Channels ─────────────────────────────────────────────────────────────────
 
+const CHANNEL_FIELDS = ["id", "name", "slug", "status", "is_private"] as const;
+
+/** A channel's newest published message: the read its notice is measured from. */
+const newestMessageSpec = (channelId: string) => ({
+  collection: "hoa_channel_messages",
+  filter: { channel: { _eq: channelId }, status: { _eq: "published" } },
+  fields: ["id", "date_created"],
+  sort: ["-date_created"],
+  limit: 1,
+});
+
 export async function generateChannelNotices(
   directus: any,
   channelId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const channel = await readOwn(directus, "hoa_channels", channelId, organizationId, CHANNEL_FIELDS);
+  if (!channel || channel.status !== "published") return [];
+
+  const { collection, ...query } = newestMessageSpec(channelId);
+  const newest = ((await directus.request(ri(collection, query)).catch(() => [])) as any[])[0];
+  return channelNoticesOf(channel, newest ?? null, channelId, now);
+}
+
+/** The notices for one channel row (CHANNEL_FIELDS) and its newest published message, if any. Pure. */
+export function channelNoticesOf(channel: any, newest: any | null, channelId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const channel = ((await directus
-    .request(
-      ri("hoa_channels", {
-        filter: { id: { _eq: channelId }, organization: { _eq: organizationId } },
-        fields: ["id", "name", "slug", "status", "is_private"],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!channel || channel.status !== "published") return notices;
-
-  const newest = ((await directus
-    .request(
-      ri("hoa_channel_messages", {
-        filter: { channel: { _eq: channelId }, status: { _eq: "published" } },
-        fields: ["id", "date_created"],
-        sort: ["-date_created"],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
+  if (channel.status !== "published") return notices;
 
   // A channel nobody has ever written in is a channel nobody needs told about.
   if (!newest) return notices;
@@ -561,25 +573,22 @@ export async function generateChannelNotices(
 
 // ── Vendors ──────────────────────────────────────────────────────────────────
 
+const VENDOR_FIELDS = ["id", "name", "company", "status", "active_until", "category"] as const;
+
 export async function generateVendorNotices(
   directus: any,
   vendorId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const vendor = await readOwn(directus, "hoa_vendors", vendorId, organizationId, VENDOR_FIELDS);
+  return vendor ? vendorNoticesOf(vendor, vendorId, now) : [];
+}
+
+/** The notices for one vendor row (VENDOR_FIELDS). Pure. */
+export function vendorNoticesOf(vendor: any, vendorId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const vendor = ((await directus
-    .request(
-      ri("hoa_vendors", {
-        filter: { id: { _eq: vendorId }, organization: { _eq: organizationId } },
-        fields: ["id", "name", "company", "status", "active_until", "category"],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!vendor || vendor.status !== "active") return notices;
+  if (vendor.status !== "active") return notices;
   if (!vendor.active_until) return notices;
 
   const label = vendor.company || vendor.name || "A vendor";
@@ -633,25 +642,21 @@ export async function generateVendorNotices(
 
 // ── Meetings ─────────────────────────────────────────────────────────────────
 
+const MEETING_FIELDS = ["id", "title", "status", "meeting_date", "minutes", "type"] as const;
+
 export async function generateMeetingNotices(
   directus: any,
   meetingId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const meeting = await readOwn(directus, "hoa_meetings", meetingId, organizationId, MEETING_FIELDS);
+  return meeting ? meetingNoticesOf(meeting, meetingId, now) : [];
+}
+
+/** The notices for one meeting row (MEETING_FIELDS). Pure. */
+export function meetingNoticesOf(meeting: any, meetingId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const meeting = ((await directus
-    .request(
-      ri("hoa_meetings", {
-        filter: { id: { _eq: meetingId }, organization: { _eq: organizationId } },
-        fields: ["id", "title", "status", "meeting_date", "minutes", "type"],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!meeting) return notices;
   if (meeting.status === "canceled") return notices;
 
   const since = ageInDays(meeting.meeting_date, now);
@@ -692,28 +697,24 @@ export async function generateMeetingNotices(
 
 const UNPAID_INVOICE_STATUSES = ["active", "overdue", "partially_paid"];
 
+const INVOICE_FIELDS = [
+  "id", "title", "status", "amount", "amount_remaining", "amount_paid",
+  "due_date", "member", "reminder_sent",
+] as const;
+
 export async function generatePaymentRequestNotices(
   directus: any,
   paymentRequestId: string,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
+  const pr = await readOwn(directus, "payment_requests", paymentRequestId, organizationId, INVOICE_FIELDS);
+  return pr ? paymentRequestNoticesOf(pr, paymentRequestId, now) : [];
+}
+
+/** The notices for one payment request row (INVOICE_FIELDS). Pure. */
+export function paymentRequestNoticesOf(pr: any, paymentRequestId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
-
-  const pr = ((await directus
-    .request(
-      ri("payment_requests", {
-        filter: { id: { _eq: paymentRequestId }, organization: { _eq: organizationId } },
-        fields: [
-          "id", "title", "status", "amount", "amount_remaining", "amount_paid",
-          "due_date", "member", "reminder_sent",
-        ],
-        limit: 1,
-      })
-    )
-    .catch(() => [])) as any[])[0];
-
-  if (!pr) return notices;
   if (!UNPAID_INVOICE_STATUSES.includes(String(pr.status))) return notices;
 
   // `amount_remaining` is the truth once a partial payment lands; fall back to
@@ -748,22 +749,28 @@ export async function generatePaymentRequestNotices(
 
 // ── The organisation itself ──────────────────────────────────────────────────
 
+const WALLET_FIELDS = ["id", "balance_credits", "allowance_credits", "period_resets_at", "auto_refill_enabled"] as const;
+
 export async function generateOrganizationNotices(
   directus: any,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
-  const notices: AINotice[] = [];
-
   const wallet = ((await directus
     .request(
       ri("ai_wallets", {
         filter: { organization: { _eq: organizationId } },
-        fields: ["id", "balance_credits", "allowance_credits", "period_resets_at", "auto_refill_enabled"],
+        fields: [...WALLET_FIELDS],
         limit: 1,
       })
     )
     .catch(() => [])) as any[])[0];
+  return organizationNoticesOf(wallet ?? null, organizationId, now);
+}
+
+/** The notices about the organisation itself, from its AI wallet row (WALLET_FIELDS) if it has one. Pure. */
+export function organizationNoticesOf(wallet: any | null, organizationId: string, now: Date): AINotice[] {
+  const notices: AINotice[] = [];
 
   if (wallet) {
     const balance = num(wallet.balance_credits);
@@ -809,63 +816,102 @@ export async function generateOrganizationNotices(
 const SWEEP_LIMIT = 200;
 
 /**
+ * The specs for one batch, read as one Directus request. If the batch fails,
+ * each spec is read on its own and a failed one comes back empty, so a single
+ * unreadable collection costs that collection's notices and not the sweep.
+ */
+async function readSweep<K extends string>(specs: Record<K, BatchSpec>): Promise<Record<K, any[]>> {
+  try {
+    return await readItemsBatch(specs);
+  } catch {
+    const keys = Object.keys(specs) as K[];
+    const rows = await Promise.all(
+      keys.map((k) =>
+        readItemsBatch({ [k]: specs[k] } as Record<K, BatchSpec>)
+          .then((r): any[] => r[k] ?? [])
+          .catch((): any[] => [])
+      )
+    );
+    return Object.fromEntries(keys.map((k, i) => [k, rows[i]])) as Record<K, any[]>;
+  }
+}
+
+/** A generator's notices for one row, or none if it throws: one bad row never costs the sweep. */
+const safely = (f: () => AINotice[]): AINotice[] => {
+  try {
+    return f();
+  } catch {
+    return [];
+  }
+};
+
+/**
  * Every notice for one community. Never throws — each sub-fetch degrades to
  * nothing on failure, so a single unreadable collection costs that collection's
  * notices and not the whole sweep. This is what the endpoint, the cron and the
  * agenda all sit on.
+ *
+ * Two Directus requests (Directus serves requests one after another, ~40ms of
+ * CPU each, so a sweep that read row by row took seconds): every candidate row
+ * of every kind, with the fields its generator reads, plus the AI wallet; then
+ * the newest published message of each published channel. The rows go through
+ * the same pure generators the single-entity reads use, so a notice is the
+ * same either way. `_directus` is kept for callers; reads go through
+ * `readItemsBatch` on the admin client, filtered on the org as before.
  */
 export async function collectOrgNotices(
-  directus: any,
+  _directus: any,
   organizationId: string,
   now: Date
 ): Promise<AINotice[]> {
-  const list = async (collection: string, filter: any, limit = SWEEP_LIMIT): Promise<any[]> =>
-    ((await directus
-      .request(ri(collection, { filter, fields: ["id"], limit }))
-      .catch(() => [])) as any[]) || [];
-
   const org = { organization: { _eq: organizationId } };
+  const list = (collection: string, fields: readonly string[], filter: Record<string, unknown>): ReadSpec => ({
+    collection,
+    fields,
+    filter,
+    limit: SWEEP_LIMIT,
+  });
 
-  const [requests, members, projects, channels, vendors, meetings, invoices] = await Promise.all([
-    list("hoa_requests", { _and: [org, { status: { _in: OPEN_REQUEST_STATUSES } }] }),
-    list("hoa_members", {
+  const read = await readSweep({
+    requests: list("hoa_requests", REQUEST_FIELDS, { _and: [org, { status: { _in: OPEN_REQUEST_STATUSES } }] }),
+    members: list("hoa_members", MEMBER_FIELDS, {
       _and: [
         org,
         { status: { _eq: "active" } },
         { outstanding_balance: { _gt: 0 } },
       ],
     }),
-    list("hoa_projects", { _and: [org, { status: { _in: ["planning", "active", "on_hold"] } }] }),
-    list("hoa_channels", { _and: [org, { status: { _eq: "published" } }] }),
-    list("hoa_vendors", {
+    projects: list("hoa_projects", PROJECT_FIELDS, { _and: [org, { status: { _in: ["planning", "active", "on_hold"] } }] }),
+    channels: list("hoa_channels", CHANNEL_FIELDS, { _and: [org, { status: { _eq: "published" } }] }),
+    vendors: list("hoa_vendors", VENDOR_FIELDS, {
       _and: [org, { status: { _eq: "active" } }, { active_until: { _nnull: true } }],
     }),
-    list("hoa_meetings", { _and: [org, { status: { _neq: "canceled" } }] }),
-    list("payment_requests", { _and: [org, { status: { _in: UNPAID_INVOICE_STATUSES } }] }),
-  ]);
+    meetings: list("hoa_meetings", MEETING_FIELDS, { _and: [org, { status: { _neq: "canceled" } }] }),
+    invoices: list("payment_requests", INVOICE_FIELDS, { _and: [org, { status: { _in: UNPAID_INVOICE_STATUSES } }] }),
+    wallet: { collection: "ai_wallets", fields: WALLET_FIELDS, filter: org, limit: 1 },
+  });
 
-  const run = async (
-    rows: any[],
-    gen: (d: any, id: string, org: string, now: Date) => Promise<AINotice[]>
-  ): Promise<AINotice[][]> =>
-    Promise.all(
-      rows.map((r) => gen(directus, String(r.id), organizationId, now).catch(() => []))
-    );
+  // Only a published channel can speak, so only those need their newest message.
+  const channels = read.channels.filter((c) => c?.status === "published");
+  const newest = channels.length
+    ? await readSweep(Object.fromEntries(channels.map((c, i) => [`m${i}`, newestMessageSpec(String(c.id))])))
+    : {};
 
-  const results = await Promise.all([
-    run(requests, generateRequestNotices),
-    run(members, generateMemberNotices),
-    run(projects, generateProjectNotices),
-    run(channels, generateChannelNotices),
-    run(vendors, generateVendorNotices),
-    run(meetings, generateMeetingNotices),
-    run(invoices, generatePaymentRequestNotices),
-    generateOrganizationNotices(directus, organizationId, now)
-      .catch(() => [])
-      .then((n) => [n]),
-  ]);
+  const each = (rows: any[], gen: (row: any, id: string, now: Date) => AINotice[]): AINotice[] =>
+    rows.flatMap((r) => safely(() => gen(r, String(r.id), now)));
 
-  const all = results.flat(2) as AINotice[];
+  const all: AINotice[] = [
+    ...each(read.requests, requestNoticesOf),
+    ...each(read.members, memberNoticesOf),
+    ...each(read.projects, projectNoticesOf),
+    ...channels.flatMap((c, i) =>
+      safely(() => channelNoticesOf(c, (newest as Record<string, any[]>)[`m${i}`]?.[0] ?? null, String(c.id), now))
+    ),
+    ...each(read.vendors, vendorNoticesOf),
+    ...each(read.meetings, meetingNoticesOf),
+    ...each(read.invoices, paymentRequestNoticesOf),
+    ...safely(() => organizationNoticesOf(read.wallet[0] ?? null, organizationId, now)),
+  ];
   return sortNotices(all);
 }
 

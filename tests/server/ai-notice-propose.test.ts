@@ -113,6 +113,10 @@ beforeEach(() => {
     isBoardOf.includes(orgId)
   );
   vi.stubGlobal("announceEvent", async () => {});
+  // The org sweep reads in one batch; here the batch is the same reads as REST.
+  vi.stubGlobal("readItemsBatch", async (specs: any) =>
+    (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+  );
   vi.stubGlobal("writeAuditEntry", async () => {});
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (desc: Op) => {

@@ -24,6 +24,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("@directus/sdk", () => ({
   readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
+  aggregate: (collection: string, query: unknown) => ({ op: "aggregate", collection, query }),
 }));
 
 const ORG = "org-home";
@@ -76,7 +77,16 @@ const directus = {
   },
 };
 
+/** The sweep reads through `readItemsBatch` on the admin client: here, the same reads as REST against `client`. */
+function serveBatchesFrom(client: { request: (desc: any) => Promise<any> }) {
+  vi.stubGlobal("getTypedDirectus", () => client);
+  vi.stubGlobal("readItemsBatch", async (specs: any) =>
+    (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+  );
+}
+
 beforeEach(() => {
+  serveBatchesFrom(directus);
   ops = [];
   rows = {
     hoa_requests: [],
@@ -522,9 +532,102 @@ describe("the sweep", () => {
     rows.hoa_projects = [
       { id: "p1", organization: ORG, status: "active", title: "Roof", date_updated: daysAgo(90) },
     ];
+    serveBatchesFrom(flaky);
     const all = await collectOrgNotices(flaky, ORG, NOW);
     expect(ids(all)).toContain("request-aged-r1");
     expect(ids(all)).not.toContain("project-stale-p1");
+  });
+
+  /** One of everything, in both communities, either side of each threshold. */
+  const richFixture = () => {
+    rows.hoa_requests = [
+      { id: "r1", organization: ORG, status: "open", title: "Leak", date_created: daysAgo(60), due_date: daysAhead(-5) },
+      { id: "r2", organization: ORG, status: "waiting", title: "Gate", assigned_to: "u1", date_created: daysAgo(10) },
+      { id: "r3", organization: ORG, status: "closed", title: "Done", date_created: daysAgo(90) },
+      { id: "r4", organization: OTHER, status: "open", title: "Theirs", date_created: daysAgo(90) },
+    ];
+    rows.hoa_members = [
+      { id: "m1", organization: ORG, status: "active", first_name: "Ada", last_name: "L",
+        outstanding_balance: "600.75", payment_status: "delinquent", last_payment_date: daysAgo(40) },
+      { id: "m2", organization: ORG, status: "active", outstanding_balance: "12.00" },
+      { id: "m3", organization: ORG, status: "active", outstanding_balance: "0.00" },
+      { id: "m4", organization: ORG, status: "inactive", outstanding_balance: "90.00" },
+    ];
+    rows.hoa_projects = [
+      { id: "p1", organization: ORG, status: "active", title: "Roof", date_updated: daysAgo(90),
+        due_date: daysAhead(-3), budget_amount: "1000.00", actual_spend: "1500.50" },
+      { id: "p2", organization: ORG, status: "completed", title: "Old", date_updated: daysAgo(90) },
+    ];
+    rows.hoa_channels = [
+      { id: "c1", organization: ORG, status: "published", name: "board", slug: "board" },
+      { id: "c2", organization: ORG, status: "published", name: "quiet", slug: "quiet" },
+      { id: "c3", organization: ORG, status: "published", name: "fresh", slug: "fresh" },
+      { id: "c4", organization: ORG, status: "archived", name: "old", slug: "old" },
+    ];
+    rows.hoa_channel_messages = [
+      { id: "x1", channel: "c1", status: "published", date_created: daysAgo(9) },
+      { id: "x2", channel: "c1", status: "published", date_created: daysAgo(20) },
+      { id: "x3", channel: "c3", status: "published", date_created: daysAgo(1) },
+      { id: "x4", channel: "c3", status: "draft", date_created: daysAgo(30) },
+      { id: "x5", channel: "c4", status: "published", date_created: daysAgo(30) },
+    ];
+    rows.hoa_vendors = [
+      { id: "v1", organization: ORG, status: "active", company: "Acme", active_until: daysAhead(-10) },
+      { id: "v2", organization: ORG, status: "active", name: "Bo", active_until: daysAhead(12) },
+      { id: "v3", organization: ORG, status: "active", name: "Later", active_until: daysAhead(90) },
+    ];
+    rows.hoa_meetings = [
+      { id: "mt1", organization: ORG, status: "completed", title: "Annual", meeting_date: daysAgo(40), minutes: "" },
+      { id: "mt2", organization: ORG, status: "completed", title: "Done", meeting_date: daysAgo(40), minutes: "Met." },
+      { id: "mt3", organization: ORG, status: "canceled", title: "Off", meeting_date: daysAgo(40) },
+    ];
+    rows.payment_requests = [
+      { id: "i1", organization: ORG, status: "partially_paid", title: "Q3", amount: "1200.00",
+        amount_paid: "200.00", amount_remaining: "1000.00", due_date: daysAhead(-10) },
+      { id: "i2", organization: ORG, status: "active", title: "Q4", amount: "300.00", due_date: daysAhead(-2) },
+      { id: "i3", organization: ORG, status: "paid", title: "Q2", amount: "300.00", due_date: daysAhead(-40) },
+    ];
+    rows.ai_wallets = [
+      { id: "w1", organization: ORG, balance_credits: 10, allowance_credits: 500,
+        period_resets_at: daysAhead(6), auto_refill_enabled: false },
+    ];
+  };
+
+  it("says exactly what the single-entity generators say, row by row", async () => {
+    richFixture();
+    const one = async (collection: string, gen: (d: any, id: string, org: string, now: Date) => Promise<any[]>) =>
+      (await Promise.all(rows[collection].map((r) => gen(directus, r.id, ORG, NOW)))).flat();
+    const expected = sortNotices([
+      ...(await one("hoa_requests", generateRequestNotices)),
+      ...(await one("hoa_members", generateMemberNotices)),
+      ...(await one("hoa_projects", generateProjectNotices)),
+      ...(await one("hoa_channels", generateChannelNotices)),
+      ...(await one("hoa_vendors", generateVendorNotices)),
+      ...(await one("hoa_meetings", generateMeetingNotices)),
+      ...(await one("payment_requests", generatePaymentRequestNotices)),
+      ...(await generateOrganizationNotices(directus, ORG, NOW)),
+    ]);
+    expect(expected.length).toBeGreaterThan(12);
+    expect(await collectOrgNotices(directus, ORG, NOW)).toEqual(expected);
+  });
+
+  it("reads in two batches: the rows, then each published channel's newest message", async () => {
+    richFixture();
+    const batches: string[][] = [];
+    vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+      batches.push(Object.values(specs).map((s) => s.collection));
+      return (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs as any);
+    });
+    await collectOrgNotices(directus, ORG, NOW);
+    expect(batches).toEqual([
+      ["hoa_requests", "hoa_members", "hoa_projects", "hoa_channels", "hoa_vendors", "hoa_meetings", "payment_requests", "ai_wallets"],
+      ["hoa_channel_messages", "hoa_channel_messages", "hoa_channel_messages"],
+    ]);
+
+    batches.length = 0;
+    rows.hoa_channels = [];
+    await collectOrgNotices(directus, ORG, NOW);
+    expect(batches).toHaveLength(1);
   });
 
   it("sorts by priority then score, deterministically", async () => {

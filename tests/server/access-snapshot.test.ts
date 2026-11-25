@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   accessSnapshot,
+  activeBoardMemberFrom,
   adminFrom,
   boardPositionFrom,
   boardSeatActorFrom,
@@ -73,6 +74,34 @@ describe("board office", () => {
     const mine = [membership({ status: "inactive", board_member_terms: [term("president")] })];
     expect(boardPositionFrom(snap({ mine }), TODAY)).toBeNull();
     expect(boardSeatActorFrom(snap({ mine }), TODAY)).toBeNull();
+  });
+});
+
+describe("active board member (isActiveBoardMember's rule)", () => {
+  const seated = (...terms: any[]) => snap({ mine: [membership({ board_member_terms: terms })] });
+
+  it("a published term that has started and not ended, on an active membership", () => {
+    expect(activeBoardMemberFrom(seated(term("president")), NOW)).toBe(true);
+    expect(activeBoardMemberFrom(seated(term("president", { term_start: null, term_end: "2026-12-31" })), NOW)).toBe(true);
+    expect(activeBoardMemberFrom(seated(term("president", { term_start: TODAY })), NOW)).toBe(true);
+    expect(activeBoardMemberFrom(snap(), NOW)).toBe(false);
+  });
+
+  it("not a future, ended, unpublished or inactive one", () => {
+    expect(activeBoardMemberFrom(seated(term("president", { term_start: "2026-11-26" })), NOW)).toBe(false);
+    expect(activeBoardMemberFrom(seated(term("president", { term_end: "2026-11-24" })), NOW)).toBe(false);
+    expect(activeBoardMemberFrom(seated(term("president", { status: "draft" })), NOW)).toBe(false);
+    const inactive = snap({ mine: [membership({ status: "inactive", board_member_terms: [term("president")] })] });
+    expect(activeBoardMemberFrom(inactive, NOW)).toBe(false);
+  });
+
+  it("reads a term as over on its last day, as the timestamp comparison it replaces does", () => {
+    expect(activeBoardMemberFrom(seated(term("president", { term_end: TODAY })), NOW)).toBe(false);
+  });
+
+  it("any active membership's term counts, not just the first", () => {
+    const mine = [membership({ id: "m-1" }), membership({ id: "m-2", board_member_terms: [term("treasurer")] })];
+    expect(activeBoardMemberFrom(snap({ mine }), NOW)).toBe(true);
   });
 });
 
