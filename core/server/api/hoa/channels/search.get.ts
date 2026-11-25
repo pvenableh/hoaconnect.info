@@ -46,18 +46,36 @@ export default defineEventHandler(async (event) => {
 
   const directus = getTypedDirectus();
 
-  const scope = await readableChannelIds({
-    directus,
-    userId,
-    organizationId,
-    hasOrgWideAccess: async (orgId) => {
-      if ((await checkAdminAccess(event, orgId)).isAdmin) return true;
-      return await isActiveBoardMember(directus, userId, orgId);
-    },
-  });
-
-  // Narrowing to one channel can only ever shrink the scope, never escape it.
-  const channelIds = channelScope ? scope.filter((id) => id === channelScope) : scope;
+  // The scope in one request: org-wide is checkAdminAccess's answer or
+  // isActiveBoardMember's, taken from the membership rows that request
+  // brings (an App Administrator is an admin everywhere, from the session
+  // alone), as channels/unread answers it. Narrowing to one channel can only
+  // ever shrink the scope, never escape it. If the batch fails, the reads
+  // one by one as before.
+  let channelIds: string[];
+  try {
+    const appAdmin = isAppAdminSession(await getUserSession(event));
+    const roles = accessRoles();
+    channelIds = await searchableChannelIds({
+      userId,
+      organizationId,
+      channelId: channelScope,
+      hasOrgWideAccess: (orgId, mine) =>
+        appAdmin || adminFrom({ userId, orgId, mine }, roles).isAdmin || activeBoardMemberFrom({ userId, orgId, mine }),
+    });
+  } catch (e: any) {
+    console.warn("[channels/search] scope batch failed; reading one by one:", e?.message ?? e);
+    const scope = await readableChannelIds({
+      directus,
+      userId,
+      organizationId,
+      hasOrgWideAccess: async (orgId) => {
+        if ((await checkAdminAccess(event, orgId)).isAdmin) return true;
+        return await isCallerActiveBoardMember(event, directus, userId, orgId);
+      },
+    });
+    channelIds = channelScope ? scope.filter((id) => id === channelScope) : scope;
+  }
   if (!channelIds.length) return { items: [], query: q };
 
   const rows = (await directus.request(
