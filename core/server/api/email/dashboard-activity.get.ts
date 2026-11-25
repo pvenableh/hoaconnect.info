@@ -1,5 +1,6 @@
 import { readItems } from "@directus/sdk";
 import type { HoaEmailActivity, HoaEmailRecipient, HoaEmail } from "#core/types/directus";
+import { emailActivitySpecs } from "#core/server/utils/email-activity-reads";
 
 /**
  * Get email activity data for the dashboard
@@ -17,22 +18,30 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  // Get date range for last 7 days
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
+
   // Tenant isolation: the caller must be an admin / communications-manager OF
   // this org. Without this, any signed-in user could read another org's email
   // activity by passing its id. Mirrors the gate on send.post.ts.
   await requireAdminOrManagerGrant(event, organizationId, "communications");
 
+  // The three reads go as one request (email-activity-reads.ts), after the
+  // gate: most callers are refused (the home page asks for every member), and
+  // a refusal stays the one small access read. A failed batch (a malformed
+  // id, say) reads one by one as before, failing the same way.
+  const batched = await Promise.resolve()
+    .then(() => readItemsBatch(emailActivitySpecs(organizationId, sevenDaysAgo.toISOString())))
+    .catch(() => null);
+
   try {
     const directus = getTypedDirectus();
 
-    // Get date range for last 7 days
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
-
     // Fetch emails from the organization in the last 7 days
-    const emails = await directus.request(
+    const emails = batched ? (batched.ea_emails as HoaEmail[]) : await directus.request(
       readItems("hoa_emails", {
         filter: {
           organization: { _eq: organizationId },
@@ -47,7 +56,7 @@ export default defineEventHandler(async (event) => {
     const emailIds = emails.map(e => e.id);
 
     // Fetch email recipients for these emails
-    const recipients = emailIds.length > 0 ? await directus.request(
+    const recipients = batched ? (batched.ea_recipients as HoaEmailRecipient[]) : emailIds.length > 0 ? await directus.request(
       readItems("hoa_email_recipients", {
         filter: {
           email: { _in: emailIds },
@@ -58,7 +67,7 @@ export default defineEventHandler(async (event) => {
     ) as HoaEmailRecipient[] : [];
 
     // Fetch email activity for these emails
-    const activities = emailIds.length > 0 ? await directus.request(
+    const activities = batched ? (batched.ea_activity as HoaEmailActivity[]) : emailIds.length > 0 ? await directus.request(
       readItems("hoa_email_activity", {
         filter: {
           email_recipient: {
