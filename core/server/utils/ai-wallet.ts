@@ -13,6 +13,7 @@ import { createItem, readItems, updateItem } from "@directus/sdk";
 import { creditsForUsage, creditsForEmbedding, marginForAccount, type TokenUsage } from "#core/shared/ai/credits";
 import { shouldResetAllowance, nextResetISO } from "#core/shared/ai/allowance";
 import type { AiWallet } from "#core/types/directus";
+import type { ReadSpec } from "./directus-graphql";
 
 /** Read the org's wallet, creating an empty one on first use. */
 export async function getOrCreateWallet(orgId: string): Promise<AiWallet> {
@@ -131,7 +132,28 @@ export interface WalletSummary {
 export async function getWalletSummary(orgId: string): Promise<WalletSummary> {
   // Provision/refresh the plan allowance on read so wallets self-fund on first
   // use and at each period boundary without a separate cron.
-  const w = await ensurePlanAllowance(orgId);
+  return walletSummaryOf(await ensurePlanAllowance(orgId));
+}
+
+/**
+ * The wallet read getOrCreateWallet makes, as a batch spec, with the fields
+ * a summary and the reset check need. A route can read it with the caller's
+ * standing in one request and answer with `walletSummaryOf` when the wallet
+ * exists and its period has not elapsed (`shouldResetAllowance`); otherwise
+ * it calls getWalletSummary, which creates or refreshes the wallet.
+ */
+export function walletSpec(orgId: string): ReadSpec {
+  return {
+    collection: "ai_wallets",
+    filter: { organization: { _eq: orgId } },
+    fields: ["id", "allowance_credits", "purchased_credits", "included_credits", "period_resets_at"],
+    sort: ["date_created"],
+    limit: 1,
+  };
+}
+
+/** A wallet row as its summary: the balance is both pools. Pure. */
+export function walletSummaryOf(w: Pick<AiWallet, "id" | "allowance_credits" | "purchased_credits" | "included_credits" | "period_resets_at">): WalletSummary {
   const allowance = w.allowance_credits ?? 0;
   const purchased = w.purchased_credits ?? 0;
   return {
