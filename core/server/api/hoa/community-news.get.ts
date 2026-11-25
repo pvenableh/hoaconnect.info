@@ -20,6 +20,7 @@
 // everything".
 import { readItems } from "@directus/sdk";
 import type { HoaOrganization } from "#core/types/directus";
+import { communityNewsAudience, communityNewsSpecs, type CommunityNewsAudience } from "#core/server/utils/community-news-reads";
 
 export interface CommunityNewsItem {
   id: string;
@@ -44,52 +45,9 @@ export default defineEventHandler(async (event): Promise<CommunityNewsItem[]> =>
   const directus = getTypedDirectus();
 
   try {
-    const orgs = await directus.request(
-      readItems("hoa_organizations", {
-        filter: {
-          slug: { _eq: slug as string },
-          status: {
-            _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[],
-          },
-        },
-        fields: ["id"],
-        limit: 1,
-      })
-    );
-    const orgId = (orgs?.[0] as any)?.id;
-    if (!orgId) return [];
-
-    // Membership is the gate. A signed-in user who does not belong to this
-    // community gets nothing, public or otherwise.
-    const members = await directus.request(
-      readItems("hoa_members", {
-        filter: {
-          user: { _eq: userId },
-          organization: { _eq: orgId },
-          status: { _eq: "active" },
-        },
-        fields: ["id"],
-        limit: 1,
-      })
-    );
-    const memberId = (members?.[0] as any)?.id;
-    if (!memberId) return [];
-
-    // Which emails reached this member personally.
-    const recipientRows = await directus.request(
-      readItems("hoa_email_recipients", {
-        filter: { member: { _eq: memberId } },
-        fields: ["email"],
-        limit: -1,
-      })
-    );
-    const personalIds = Array.from(
-      new Set(
-        (recipientRows || [])
-          .map((r: any) => (typeof r.email === "object" ? r.email?.id : r.email))
-          .filter(Boolean)
-      )
-    ) as string[];
+    const who = await audienceFor(directus, String(userId), slug);
+    if (!who) return [];
+    const { orgId, personalIds } = who;
 
     // Explicitly 'public', never merely "not private". A row with no visibility
     // set predates the field and stays out of the feed until someone says
@@ -130,3 +88,73 @@ export default defineEventHandler(async (event): Promise<CommunityNewsItem[]> =>
     return [];
   }
 });
+
+/**
+ * The community and the emails that reached the caller there; null when the
+ * slug names no community or the caller has no active membership in it.
+ * One request (community-news-reads.ts); a slug two communities share, a
+ * second membership there, a repeated slug parameter or a failed batch
+ * reads one by one as before.
+ */
+async function audienceFor(
+  directus: ReturnType<typeof getTypedDirectus>,
+  userId: string,
+  slug: unknown
+): Promise<CommunityNewsAudience | null> {
+  if (typeof slug === "string") {
+    try {
+      const who = communityNewsAudience(await readItemsBatch(communityNewsSpecs(userId, slug)));
+      if (who) return who === "none" ? null : who;
+    } catch (error: any) {
+      console.warn("[community-news] batch failed; reading one by one:", error?.message || error);
+    }
+  }
+
+  const orgs = await directus.request(
+    readItems("hoa_organizations", {
+      filter: {
+        slug: { _eq: slug as string },
+        status: {
+          _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[],
+        },
+      },
+      fields: ["id"],
+      limit: 1,
+    })
+  );
+  const orgId = (orgs?.[0] as any)?.id;
+  if (!orgId) return null;
+
+  // Membership is the gate. A signed-in user who does not belong to this
+  // community gets nothing, public or otherwise.
+  const members = await directus.request(
+    readItems("hoa_members", {
+      filter: {
+        user: { _eq: userId },
+        organization: { _eq: orgId },
+        status: { _eq: "active" },
+      },
+      fields: ["id"],
+      limit: 1,
+    })
+  );
+  const memberId = (members?.[0] as any)?.id;
+  if (!memberId) return null;
+
+  // Which emails reached this member personally.
+  const recipientRows = await directus.request(
+    readItems("hoa_email_recipients", {
+      filter: { member: { _eq: memberId } },
+      fields: ["email"],
+      limit: -1,
+    })
+  );
+  const personalIds = Array.from(
+    new Set(
+      (recipientRows || [])
+        .map((r: any) => (typeof r.email === "object" ? r.email?.id : r.email))
+        .filter(Boolean)
+    )
+  ) as string[];
+  return { orgId, personalIds };
+}
