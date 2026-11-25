@@ -5,7 +5,7 @@
  * entry without the internal note, a bell the member always gets, and `mine`
  * returning only what the member may see.
  */
-import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { ID, ORG, OTHER, PERSONAS, ev, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
@@ -266,6 +266,54 @@ describe("lifting", () => {
 });
 
 describe("mine", () => {
+  // mine reads in one batch; here the batch is the same specs read one by one against the fake.
+  let batches: string[][];
+  beforeEach(() => {
+    batches = [];
+    vi.stubGlobal("readItemsBatch", async (specs: any) => {
+      batches.push(Object.keys(specs));
+      return (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs);
+    });
+  });
+  afterEach(() => {
+    vi.stubGlobal("readItemsBatch", undefined);
+  });
+  const failBatch = () =>
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("graphql down");
+    });
+
+  it("reads the memberships and their open pauses in one batch", async () => {
+    openRow({ ends_at: "2099-01-01T00:00:00.000Z" });
+    as(PERSONAS.owner);
+    await mine(ev({ query: { orgId: ORG } }));
+    expect(batches).toEqual([["mr_mine", "mr_open"]]);
+    // The two specs, then (only for a pause) the community's clock for `until`.
+    expect(fake.calls.filter((c) => c.op === "readItems").map((c) => c.collection)).toEqual(["hoa_members", "hoa_member_restrictions", "hoa_organizations"]);
+  });
+
+  it("answers the same, in two rounds, when the batch fails", async () => {
+    openRow({ ends_at: "2099-01-01T00:00:00.000Z" });
+    openRow({ member: ID.memberAnn, member_note: "Not Bob's." });
+    openRow({ lifted_at: "2026-02-01T00:00:00.000Z", member_note: "Lifted." });
+    as(PERSONAS.owner);
+    const ok = await mine(ev({ query: { orgId: ORG } }));
+    failBatch();
+    expect(await mine(ev({ query: { orgId: ORG } }))).toEqual(ok);
+    expect(ok).toMatchObject({ restricted: true, memberNote: "Paused." });
+    as(PERSONAS.board);
+    const ann = await mine(ev({ query: { orgId: ORG } }));
+    expect(ann).toMatchObject({ restricted: true, memberNote: "Not Bob's." });
+  });
+
+  it("a refusal shows nothing of anyone's pause", async () => {
+    openRow({ member_note: "Bob's note." });
+    as(PERSONAS.outsider);
+    const err = await mine(ev({ query: { orgId: ORG } })).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("Bob's note.");
+  });
+
   it("returns only the member-facing fields of the caller's own pause", async () => {
     openRow({ ends_at: "2099-01-01T00:00:00.000Z" });
     as(PERSONAS.owner);

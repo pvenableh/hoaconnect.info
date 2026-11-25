@@ -13,7 +13,7 @@ import { readItems } from "@directus/sdk";
 import { openRestriction, restrictionUntil } from "#core/shared/members/restrictions";
 import { orgIdFromQuery } from "#core/server/utils/delegation";
 import { syncAdminScope } from "#core/server/utils/admin-scope";
-import { orgCopyContext } from "#core/server/utils/member-restrictions";
+import { myRestrictionSpecs, orgCopyContext } from "#core/server/utils/member-restrictions";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
@@ -22,24 +22,33 @@ export default defineEventHandler(async (event) => {
   const orgId = orgIdFromQuery(event);
   const directus = getTypedDirectus();
 
+  // Both reads as ONE request (myRestrictionSpecs); the restrictions read
+  // only the caller's own memberships, so the refusal below shows nothing.
+  // A failed batch reads as before, in two rounds.
+  const batched = await readItemsBatch(myRestrictionSpecs(userId, orgId)).catch(() => null);
+
   // `*` so a posts_in not yet created is absent rather than a failed read.
-  const memberships = ((await directus.request(
-    readItems("hoa_members", {
-      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
-      fields: ["*"] as any,
-      limit: -1,
-    })
-  )) ?? []) as any[];
+  const memberships = (batched?.mr_mine ??
+    ((await directus.request(
+      readItems("hoa_members", {
+        filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
+        fields: ["*"] as any,
+        limit: -1,
+      })
+    )) ??
+      [])) as any[];
   if (!memberships.length) throw createError({ statusCode: 403, message: "You're not an active member of this community." });
 
   const ids = memberships.map((m) => String(m.id));
-  const rows = ((await directus.request(
-    readItems("hoa_member_restrictions" as any, {
-      filter: { organization: { _eq: orgId }, member: { _in: ids }, lifted_at: { _null: true } } as any,
-      fields: ["id", "member", "starts_at", "ends_at", "lifted_at", "member_note"] as any,
-      limit: -1,
-    })
-  )) ?? []) as any[];
+  const rows = (batched?.mr_open ??
+    ((await directus.request(
+      readItems("hoa_member_restrictions" as any, {
+        filter: { organization: { _eq: orgId }, member: { _in: ids }, lifted_at: { _null: true } } as any,
+        fields: ["id", "member", "starts_at", "ends_at", "lifted_at", "member_note"] as any,
+        limit: -1,
+      })
+    )) ??
+      [])) as any[];
   const now = new Date();
   const pausedNow = (memberId: string) => !!openRestriction(rows.filter((r) => String(r.member) === memberId), now);
   // Posting is open if any of the caller's memberships here is free (as the Directus rule reads it).

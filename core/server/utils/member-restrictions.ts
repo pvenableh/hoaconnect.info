@@ -19,6 +19,7 @@ import { canPost, refId, type RestrictionRow } from "#core/shared/members/restri
 import { orgTimeZone } from "#core/shared/org-timezone";
 import { restrictedNow } from "./admin-scope";
 import { ledgerActorFor, memberNamesFor } from "./member-names";
+import type { ReadSpec } from "./directus-graphql";
 
 export interface PostingState {
   /** The caller's active membership here, else their first, else null. */
@@ -179,3 +180,24 @@ export async function actorNamesFor(orgId: string, rows: readonly RestrictionRec
 }
 
 export { refId };
+
+/**
+ * GET /api/org/member-restrictions/mine's two reads as ONE batch: the
+ * caller's active memberships here (the id and the posts_in mirror; a
+ * posts_in the collection does not have yet is left out, as `*` left it
+ * out), and the open restrictions on those memberships. The restriction
+ * read names the memberships by the same filter rather than by their ids,
+ * so it needs no first round; a caller with no membership here reads none.
+ */
+export function myRestrictionSpecs(userId: string, orgId: string): { mr_mine: ReadSpec; mr_open: ReadSpec } {
+  const mine = { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } };
+  return {
+    mr_mine: { collection: "hoa_members", filter: mine, fields: ["id", "posts_in"], limit: -1 },
+    mr_open: {
+      collection: "hoa_member_restrictions",
+      filter: { organization: { _eq: orgId }, member: mine, lifted_at: { _null: true } },
+      fields: ["id", "member", "starts_at", "ends_at", "lifted_at", "member_note"],
+      limit: -1,
+    },
+  };
+}
