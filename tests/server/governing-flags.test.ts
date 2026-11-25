@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
 import { MemoryDirectus } from "./support/memory-directus";
 import { referenceStaleness, staleReferences } from "#core/shared/governing/flags";
+import { governingBatch } from "./support/governing-batch";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any, params: {} as any, body: {} as any }));
 
@@ -93,6 +94,7 @@ beforeEach(() => {
   vi.stubGlobal("getQuery", () => h.query);
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
   vi.stubGlobal("readBody", async () => h.body);
+  vi.stubGlobal("readItemsBatch", governingBatch(() => db));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
       if (op.op === "readFiles") return [];

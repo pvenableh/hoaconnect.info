@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
 import { amendsLoop } from "#core/shared/governing/review";
 import { MemoryDirectus } from "./support/memory-directus";
+import { governingBatch } from "./support/governing-batch";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any, params: {} as any, body: {} as any, failAudit: false }));
 
@@ -111,6 +112,7 @@ beforeEach(() => {
   vi.stubGlobal("getQuery", () => h.query);
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
   vi.stubGlobal("readBody", async () => h.body);
+  vi.stubGlobal("readItemsBatch", governingBatch(() => db));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
       if (/^(create|update|delete)/.test(op.op)) writes.push(op);

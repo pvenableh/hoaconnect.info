@@ -7,12 +7,12 @@
 //
 // Nothing in this file writes. Provision text is read and handed on as stored.
 
-import { readFiles, readItems } from "@directus/sdk";
 import { formatCitation } from "#core/shared/governing/citation";
 import { STALE_AFTER_DAYS, countByRelationship, sortFlags, staleReferences } from "#core/shared/governing/flags";
 import { searchProvisions, type SearchFilters } from "#core/shared/governing/search";
 import type { GovDocument, GovFlag, GovLink, GovPage, GovProvision, GovReference, GovSnapshot, GovSource } from "#core/shared/governing/types";
 import { visibleSnapshot } from "#core/shared/governing/visibility";
+import type { BatchSpec } from "./directus-graphql";
 
 const DOCUMENT_FIELDS = [
   "id", "title", "kind", "citation_prefix", "status", "sort", "or_book", "or_page_start", "or_page_end",
@@ -40,35 +40,54 @@ const sourceOrder = (a: GovSource, b: GovSource) =>
   String(a.date_created ?? "").localeCompare(String(b.date_created ?? ""));
 const bySort = (a: { sort: number | null }, b: { sort: number | null }) => (a.sort ?? 0) - (b.sort ?? 0);
 
-async function read(collection: string, filter: Record<string, unknown>, fields: readonly string[]): Promise<any[]> {
-  const directus = getTypedDirectus();
-  return ((await directus.request(readItems(collection as any, { filter, fields: fields as any, limit: -1 } as any))) ?? []) as any[];
+const org = (organizationId: string) => ({ organization: { _eq: organizationId } });
+
+/**
+ * Every row behind a snapshot, as ONE readItemsBatch: documents, provisions,
+ * links, flags, sources (with their file's name, type and size), pages, and
+ * each flag's provisions and references. The joins on a flag are read through
+ * the flag's organization, and a source's file and a reference through the
+ * relation, instead of a second and third round by id: the same rows.
+ */
+export function governingSpecs(organizationId: string) {
+  return {
+    gov_documents: { collection: "hoa_governing_documents", filter: org(organizationId), fields: DOCUMENT_FIELDS, limit: -1 },
+    gov_provisions: { collection: "hoa_governing_provisions", filter: org(organizationId), fields: PROVISION_FIELDS, limit: -1 },
+    gov_links: { collection: "hoa_governing_provision_links", filter: org(organizationId), fields: LINK_FIELDS, limit: -1 },
+    gov_flags: { collection: "hoa_statute_flags", filter: org(organizationId), fields: FLAG_FIELDS, limit: -1 },
+    gov_sources: {
+      collection: "hoa_governing_sources",
+      filter: org(organizationId),
+      fields: [...SOURCE_FIELDS.filter((f) => f !== "file"), "file.id", "file.filename_download", "file.type", "file.filesize"],
+      limit: -1,
+    },
+    gov_pages: { collection: "hoa_governing_pages", filter: org(organizationId), fields: PAGE_FIELDS, limit: -1 },
+    gov_flag_provisions: {
+      collection: "hoa_statute_flags_provisions",
+      filter: { flag: org(organizationId) },
+      fields: ["flag", "provision", "sort"],
+      limit: -1,
+    },
+    gov_flag_references: {
+      collection: "hoa_statute_flags_references",
+      filter: { flag: org(organizationId) },
+      fields: ["flag", "sort", ...REFERENCE_FIELDS.map((f) => `reference.${f}`)],
+      limit: -1,
+    },
+  } satisfies Record<string, BatchSpec>;
 }
 
-/** Everything the caller may see of an organization's governing documents. */
-export async function loadGoverning(organizationId: string, canManage: boolean): Promise<GovSnapshot> {
-  const org = { organization: { _eq: organizationId } };
-  const [documentRows, provisionRows, linkRows, flagRows, sourceRows, pageRows] = await Promise.all([
-    read("hoa_governing_documents", org, DOCUMENT_FIELDS),
-    read("hoa_governing_provisions", org, PROVISION_FIELDS),
-    read("hoa_governing_provision_links", org, LINK_FIELDS),
-    read("hoa_statute_flags", org, FLAG_FIELDS),
-    read("hoa_governing_sources", org, SOURCE_FIELDS),
-    read("hoa_governing_pages", org, PAGE_FIELDS),
-  ]);
+export type GoverningRows = Record<keyof ReturnType<typeof governingSpecs>, any[]>;
+
+/** Everything the caller may see, from the rows governingSpecs read. */
+export function governingFrom(rows: GoverningRows, canManage: boolean): GovSnapshot {
+  const { gov_documents: documentRows, gov_provisions: provisionRows, gov_links: linkRows, gov_flags: flagRows, gov_sources: sourceRows, gov_pages: pageRows } = rows;
 
   // The file's name, type and size live on the file, not on the source row.
-  const fileIds = sourceRows.map((s) => idOf(s.file)).filter((id): id is string => !!id);
-  const fileRows = fileIds.length
-    ? (((await getTypedDirectus().request(
-        readFiles({ filter: { id: { _in: fileIds } }, fields: ["id", "filename_download", "type", "filesize"], limit: -1 } as any)
-      )) ?? []) as any[])
-    : [];
-  const files = new Map<string, any>(fileRows.map((f) => [f.id, f]));
   const sources: GovSource[] = sourceRows
     .filter((s) => idOf(s.file) && idOf(s.document))
     .map((s) => {
-      const file = files.get(idOf(s.file)!);
+      const file = s.file && typeof s.file === "object" ? s.file : null;
       return {
         id: s.id,
         document: idOf(s.document)!,
@@ -98,24 +117,19 @@ export async function loadGoverning(organizationId: string, canManage: boolean):
     }))
     .sort((a, b) => a.page_number - b.page_number);
 
-  const flagIds = flagRows.map((f) => f.id);
-  const [flagProvisions, flagReferences] = flagIds.length
-    ? await Promise.all([
-        read("hoa_statute_flags_provisions", { flag: { _in: flagIds } }, ["flag", "provision", "sort"]),
-        read("hoa_statute_flags_references", { flag: { _in: flagIds } }, ["flag", "reference", "sort"]),
-      ])
-    : [[], []];
-  const referenceIds = [...new Set(flagReferences.map((r) => r.reference))];
-  const referenceRows = referenceIds.length ? await read("hoa_statute_references", { id: { _in: referenceIds } }, REFERENCE_FIELDS) : [];
-  const references = new Map<string, GovReference>(referenceRows.map((r) => [r.id, pick(r, REFERENCE_FIELDS) as GovReference]));
+  const flagProvisions = rows.gov_flag_provisions.map((j) => ({ ...j, flag: idOf(j.flag), provision: idOf(j.provision) }));
+  const flagReferences = rows.gov_flag_references.map((j) => ({ flag: idOf(j.flag), sort: j.sort, reference: idOf(j.reference), row: j.reference }));
+  const references = new Map<string, GovReference>(
+    flagReferences.filter((j) => j.row && typeof j.row === "object").map((j) => [j.reference!, pick(j.row, REFERENCE_FIELDS) as GovReference])
+  );
 
   const flags: GovFlag[] = flagRows.map((f) => ({
     ...(pick(f, FLAG_FIELDS) as Omit<GovFlag, "provisions" | "references">),
-    provisions: flagProvisions.filter((j) => j.flag === f.id).sort(bySort).map((j) => j.provision),
+    provisions: flagProvisions.filter((j) => j.flag === f.id).sort(bySort).map((j) => j.provision as string),
     references: flagReferences
       .filter((j) => j.flag === f.id)
       .sort(bySort)
-      .flatMap((j) => (references.has(j.reference) ? [references.get(j.reference)!] : [])),
+      .flatMap((j) => (j.reference && references.has(j.reference) ? [references.get(j.reference)!] : [])),
   }));
 
   return visibleSnapshot(
@@ -129,6 +143,11 @@ export async function loadGoverning(organizationId: string, canManage: boolean):
     },
     canManage
   );
+}
+
+/** Everything the caller may see of an organization's governing documents (one request). */
+export async function loadGoverning(organizationId: string, canManage: boolean): Promise<GovSnapshot> {
+  return governingFrom((await readItemsBatch(governingSpecs(organizationId))) as GoverningRows, canManage);
 }
 
 const brief = (p: GovProvision) => ({ id: p.id, document: p.document, citation: p.citation, heading: p.heading });

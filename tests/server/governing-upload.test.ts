@@ -17,6 +17,7 @@ import type { H3Event } from "h3";
 import { GOVERNING_FILE_MARKER } from "#core/shared/governing/files";
 import { isPublicFile } from "../../scripts/lib/public-files";
 import { MemoryDirectus } from "./support/memory-directus";
+import { governingBatch } from "./support/governing-batch";
 
 const h = vi.hoisted(() => ({
   session: null as any,
@@ -208,6 +209,7 @@ beforeEach(() => {
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
   vi.stubGlobal("readMultipartFormData", async () => h.multipart);
   vi.stubGlobal("readBody", async () => h.body);
+  vi.stubGlobal("readItemsBatch", governingBatch(() => db));
   vi.stubGlobal("getTypedDirectus", () => ({ request }));
   vi.stubGlobal("setResponseHeader", () => {});
   vi.stubGlobal("sendStream", () => "streamed");

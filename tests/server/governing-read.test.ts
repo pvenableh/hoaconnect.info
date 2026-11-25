@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 import type { H3Event } from "h3";
 import { MemoryDirectus } from "./support/memory-directus";
 import { C, LENOX_PROVISION_LINKS, applyImportPlan, buildImportPlan, type ImportStore } from "../../scripts/lib/governing-import";
+import { governingBatch } from "./support/governing-batch";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any, params: {} as any }));
 
@@ -136,6 +137,7 @@ beforeEach(async () => {
   vi.stubGlobal("getUserSession", async () => h.session ?? {});
   vi.stubGlobal("getQuery", () => h.query);
   vi.stubGlobal("getRouterParam", (_e: unknown, k: string) => h.params[k]);
+  vi.stubGlobal("readItemsBatch", governingBatch(() => db));
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => (op.op === "readFiles" ? db.all("directus_files", op.query?.filter) : db.request(op)),
   }));
