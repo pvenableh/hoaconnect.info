@@ -223,3 +223,49 @@ describe("reading", () => {
     expect(res.open.map((r: any) => r.member ?? r.team).sort()).toEqual([ID.memberBob, ID.teamGrounds].sort());
   });
 });
+
+describe("reading in one request", () => {
+  const holderRead = () => get(ev({ query: { orgId: ORG, member: ID.memberBob } }));
+
+  it("reads a holder and its rows in one batch with the caller's memberships", async () => {
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    const seen: any[] = [];
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any, need: string) => {
+      seen.push({ orgId, keys: Object.keys(specs), need });
+      return readItemsBatchRest(specs);
+    });
+    try {
+      await holderRead();
+      await get(ev({ query: { orgId: ORG, team: ID.teamGrounds } }));
+      await get(ev({ query: { orgId: ORG } }));
+      expect(seen).toEqual([
+        { orgId: ORG, keys: ["ag_holder", "ag_rows"], need: "base" },
+        { orgId: ORG, keys: ["ag_holder", "ag_rows"], need: "base" },
+      ]);
+    } finally {
+      vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _o: string, specs: any) => readItemsBatchRest(specs));
+    }
+  });
+
+  it("answers the same, one read at a time, when the batch fails", async () => {
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    await give({ member: ID.memberBob, area: "projects", value: true });
+    const ok = await holderRead();
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    try {
+      expect(await holderRead()).toEqual(ok);
+      await expect(get(ev({ query: { orgId: ORG, member: ID.memberOther } }))).rejects.toMatchObject({ statusCode: 404 });
+    } finally {
+      vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _o: string, specs: any) => readItemsBatchRest(specs));
+    }
+  });
+
+  it("a GET does not read the ledger actor's name", async () => {
+    await get(ev({ query: { orgId: ORG } }));
+    await holderRead();
+    expect(fake.calls.filter((c: any) => c.collection === "directus_users")).toEqual([]);
+    expect(fake.calls.filter((c: any) => c.collection === "hoa_members" && JSON.stringify(c.query?.filter ?? {}).includes("_in"))).toEqual([]);
+  });
+});

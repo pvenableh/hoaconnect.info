@@ -240,6 +240,19 @@ describe("one read per request", () => {
       expect(calls).toHaveLength(1);
     });
 
+    it("\"base\" reads only the memberships with the route's rows; a full question then reads the rest", async () => {
+      const event = { context: {} } as any;
+      const out = await batchWithAccessSnapshot(event, "org-1", { pages }, "base");
+      expect(out).toEqual({ pages: [{ id: "p1" }] });
+      expect(calls).toEqual([["pages", "access_mine"]]);
+      expect((await accessSnapshot(event, "org-1", "base"))?.mine).toEqual(rows.mine);
+      expect(calls).toHaveLength(1);
+
+      const full = await accessSnapshot(event, "org-1");
+      expect(full).toMatchObject({ mine: rows.mine, teams: rows.teams });
+      expect(calls).toEqual([["pages", "access_mine"], ["teams", "restrictions", "areaGrants"]]);
+    });
+
     it("with the standing already read, or no session, reads only the route's rows", async () => {
       const event = { context: {} } as any;
       await accessSnapshot(event, "org-1", "base");

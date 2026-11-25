@@ -194,7 +194,14 @@ const SNAPSHOT_PREFIX = "access_";
 export async function batchWithAccessSnapshot<K extends string>(
   event: H3Event,
   orgId: string,
-  specs: Record<K, BatchSpec>
+  specs: Record<K, BatchSpec>,
+  /**
+   * "base" reads only the caller's memberships with the route's reads: all
+   * checkAdminAccess, checkMembership, getBoardPosition, getBoardSeatActor
+   * and getManagerGrants need, and a smaller request for a caller who is
+   * refused. A later "full" question reads only the rest (accessSnapshot).
+   */
+  need: "base" | "full" = "full"
 ): Promise<Record<K, any[]>> {
   const session = orgId ? await getUserSession(event) : null;
   const userId = session?.user?.id ? String(session.user.id) : "";
@@ -207,13 +214,17 @@ export async function batchWithAccessSnapshot<K extends string>(
     if (k.startsWith(SNAPSHOT_PREFIX)) throw new Error(`batch key ${k} uses the reserved ${SNAPSHOT_PREFIX} prefix`);
   }
   const mine = accessSnapshotSpecs(userId, orgId);
-  const keys = [...BASE_KEYS, ...REST_KEYS];
+  const keys = need === "base" ? [...BASE_KEYS] : [...BASE_KEYS, ...REST_KEYS];
   const r = (await readItemsBatch({
     ...specs,
     ...Object.fromEntries(keys.map((k) => [`${SNAPSHOT_PREFIX}${k}`, mine[k]!])),
   } as Record<string, BatchSpec>)) as Record<string, any[]>;
 
   const at = (k: string) => r[`${SNAPSHOT_PREFIX}${k}`] ?? [];
+  if (need === "base") {
+    if (!cache.has(key)) cache.set(key, { base: Promise.resolve({ userId, orgId, mine: at("mine") }) });
+    return Object.fromEntries(Object.keys(specs).map((k) => [k, r[k] ?? []])) as Record<K, any[]>;
+  }
   const full: AccessSnapshot = {
     userId,
     orgId,

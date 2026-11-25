@@ -13,9 +13,10 @@ import { ledgerActorFor } from "./member-names";
 import { z } from "zod";
 import type { LedgerActor } from "#core/shared/ledger/entry";
 import { openAreasOf, refId, type AreaGrantRow, type GrantHolder, type HelperAreaKey } from "#core/shared/roles/area-grants";
+import type { ReadSpec } from "./directus-graphql";
 
-/** 401 without a session, 403 unless an admin of `orgId`. Returns the ledger actor. */
-export async function requireDelegationAdmin(event: H3Event, orgId: string): Promise<LedgerActor> {
+/** 401 without a session, 403 unless an admin of `orgId`. Returns the session user. */
+export async function requireDelegationGate(event: H3Event, orgId: string): Promise<Record<string, any>> {
   const session = await requireUserSession(event);
   const user: any = session?.user ?? {};
   if (!user.id) throw createError({ statusCode: 401, message: "Authentication required" });
@@ -23,6 +24,12 @@ export async function requireDelegationAdmin(event: H3Event, orgId: string): Pro
   if (!admin.isAdmin) {
     throw createError({ statusCode: 403, message: "Only an administrator can change who helps with what." });
   }
+  return user;
+}
+
+/** requireDelegationGate, then the ledger actor: for the routes that write. */
+export async function requireDelegationAdmin(event: H3Event, orgId: string): Promise<LedgerActor> {
+  const user = await requireDelegationGate(event, orgId);
   // The community's name for the admin (core/shared/members/display-name.ts).
   return await ledgerActorFor(orgId, user);
 }
@@ -61,15 +68,18 @@ export interface TeamHolder {
 
 export type LoadedHolder = MemberHolder | TeamHolder;
 
-/** A member of `orgId`, read through the org filter: 404 for another community's. */
-export async function loadMemberHolder(orgId: string, memberId: string): Promise<MemberHolder> {
-  const rows = (await getTypedDirectus().request(
-    readItems("hoa_members", {
-      filter: { id: { _eq: memberId }, organization: { _eq: orgId } },
-      fields: ["id", "first_name", "last_name", "email", "status", "role", "user"] as any,
-      limit: 1,
-    })
-  )) as any[];
+/** The read behind loadMemberHolder: a member of `orgId` by id, through the org filter. */
+export function memberHolderSpec(orgId: string, memberId: string): ReadSpec {
+  return {
+    collection: "hoa_members",
+    filter: { id: { _eq: memberId }, organization: { _eq: orgId } },
+    fields: ["id", "first_name", "last_name", "email", "status", "role", "user"],
+    limit: 1,
+  };
+}
+
+/** The member holder from memberHolderSpec's rows: 404 when there is none. */
+export function memberHolderFrom(rows: readonly any[] | null | undefined): MemberHolder {
   const m = rows?.[0];
   if (!m) throw createError({ statusCode: 404, message: "No such member in this community." });
   return {
@@ -82,36 +92,82 @@ export async function loadMemberHolder(orgId: string, memberId: string): Promise
   };
 }
 
-/** A team of `orgId`, read through the org filter: 404 for another community's. */
-export async function loadTeamHolder(orgId: string, teamId: string): Promise<TeamHolder> {
+/** A member of `orgId`, read through the org filter: 404 for another community's. */
+export async function loadMemberHolder(orgId: string, memberId: string): Promise<MemberHolder> {
+  const spec = memberHolderSpec(orgId, memberId);
   const rows = (await getTypedDirectus().request(
-    readItems("hoa_teams", {
-      filter: { id: { _eq: teamId }, organization: { _eq: orgId } },
-      fields: ["id", "name", "status"] as any,
-      limit: 1,
-    })
+    readItems("hoa_members", { filter: spec.filter as any, fields: [...spec.fields] as any, limit: spec.limit })
   )) as any[];
+  return memberHolderFrom(rows);
+}
+
+/** The read behind loadTeamHolder: a team of `orgId` by id, through the org filter. */
+export function teamHolderSpec(orgId: string, teamId: string): ReadSpec {
+  return {
+    collection: "hoa_teams",
+    filter: { id: { _eq: teamId }, organization: { _eq: orgId } },
+    fields: ["id", "name", "status"],
+    limit: 1,
+  };
+}
+
+/** The team holder from teamHolderSpec's rows: 404 when there is none. */
+export function teamHolderFrom(rows: readonly any[] | null | undefined): TeamHolder {
   const t = rows?.[0];
   if (!t) throw createError({ statusCode: 404, message: "No such committee in this community." });
   return { kind: "team", id: String(t.id), name: String(t.name ?? ""), status: t.status ?? "active" };
 }
 
+/** A team of `orgId`, read through the org filter: 404 for another community's. */
+export async function loadTeamHolder(orgId: string, teamId: string): Promise<TeamHolder> {
+  const spec = teamHolderSpec(orgId, teamId);
+  const rows = (await getTypedDirectus().request(
+    readItems("hoa_teams", { filter: spec.filter as any, fields: [...spec.fields] as any, limit: spec.limit })
+  )) as any[];
+  return teamHolderFrom(rows);
+}
+
 export const holderRef = (h: LoadedHolder): GrantHolder => ({ kind: h.kind, id: h.id }) as GrantHolder;
+
+/** The read behind readHolderRows: every row (open and ended) for one holder in `orgId`, newest first. */
+export function holderRowsSpec(orgId: string, holder: GrantHolder): ReadSpec {
+  return {
+    collection: "hoa_area_grants",
+    filter: { organization: { _eq: orgId }, [holder.kind]: { _eq: holder.id } },
+    fields: [
+      "id", "organization", "area", "member", "team", "starts_at", "ends_at", "end_reason", "holder_name",
+      "granted_by.first_name", "granted_by.last_name", "granted_by.email",
+      "ended_by.first_name", "ended_by.last_name", "ended_by.email",
+    ],
+    sort: ["-starts_at"],
+    limit: -1,
+  };
+}
 
 /** Every row (open and ended) for one holder in `orgId`, newest first. */
 export async function readHolderRows(orgId: string, holder: GrantHolder): Promise<(AreaGrantRow & Record<string, any>)[]> {
+  const spec = holderRowsSpec(orgId, holder);
   return ((await getTypedDirectus().request(
     readItems("hoa_area_grants" as any, {
-      filter: { organization: { _eq: orgId }, [holder.kind]: { _eq: holder.id } } as any,
-      fields: [
-        "id", "organization", "area", "member", "team", "starts_at", "ends_at", "end_reason", "holder_name",
-        "granted_by.first_name", "granted_by.last_name", "granted_by.email",
-        "ended_by.first_name", "ended_by.last_name", "ended_by.email",
-      ] as any,
-      sort: ["-starts_at"] as any,
-      limit: -1,
+      filter: spec.filter as any,
+      fields: [...spec.fields] as any,
+      sort: [...spec.sort!] as any,
+      limit: spec.limit,
     })
   )) ?? []) as any[];
+}
+
+/** The community's area grants that have not ended at `now` (the Members and Teams lists' chips). */
+export function openGrantsSpec(orgId: string, now: Date): ReadSpec {
+  return {
+    collection: "hoa_area_grants",
+    filter: {
+      organization: { _eq: orgId },
+      _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: now.toISOString() } }],
+    },
+    fields: ["id", "organization", "area", "member", "team", "starts_at", "ends_at"],
+    limit: -1,
+  };
 }
 
 /** A team's open areas now: what someone joining or leaving it gains or loses. */
