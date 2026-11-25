@@ -451,19 +451,8 @@ export function registerFrom(
   const jobs = rawJobs.map(normaliseJob);
   const assignees = rawAssignees.map(normaliseAssignee);
   const terms = (read.reg_terms ?? []).map(normaliseTerm);
-  const inOrg = (r: any) => r && typeof r === "object" && idOf(r.organization) === orgId;
-
-  const names = emptyNames();
-  for (const a of rawAssignees) {
-    const m = a.member;
-    if (inOrg(m)) names.members[m.id] = { name: fullName(m) ?? "Member", avatar: idOf(m.user?.avatar) };
-    const u = a.user;
-    if (u && typeof u === "object" && u.id) names.users[u.id] = { name: fullName(u) ?? u.email ?? "User", avatar: idOf(u.avatar) };
-    const v = a.vendor;
-    if (inOrg(v)) names.vendors[v.id] = { name: v.company || v.name || "Vendor" };
-    const t = a.team;
-    if (inOrg(t)) names.teams[t.id] = { name: t.name || "Team", color: t.color ?? null };
-  }
+  const inOrg = inOrgOf(orgId);
+  const names = namesFrom(orgId, rawAssignees);
 
   const extras: Required<RegisterExtras> = { users: {}, projects: {}, evidence: {} };
   for (const j of rawJobs) {
@@ -479,6 +468,69 @@ export function registerFrom(
   }
 
   return { rows: registerRows(jobs, assignees, names, terms, asOf, today, extras), org };
+}
+
+const inOrgOf = (orgId: string) => (r: any) => r && typeof r === "object" && idOf(r.organization) === orgId;
+
+/**
+ * The names loadNames reads, from holder rows read with their targets joined
+ * (registerSpecs' reg_assignees): members, vendors and teams only when they
+ * belong to `orgId`, as loadNames' filters keep them; users as they are.
+ */
+function namesFrom(orgId: string, rawAssignees: readonly any[]): NameBook {
+  const inOrg = inOrgOf(orgId);
+  const names = emptyNames();
+  for (const a of rawAssignees) {
+    const m = a.member;
+    if (inOrg(m)) names.members[m.id] = { name: fullName(m) ?? "Member", avatar: idOf(m.user?.avatar) };
+    const u = a.user;
+    if (u && typeof u === "object" && u.id) names.users[u.id] = { name: fullName(u) ?? u.email ?? "User", avatar: idOf(u.avatar) };
+    const v = a.vendor;
+    if (inOrg(v)) names.vendors[v.id] = { name: v.company || v.name || "Vendor" };
+    const t = a.team;
+    if (inOrg(t)) names.teams[t.id] = { name: t.name || "Team", color: t.color ?? null };
+  }
+  return names;
+}
+
+// ── The published view in one request ───────────────────────────────────────
+
+export type PublishedKey = "pub_jobs" | "pub_assignees" | "pub_terms" | "pub_org";
+
+/**
+ * The published view's reads as one batch: the community's switches, the
+ * jobs (loadJobs' fields, filter and sort), every holder row with its target's
+ * name joined (registerSpecs' reg_assignees, standing in for loadNames) and the
+ * board terms. Keys are prefixed `pub_` so they can share a batch.
+ */
+export function publishedSpecs(orgId: string): Record<PublishedKey, BatchSpec> {
+  const reg = registerSpecs(orgId);
+  return {
+    pub_jobs: { ...reg.reg_jobs, fields: RESPONSIBILITY_FIELDS },
+    pub_assignees: reg.reg_assignees,
+    pub_terms: reg.reg_terms,
+    pub_org: reg.reg_org,
+  };
+}
+
+/**
+ * What the published route reads, from `publishedSpecs`' rows: the switches
+ * (404 when the community has no row) and, only while the community publishes
+ * with the module on, the jobs, holders, names and terms publishedRows needs.
+ */
+export function publishedFrom(
+  orgId: string,
+  read: Record<PublishedKey, any[]>
+): { org: OrgSwitches; jobs: StoredResponsibility[]; assignees: StoredAssignee[]; names: NameBook; terms: ReturnType<typeof normaliseTerm>[] } {
+  const org = orgSwitchesFrom(read.pub_org[0] ?? null);
+  const rawAssignees = read.pub_assignees ?? [];
+  return {
+    org,
+    jobs: (read.pub_jobs ?? []).map(normaliseJob),
+    assignees: rawAssignees.map(normaliseAssignee),
+    names: namesFrom(orgId, rawAssignees),
+    terms: (read.pub_terms ?? []).map(normaliseTerm),
+  };
 }
 
 /** The route's `[id]` param, or 400. */

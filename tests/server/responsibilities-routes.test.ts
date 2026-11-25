@@ -273,6 +273,68 @@ describe("the owners' view", () => {
   });
 });
 
+describe("the owners' view in one request", () => {
+  const publish = () => Object.assign(state.db.hoa_organizations![0], { responsibilities_published: true, responsibilities_show_unassigned: true });
+
+  it("reads the same view as the reads one by one", async () => {
+    publish();
+    const { publishedSpecs, publishedFrom, loadJobs, loadAssignees, loadBoardTerms, loadNames, loadOrgSwitches } = await import(
+      "#core/server/utils/responsibilities"
+    );
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    const got = publishedFrom(ORG, await readItemsBatchRest(publishedSpecs(ORG)));
+    const assignees = await loadAssignees(ORG);
+    expect(assignees.length).toBeGreaterThan(0);
+    expect(got).toEqual({
+      org: await loadOrgSwitches(ORG),
+      jobs: await loadJobs(ORG),
+      assignees,
+      names: await loadNames(ORG, assignees),
+      terms: await loadBoardTerms(ORG),
+    });
+  });
+
+  it("asks once, for the view and the caller's memberships together", async () => {
+    publish();
+    as(PERSONAS.owner);
+    const seen: [string[], string | undefined][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any, need?: string) => {
+      expect(orgId).toBe(ORG);
+      seen.push([Object.keys(specs), need]);
+      return readItemsBatchRest(specs);
+    });
+    await call("published", VALID.published);
+    expect(seen).toEqual([[["pub_jobs", "pub_assignees", "pub_terms", "pub_org"], "base"]]);
+  });
+
+  it("answers the same, read one by one, when the batch fails", async () => {
+    publish();
+    as(PERSONAS.owner);
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    const ok = await call("published", VALID.published);
+    expect(ok.responsibilities.length).toBeGreaterThan(0);
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(await call("published", VALID.published)).toEqual(ok);
+    } finally {
+      warn.mockRestore();
+      vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _o: string, specs: any) => readItemsBatchRest(specs));
+    }
+  });
+
+  it("refuses an outsider with no rows, though the batch has read them", async () => {
+    publish();
+    as(PERSONAS.outsider);
+    const err = await call("published", VALID.published).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("Pest control");
+  });
+});
+
 describe("hand-over", () => {
   it("ends the current row the day before, freezes its name, and opens the next, in one call", async () => {
     const res = await call("handOver", VALID.handOver);
