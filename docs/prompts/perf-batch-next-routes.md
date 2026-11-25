@@ -37,8 +37,9 @@ query covering several collections takes ~105ms.
    three. Start with routes that still call `isActiveBoardMember(`
    (channel-enrollment.ts) instead of `activeBoardMemberFrom(snapshot)`.
 
-2. For each route: record baseline responses per persona and query variant
-   (including 400/401/403; compare with dev `stack` stripped), fold
+2. For each route: record a small baseline (board, tenant and signed out on
+   the demo org, plus one non-UUID orgId; compare with dev `stack`
+   stripped), fold
    independent reads into one `readItemsBatch` (core/server/utils/
    directus-graphql.ts) or `batchWithAccessSnapshot` (access-snapshot.ts),
    and take admin/membership/board/manager/helper answers from the access
@@ -46,12 +47,16 @@ query covering several collections takes ~105ms.
    the batch but with no data, unless a test says refusal must come before
    any read (governing-read.test.ts does; keep such rules).
 
-3. Prove equivalence on live data: a temporary vitest file (not committed)
-   with `// @vitest-environment node`, a live @directus/sdk client and the
-   real helpers stubbed as globals, comparing old logic (git show HEAD:…)
-   with new across every user and community. Demo data is sparse: Directus
-   has no vehicle, pet or lease rows; governing data is only in org
-   5f00fc6d. Add committed unit tests for new pure logic. For route tests on
+3. Tests: committed route tests for the batch (one batch with its keys, the
+   same answer when the batch fails, a refusal carries no rows) and unit
+   tests for new pure logic. Only when a batch changes a filter's SHAPE
+   (an id list becomes a relational filter, a lookup becomes a join) also
+   run a temporary live vitest (not committed; `// @vitest-environment
+   node`, a live @directus/sdk client) comparing the old read with the new
+   one across users and communities. A read moved into a batch with the
+   same filter, fields and sort needs no live check. Demo data is sparse:
+   no vehicle, pet or lease rows; governing data only in org 5f00fc6d.
+   For route tests on
    MemoryDirectus, stub readItemsBatch with tests/server/support/
    memory-batch.ts (declare the m2o/o2m relations; stubbing it globally also
    makes accessSnapshot batch, so declare hoa_members.board_member_terms).
@@ -70,14 +75,13 @@ one request at a time, and a 403 response carries no header; the shared
 Directus is noisy, so re-time outliers with 30
 requests and A/B back to back when a change looks like a regression.
 
-Checks, sized to the change. Per route, before its commit: the changed
-route's own test files (`pnpm exec vitest run <files>`), `pnpm exec eslint
-<changed files>`, re-recording ONLY that route's responses, its live
-equivalence block, and a 30-request median for the board persona (A/B back
-to back if it looks like a regression; add other personas only when the
-answer differs by role). Once at the end, before asking to push: the full
-`pnpm exec vitest run` and `pnpm typecheck`. Don't re-run the full suite,
-typecheck or earlier routes' recordings after every commit.
+Checks, kept small. Per route, before its commit: the changed route's own
+test files (`pnpm exec vitest run <files>`), `pnpm exec eslint <changed
+files>`, re-recording that route's small baseline, and one 30-request
+median for the board persona (A/B back to back only if it looks like a
+regression). The live check only as step 3 says. Once at the end, before
+asking to push: the full `pnpm exec vitest run` and `pnpm typecheck`.
+Nothing else, and nothing re-run after every commit.
 
 Done means: identical responses for every recorded case, a big median drop,
 and the end-of-session full suite, eslint and typecheck all clean. The
