@@ -95,8 +95,15 @@ describe("counts", () => {
     expect(q).toContain("page: money_approvals(limit: 2, offset: 4) { id }");
   });
 
-  it("refuses to group by a relation, so the caller falls back to REST", () => {
-    expect(() => buildBatchQuery({ c: { collection: "money_approvals", count: "*", groupBy: ["organization"] } }, rel)).toThrow(/plain field/);
+  it("groups by an m2o's raw key, as REST does", () => {
+    const q = buildBatchQuery({ c: { collection: "money_approvals", count: "*", groupBy: ["organization"], limit: -1 } }, rel);
+    expect(q).toContain('c: money_approvals_aggregated(groupBy: ["organization"], limit: -1) { group count { id } }');
+    expect(restCounts([{ group: { organization: "o1" }, count: { id: 2 } }])).toEqual([{ organization: "o1", count: "2" }]);
+  });
+
+  it("refuses to group by an o2m or a related field, so the caller falls back to REST", () => {
+    expect(() => buildBatchQuery({ c: { collection: "hoa_members", count: "*", groupBy: ["board_member_terms"] } }, rel)).toThrow(/not a field/);
+    expect(() => buildBatchQuery({ c: { collection: "money_approvals", count: "*", groupBy: ["charge.member"] } }, rel)).toThrow(/not a field/);
   });
 
   it("come back as REST's: the group's fields and count as text", () => {

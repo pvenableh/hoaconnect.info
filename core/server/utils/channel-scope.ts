@@ -23,9 +23,10 @@ const idOf = (v: any): string | null =>
 /**
  * Which of the caller's orgs they can read every non-private channel in — i.e.
  * where bucket 2 applies. Injected rather than imported so the tests can pin the
- * boundary without standing up admin-auth's session plumbing. channel-unread
- * imports this one; a second export of the same name would collide in Nitro's
- * server-utils auto-import.
+ * boundary without standing up admin-auth's session plumbing. (channel-unread
+ * has its own, `UnreadOrgWideCheck`, which is also handed the membership rows;
+ * a second export of this name would collide in Nitro's server-utils
+ * auto-import.)
  */
 export type OrgWideAccessCheck = (orgId: string) => boolean | Promise<boolean>;
 

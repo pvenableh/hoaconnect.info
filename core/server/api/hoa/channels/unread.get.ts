@@ -18,16 +18,19 @@
 
 export default defineEventHandler(async (event) => {
   const { userId } = await requireAuthenticatedUser(event);
-  const directus = getTypedDirectus();
 
   try {
+    // Org-wide is checkAdminAccess's answer or isActiveBoardMember's, taken
+    // from the membership rows the unread read already brings (an App
+    // Administrator is an admin everywhere, from the session alone).
+    const appAdmin = isAppAdminSession(await getUserSession(event));
+    const roles = accessRoles();
     return await computeChannelUnread({
-      directus,
       userId,
-      hasOrgWideAccess: async (orgId) => {
-        if ((await checkAdminAccess(event, orgId)).isAdmin) return true;
-        return await isActiveBoardMember(directus, userId, orgId);
-      },
+      hasOrgWideAccess: (orgId, mine) =>
+        appAdmin ||
+        adminFrom({ userId, orgId, mine }, roles).isAdmin ||
+        activeBoardMemberFrom({ userId, orgId, mine }),
     });
   } catch (err: any) {
     console.error("[channels/unread] Failed, returning empty:", err?.message || err);

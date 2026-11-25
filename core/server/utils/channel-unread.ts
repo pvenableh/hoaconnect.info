@@ -34,8 +34,8 @@
  * explicitly rather than something the caller's token enforces for us.
  */
 
-import { readItems, aggregate } from "@directus/sdk";
-import type { OrgWideAccessCheck } from "./channel-scope";
+import type { BatchSpec } from "./directus-graphql";
+import { accessSnapshotSpecs } from "./access-snapshot";
 
 export interface ChannelUnread {
   count: number;
@@ -46,6 +46,16 @@ export interface UnreadResult {
   channels: Record<string, ChannelUnread>;
   total: number;
 }
+
+/**
+ * Does the caller read channels org-wide in `orgId`? Given the caller's
+ * `hoa_members` rows in that org (any status, with the access snapshot's
+ * fields, sorted by id), so the route can answer from rows already read.
+ */
+export type UnreadOrgWideCheck = (orgId: string, memberRows: any[]) => boolean | Promise<boolean>;
+
+/** A batch reader: `readItemsBatch`, or a stand-in in tests. */
+export type UnreadBatchReader = (specs: Record<string, BatchSpec>) => Promise<Record<string, any[]>>;
 
 const idOf = (v: any): string | null =>
   v == null ? null : typeof v === "string" ? v : (v.id ?? null);
@@ -79,148 +89,159 @@ export function nextReadCursor(
   return prev.getTime() > new Date(want).getTime() ? prev.toISOString() : want;
 }
 
-export async function computeChannelUnread(opts: {
-  directus: ReturnType<typeof getTypedDirectus>;
-  userId: string;
-  /** Defaults to "no org-wide access anywhere" — bucket 1 only. */
-  hasOrgWideAccess?: OrgWideAccessCheck;
-}): Promise<UnreadResult> {
-  const { directus, userId } = opts;
-  const hasOrgWideAccess = opts.hasOrgWideAccess ?? (() => false);
-
-  // The caller's active communities, plus the per-org floor bucket 2 counts
-  // from. `date_created` on the membership row is HOA's join date.
-  const memberRows = (await directus.request(
-    readItems("hoa_members", {
-      filter: { user: { _eq: userId }, status: { _eq: "active" } },
-      fields: ["organization", "date_created"],
+/** Round 1: the caller's memberships (with the access snapshot's fields) and read cursors. */
+export function unreadMemberSpecs(userId: string): Record<"members" | "cursors", BatchSpec> {
+  const mine = accessSnapshotSpecs(userId, "").mine as { fields: readonly string[]; deep?: Record<string, unknown> };
+  return {
+    // Every status: admin answers count a pending membership; orgs and floors use the active ones.
+    members: {
+      collection: "hoa_members",
+      filter: { user: { _eq: userId } },
+      fields: ["organization", "date_created", ...mine.fields],
+      deep: mine.deep,
+      sort: ["id"],
       limit: -1,
-    })
-  )) as unknown as Array<{ organization: any; date_created: string | null }>;
+    },
+    // Read the channel alongside so a row pointing at a deleted or foreign
+    // channel is dropped rather than counted.
+    cursors: {
+      collection: "hoa_channel_members",
+      filter: { user: { _eq: userId } },
+      fields: ["last_read_at", "notifications_enabled", "channel.id", "channel.status", "channel.organization"],
+      limit: -1,
+    },
+  };
+}
 
-  const orgIds = [...new Set(memberRows.map((r) => idOf(r.organization)).filter(Boolean))] as string[];
-  if (!orgIds.length) return { channels: {}, total: 0 };
+interface Cursor {
+  channelId: string;
+  lastReadAt: string | null;
+  muted: boolean;
+}
 
+/** The caller's active orgs, each org's floor (its join date), and the live read cursors. */
+export function unreadScope(members: readonly any[], cursors: readonly any[]) {
+  const active = members.filter((r) => r?.status === "active");
+  const orgIds = [...new Set(active.map((r) => idOf(r.organization)).filter(Boolean))] as string[];
   const floorByOrg: Record<string, string | null> = {};
-  for (const r of memberRows) {
+  for (const r of active) {
     const org = idOf(r.organization);
     if (org) floorByOrg[org] = r.date_created || null;
   }
-
-  // Bucket 1 — membership rows. Read the channel alongside so a row pointing at
-  // a deleted or foreign channel is dropped here rather than counted.
-  const memberships = (await directus.request(
-    readItems("hoa_channel_members", {
-      filter: { user: { _eq: userId } },
-      fields: [
-        "last_read_at",
-        "notifications_enabled",
-        { channel: ["id", "status", "organization"] },
-      ],
-      limit: -1,
-    })
-  )) as unknown as Array<{
-    channel: any;
-    last_read_at: string | null;
-    notifications_enabled: boolean | null;
-  }>;
-
-  const live = memberships.filter((m) => {
-    const ch = m.channel;
-    if (!ch || typeof ch !== "object" || !ch.id) return false;
-    if (ch.status === "deleted") return false;
+  const live: Cursor[] = [];
+  for (const m of cursors) {
+    const ch = m?.channel;
+    if (!ch || typeof ch !== "object" || !ch.id) continue;
+    if (ch.status === "deleted") continue;
     const org = idOf(ch.organization);
-    return !!org && orgIds.includes(org);
-  });
-
-  const channels: Record<string, ChannelUnread> = {};
-  let total = 0;
-
-  await Promise.all(
-    live.map(async (m) => {
-      const channelId = m.channel.id as string;
-      const and: any[] = [
-        { channel: { _eq: channelId } },
-        { status: { _eq: "published" } },
-        { user_created: { _neq: userId } },
-      ];
-      if (m.last_read_at) and.push({ date_created: { _gt: m.last_read_at } });
-
-      const res = (await directus.request(
-        aggregate("hoa_channel_messages" as never, {
-          aggregate: { count: "*" },
-          query: { filter: { _and: and } as never },
-        })
-      )) as unknown as Array<{ count: string | number }>;
-
-      const count = Number(res?.[0]?.count ?? 0) || 0;
-      channels[channelId] = { count, lastReadAt: m.last_read_at ?? null };
-      // Muted reports its count but never demands attention.
-      if (m.notifications_enabled !== false) total += count;
-    })
-  );
-
-  // Bucket 2 — only for the orgs where the caller reads channels org-wide.
-  const orgWideOrgs: string[] = [];
-  for (const org of orgIds) {
-    if (await hasOrgWideAccess(org)) orgWideOrgs.push(org);
+    if (!org || !orgIds.includes(org)) continue;
+    live.push({ channelId: ch.id, lastReadAt: m.last_read_at ?? null, muted: m.notifications_enabled === false });
   }
-  if (!orgWideOrgs.length) return { channels, total };
+  return { orgIds, floorByOrg, live };
+}
 
-  const cursorIds = live.map((m) => m.channel.id as string);
-  const neverOpened = (await directus.request(
-    readItems("hoa_channels", {
+/**
+ * Round 2: every count at once. `b1_<i>` counts the i-th cursor's channel
+ * after its cursor; `b2_<j>` counts, per channel, the never-opened non-private
+ * channels of the j-th org-wide org after the caller's join date.
+ */
+export function unreadCountSpecs(
+  userId: string,
+  live: readonly Cursor[],
+  orgWide: ReadonlyArray<{ org: string; floor: string }>
+): Record<string, BatchSpec> {
+  const specs: Record<string, BatchSpec> = {};
+  live.forEach((c, i) => {
+    const and: any[] = [
+      { channel: { _eq: c.channelId } },
+      { status: { _eq: "published" } },
+      { user_created: { _neq: userId } },
+    ];
+    if (c.lastReadAt) and.push({ date_created: { _gt: c.lastReadAt } });
+    specs[`b1_${i}`] = { collection: "hoa_channel_messages", count: "*", filter: { _and: and } };
+  });
+  const cursorIds = live.map((c) => c.channelId);
+  orgWide.forEach(({ org, floor }, j) => {
+    specs[`b2_${j}`] = {
+      collection: "hoa_channel_messages",
+      count: "*",
+      groupBy: ["channel"],
       filter: {
         _and: [
-          { organization: { _in: orgWideOrgs } },
-          { is_private: { _neq: true } },
-          { status: { _in: ["published", "archived"] } },
-          ...(cursorIds.length ? [{ id: { _nin: cursorIds } }] : []),
+          { channel: { organization: { _eq: org } } },
+          { channel: { is_private: { _neq: true } } },
+          { channel: { status: { _in: ["published", "archived"] } } },
+          ...(cursorIds.length ? [{ channel: { _nin: cursorIds } }] : []),
+          { status: { _eq: "published" } },
+          { user_created: { _neq: userId } },
+          // The fence: only what happened after the caller joined.
+          { date_created: { _gt: floor } },
         ],
-      } as never,
-      fields: ["id", "organization"],
+      },
       limit: -1,
-    })
-  )) as unknown as Array<{ id: string; organization: any }>;
+    };
+  });
+  return specs;
+}
 
-  const idsByOrg = new Map<string, string[]>();
-  for (const c of neverOpened) {
-    const org = idOf(c.organization);
-    if (!c.id || !org) continue;
-    if (!idsByOrg.has(org)) idsByOrg.set(org, []);
-    idsByOrg.get(org)!.push(c.id);
+/** The counts back into the result: bucket 1 in cursor order, then bucket 2 by org. */
+export function unreadFrom(
+  live: readonly Cursor[],
+  orgWide: ReadonlyArray<{ org: string; floor: string }>,
+  counts: Record<string, any[]>
+): UnreadResult {
+  const channels: Record<string, ChannelUnread> = {};
+  let total = 0;
+  live.forEach((c, i) => {
+    const count = Number(counts[`b1_${i}`]?.[0]?.count ?? 0) || 0;
+    channels[c.channelId] = { count, lastReadAt: c.lastReadAt };
+    // Muted reports its count but never demands attention.
+    if (!c.muted) total += count;
+  });
+  orgWide.forEach(({ floor }, j) => {
+    for (const row of counts[`b2_${j}`] ?? []) {
+      const cid = idOf(row?.channel);
+      const count = Number(row?.count ?? 0) || 0;
+      if (!cid || !count) continue;
+      channels[cid] = { count, lastReadAt: floor };
+      total += count;
+    }
+  });
+  return { channels, total };
+}
+
+/**
+ * Two Directus requests whatever the number of communities and channels:
+ * memberships and cursors, then every count. (Seven or more before: each
+ * community's admin and board checks, then the reads in turn.)
+ */
+export async function computeChannelUnread(opts: {
+  userId: string;
+  /** Defaults to "no org-wide access anywhere" — bucket 1 only. */
+  hasOrgWideAccess?: UnreadOrgWideCheck;
+  /** Defaults to `readItemsBatch`. */
+  read?: UnreadBatchReader;
+}): Promise<UnreadResult> {
+  const { userId } = opts;
+  const hasOrgWideAccess = opts.hasOrgWideAccess ?? (() => false);
+  const read: UnreadBatchReader = opts.read ?? ((specs) => readItemsBatch(specs));
+
+  const first = await read(unreadMemberSpecs(userId));
+  const members = first.members ?? [];
+  const { orgIds, floorByOrg, live } = unreadScope(members, first.cursors ?? []);
+  if (!orgIds.length) return { channels: {}, total: 0 };
+
+  // Bucket 2 — only for the orgs where the caller reads channels org-wide, and
+  // only from a recorded join date: a missing one is not a licence to badge an
+  // entire history.
+  const orgWide: Array<{ org: string; floor: string }> = [];
+  for (const org of orgIds) {
+    const rows = members.filter((r) => idOf(r.organization) === org);
+    const floor = floorByOrg[org];
+    if (floor && (await hasOrgWideAccess(org, rows))) orgWide.push({ org, floor });
   }
 
-  await Promise.all(
-    [...idsByOrg.entries()].map(async ([org, ids]) => {
-      const floor = floorByOrg[org] || null;
-      const and: any[] = [
-        { channel: { _in: ids } },
-        { status: { _eq: "published" } },
-        { user_created: { _neq: userId } },
-      ];
-      // The fence. No floor recorded → count nothing rather than everything:
-      // a missing join date is not a licence to badge an entire history.
-      if (!floor) return;
-      and.push({ date_created: { _gt: floor } });
-
-      const grouped = (await directus.request(
-        aggregate("hoa_channel_messages" as never, {
-          aggregate: { count: "*" },
-          groupBy: ["channel"] as never,
-          query: { filter: { _and: and } as never, limit: -1 },
-        })
-      )) as unknown as Array<{ channel: any; count: string | number }>;
-
-      for (const row of grouped || []) {
-        const cid = idOf(row?.channel);
-        const count = Number(row?.count ?? 0) || 0;
-        if (!cid || !count) continue;
-        channels[cid] = { count, lastReadAt: floor };
-        total += count;
-      }
-    })
-  );
-
-  return { channels, total };
+  const specs = unreadCountSpecs(userId, live, orgWide);
+  const counts = Object.keys(specs).length ? await read(specs) : {};
+  return unreadFrom(live, orgWide, counts);
 }

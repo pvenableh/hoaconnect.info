@@ -34,8 +34,9 @@ export interface ReadSpec {
 
 /**
  * A row count, REST's `aggregate: { count: "*" }`, optionally grouped by
- * plain (non-relational) fields. Rows come back as REST returns them: the
- * group's fields and `count` as text ({ event_type, count: "3" }). GraphQL's
+ * the collection's own fields (an m2o groups by its raw key). Rows come back
+ * as REST returns them: the group's fields and `count` as text
+ * ({ event_type, count: "3" }). GraphQL's
  * `countAll` reads null under groupBy, so the batch counts primary keys.
  */
 export interface CountSpec {
@@ -199,7 +200,8 @@ export function buildBatchQuery(specs: Record<string, BatchSpec>, rel: RelationM
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`batch key ${key} is not a GraphQL name`);
     if (isCount(s)) {
       for (const g of s.groupBy ?? []) {
-        if (g.includes(".") || rel.m2o.has(`${s.collection}.${g}`) || rel.o2m.has(`${s.collection}.${g}`)) throw new Error(`groupBy ${g} is not a plain field`);
+        // An m2o groups by its raw key, as REST does ({ channel: "<id>" }); an o2m or a dotted path cannot.
+        if (g.includes(".") || rel.o2m.has(`${s.collection}.${g}`)) throw new Error(`groupBy ${g} is not a field of ${s.collection}`);
       }
       return `${key}: ${s.collection}_aggregated${argsOf(s.collection, s, rel)} { group count { id } }`;
     }

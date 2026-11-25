@@ -19,11 +19,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-
-vi.mock("@directus/sdk", () => ({
-  readItems: (collection: string, query: unknown) => ({ op: "read", collection, query }),
-  aggregate: (collection: string, query: any) => ({ op: "aggregate", collection, query }),
-}));
+import type { BatchSpec } from "#core/server/utils/directus-graphql";
 
 const HOME = "org-home";
 const OTHER = "org-other";
@@ -31,7 +27,8 @@ const ME = "user-me";
 
 const JOINED = "2026-01-01T00:00:00.000Z";
 
-type Op = { op: string; collection: string; query?: any };
+/** One readItemsBatch call: its specs. */
+type Op = Record<string, BatchSpec>;
 
 interface MessageRow {
   id: string;
@@ -41,8 +38,8 @@ interface MessageRow {
 }
 
 let ops: Op[];
-/** The caller's active hoa_members rows. */
-let memberships: Array<{ organization: string; date_created: string | null }>;
+/** The caller's hoa_members rows (active unless a status is given). */
+let memberships: Array<{ organization: string; date_created: string | null; status?: string }>;
 /** hoa_channel_members rows for the caller. */
 let channelMembers: Array<{
   channel: { id: string; status?: string; organization: string };
@@ -55,13 +52,27 @@ let messages: MessageRow[];
 
 const countMessages = (filter: any): number => matching(filter).length;
 
+const channelOf = (id: string) => channels.find((c) => c.id === id);
+
+/** Does a `channel` clause hold for this channel id? Compares the id, or reaches into the channel row. */
+function channelClause(id: string, clause: any): boolean {
+  if (clause._eq !== undefined) return id === clause._eq;
+  if (clause._in !== undefined) return clause._in.includes(id);
+  if (clause._nin !== undefined) return !clause._nin.includes(id);
+  const c = channelOf(id);
+  if (!c) return false;
+  if (clause.organization?._eq !== undefined && c.organization !== clause.organization._eq) return false;
+  if (clause.is_private?._neq !== undefined && (c.is_private ?? false) === clause.is_private._neq) return false;
+  if (clause.status?._in !== undefined && !clause.status._in.includes(c.status ?? "published")) return false;
+  return true;
+}
+
 /** Apply the subset of Directus filter syntax these queries actually use. */
 function matching(filter: any): MessageRow[] {
   const and: any[] = filter?._and ?? [];
   return messages.filter((m) => {
     for (const clause of and) {
-      if (clause.channel?._eq !== undefined && m.channel !== clause.channel._eq) return false;
-      if (clause.channel?._in !== undefined && !clause.channel._in.includes(m.channel)) return false;
+      if (clause.channel !== undefined && !channelClause(m.channel, clause.channel)) return false;
       if (clause.user_created?._neq !== undefined && m.author === clause.user_created._neq) return false;
       if (clause.date_created?._gt !== undefined && !(m.at > clause.date_created._gt)) return false;
     }
@@ -78,42 +89,30 @@ beforeEach(() => {
   messages = [];
 });
 
-const directus = {
-  request: async (desc: Op) => {
-    ops.push(desc);
-    if (desc.collection === "hoa_members") return memberships;
-    if (desc.collection === "hoa_channel_members") return channelMembers;
-    if (desc.collection === "hoa_channels") {
-      const and: any[] = desc.query?.filter?._and ?? [];
-      return channels.filter((c) => {
-        for (const clause of and) {
-          if (clause.organization?._in && !clause.organization._in.includes(c.organization)) return false;
-          if (clause.is_private?._neq !== undefined && (c.is_private ?? false) === clause.is_private._neq)
-            return false;
-          if (clause.status?._in && !clause.status._in.includes(c.status ?? "published")) return false;
-          if (clause.id?._nin && clause.id._nin.includes(c.id)) return false;
-        }
-        return true;
-      });
-    }
-    if (desc.op === "aggregate") {
-      const filter = desc.query?.query?.filter;
-      if (desc.query?.groupBy) {
-        const grouped = new Map<string, number>();
-        for (const m of matching(filter)) grouped.set(m.channel, (grouped.get(m.channel) || 0) + 1);
-        return [...grouped.entries()].map(([channel, count]) => ({ channel, count }));
-      }
-      return [{ count: countMessages(filter) }];
-    }
-    return [];
-  },
-} as any;
+/** A stand-in for readItemsBatch over the fixtures above, answering as REST would (counts as text). */
+async function read(specs: Op): Promise<Record<string, any[]>> {
+  ops.push(specs);
+  const out: Record<string, any[]> = {};
+  for (const [key, spec] of Object.entries(specs)) {
+    if (spec.collection === "hoa_members") out[key] = memberships.map((m) => ({ status: "active", ...m }));
+    else if (spec.collection === "hoa_channel_members") out[key] = channelMembers;
+    else if ("count" in spec && spec.groupBy) {
+      const grouped = new Map<string, number>();
+      for (const m of matching(spec.filter)) grouped.set(m.channel, (grouped.get(m.channel) || 0) + 1);
+      out[key] = [...grouped.entries()].map(([channel, count]) => ({ channel, count: String(count) }));
+    } else if ("count" in spec) out[key] = [{ count: String(countMessages(spec.filter)) }];
+    else out[key] = [];
+  }
+  return out;
+}
+
+const countSpecs = () => ops.flatMap((o) => Object.values(o)).filter((s) => "count" in s);
 
 const load = async () => (await import("#core/server/utils/channel-unread")).computeChannelUnread;
 const loadCursor = async () => (await import("#core/server/utils/channel-unread")).nextReadCursor;
 
-const run = (hasOrgWideAccess?: (orgId: string) => boolean) =>
-  load().then((fn) => fn({ directus, userId: ME, hasOrgWideAccess }));
+const run = (hasOrgWideAccess?: (orgId: string, rows: any[]) => boolean) =>
+  load().then((fn) => fn({ userId: ME, hasOrgWideAccess, read }));
 
 describe("bucket 1 — channels with a read cursor", () => {
   it("counts only messages by other people after the cursor", async () => {
@@ -227,7 +226,7 @@ describe("org scope", () => {
     const res = await run(() => true);
     expect(res).toEqual({ channels: {}, total: 0 });
     // And it stopped before asking about any message at all.
-    expect(ops.some((o) => o.op === "aggregate")).toBe(false);
+    expect(countSpecs()).toEqual([]);
   });
 
   it("ignores a cursor row pointing at another community's channel", async () => {
@@ -264,9 +263,47 @@ describe("org scope", () => {
     expect(Object.keys(res.channels)).toEqual(["home-wide"]);
     expect(res.total).toBe(1);
 
-    const channelQuery = ops.find((o) => o.collection === "hoa_channels");
-    const orgClause = channelQuery?.query?.filter?._and?.find((c: any) => c.organization);
-    expect(orgClause.organization._in).toEqual([HOME]);
+    const orgClauses = countSpecs()
+      .filter((s: any) => s.groupBy)
+      .map((s: any) => s.filter._and.find((c: any) => c.channel?.organization).channel.organization._eq);
+    expect(orgClauses).toEqual([HOME]);
+  });
+});
+
+describe("reads", () => {
+  it("costs two batches however many channels and communities", async () => {
+    memberships = [
+      { organization: HOME, date_created: JOINED },
+      { organization: OTHER, date_created: JOINED },
+    ];
+    channelMembers = [
+      { channel: { id: "c1", organization: HOME }, last_read_at: null },
+      { channel: { id: "c2", organization: OTHER }, last_read_at: null },
+    ];
+    channels = [{ id: "w", organization: HOME, is_private: false }];
+    await run(() => true);
+    expect(ops).toHaveLength(2);
+  });
+
+  it("asks about org-wide access with that org's membership rows, of any status", async () => {
+    memberships = [
+      { organization: HOME, date_created: JOINED },
+      { organization: HOME, date_created: JOINED, status: "pending" },
+      { organization: OTHER, date_created: JOINED },
+    ];
+    const seen: Record<string, number> = {};
+    await run((org, rows) => {
+      seen[org] = rows.length;
+      return false;
+    });
+    expect(seen).toEqual({ [HOME]: 2, [OTHER]: 1 });
+  });
+
+  it("does not count a community the caller is only pending in", async () => {
+    memberships = [{ organization: HOME, date_created: JOINED, status: "pending" }];
+    channelMembers = [{ channel: { id: "c1", organization: HOME }, last_read_at: null }];
+    messages = [{ id: "m", channel: "c1", author: "someone", at: "2026-06-01T00:00:00.000Z" }];
+    expect(await run(() => true)).toEqual({ channels: {}, total: 0 });
   });
 });
 
