@@ -731,3 +731,52 @@ describe("GET /api/ai/actions/pending-count", () => {
     expect(JSON.stringify(err)).not.toContain("count");
   });
 });
+
+// ── GET /api/ai/autonomy ─────────────────────────────────────────────────────
+
+const loadAutonomy = async () => (await import("#core/server/api/ai/autonomy.get")).default as any;
+
+describe("GET /api/ai/autonomy", () => {
+  it("requires an orgId and refuses a community the caller has no standing in", async () => {
+    const handler = await loadAutonomy();
+    await expect(handler({ __query: {} })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(handler({ __query: { orgId: OTHER } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("reads the tier in one batch with the caller's standing", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadAutonomy();
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([["at_org"]]);
+  });
+
+  it("answers the same, read on its own, when the batch fails", async () => {
+    for (const [stored, tier] of [[2, 2], [9, 3], [null, 0]] as const) {
+      rows.hoa_organizations = [{ id: HOME, name: "Home", ai_autonomy_tier: stored }];
+      const handler = await loadAutonomy();
+      vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _o: string, specs: any) =>
+        (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+      );
+      const ok = await handler({ __query: { orgId: HOME } });
+      vi.stubGlobal("batchWithAccessSnapshot", async () => {
+        throw new Error("graphql down");
+      });
+      expect(await handler({ __query: { orgId: HOME } })).toEqual(ok);
+      expect(ok).toEqual({ tier });
+    }
+  });
+
+  it("refuses with no tier when the batch has read for a stranger", async () => {
+    rows.hoa_organizations.push({ id: OTHER, name: "Other", ai_autonomy_tier: 3 });
+    const handler = await loadAutonomy();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("tier");
+  });
+});

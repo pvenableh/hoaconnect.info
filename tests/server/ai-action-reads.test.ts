@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { actionListSpec, pendingCountSpec } from "#core/server/utils/ai-action-reads";
+import { actionListSpec, autonomyTierSpec, pendingCountSpec } from "#core/server/utils/ai-action-reads";
 
 describe("actionListSpec", () => {
   it("reads the community's feed newest first, 50 by default", () => {
@@ -39,6 +39,17 @@ describe("pendingCountSpec", () => {
       collection: "ai_actions",
       count: "*",
       filter: { organization: { _eq: "org-1" }, status: { _eq: "pending" } },
+    });
+  });
+});
+
+describe("autonomyTierSpec", () => {
+  it("reads the community's tier as getOrgAutonomyTier does", () => {
+    expect(autonomyTierSpec("org-1")).toEqual({
+      collection: "hoa_organizations",
+      filter: { id: { _eq: "org-1" } },
+      fields: ["ai_autonomy_tier"],
+      limit: 1,
     });
   });
 });

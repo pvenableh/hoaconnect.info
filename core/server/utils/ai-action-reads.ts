@@ -56,3 +56,8 @@ export function pendingCountSpec(orgId: string): CountSpec {
     filter: { organization: { _eq: orgId }, status: { _eq: "pending" } },
   };
 }
+
+/** The community's trust-dial tier, as getOrgAutonomyTier reads it. */
+export function autonomyTierSpec(orgId: string): ReadSpec {
+  return { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["ai_autonomy_tier"], limit: 1 };
+}

@@ -9,6 +9,7 @@
  * returns any of them.
  */
 import type { BatchSpec } from "./directus-graphql";
+import { autonomyTierSpec } from "./ai-action-reads";
 
 export type TrustKey = "tr_org" | "tr_approved" | "tr_rejected";
 
@@ -24,7 +25,7 @@ const countOf = (orgId: string, userId: string, status: string): BatchSpec => ({
 /** The community's tier (as getOrgAutonomyTier reads it) and the caller's two counts. */
 export function trustSpecs(orgId: string, userId: string): Record<TrustKey, BatchSpec> {
   return {
-    tr_org: { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["ai_autonomy_tier"], limit: 1 },
+    tr_org: autonomyTierSpec(orgId),
     tr_approved: countOf(orgId, userId, "executed"),
     tr_rejected: countOf(orgId, userId, "rejected"),
   };
