@@ -8,6 +8,7 @@ import {
   accessSnapshot,
   activeBoardMemberFrom,
   batchWithAccessSnapshot,
+  batchWithAccessSnapshotBySlug,
   adminFrom,
   boardPositionFrom,
   boardSeatActorFrom,
@@ -259,6 +260,60 @@ describe("one read per request", () => {
     it("refuses a route key that could collide with the standing's", async () => {
       await expect(batchWithAccessSnapshot({ context: {} } as any, "org-1", { access_mine: pages })).rejects.toThrow(/reserved/);
       expect(calls).toEqual([]);
+    });
+  });
+
+  describe("batchWithAccessSnapshotBySlug", () => {
+    const pagesFor = (org: Record<string, unknown>) => ({ pages: { collection: "pages", fields: ["id"], filter: { organization: org } } });
+    let orgRows: any[];
+
+    beforeEach(() => {
+      orgRows = [{ id: "org-1" }];
+      vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+        calls.push(Object.keys(specs));
+        batches.push(specs);
+        if (fail) throw new Error("directus down");
+        return Object.fromEntries(
+          Object.keys(specs).map((k) => [
+            k,
+            k === "pages" ? [{ id: "p1" }] : k === "access_org" ? orgRows : (rows as any)[k.replace(/^access_/, "")],
+          ])
+        );
+      });
+    });
+
+    it("reads the slug, the route's rows and the full standing in one request, all by slug", async () => {
+      const event = { context: {} } as any;
+      const out = await batchWithAccessSnapshotBySlug(event, "demo", pagesFor);
+      expect(out).toEqual({ orgId: "org-1", rows: { pages: [{ id: "p1" }] } });
+      expect(calls).toEqual([["pages", "access_org", "access_mine", "access_teams", "access_restrictions", "access_areaGrants"]]);
+      const bySlug = { slug: { _eq: "demo" } };
+      expect(batches[0]!.access_org).toEqual({ collection: "hoa_organizations", filter: bySlug, fields: ["id"], limit: 2 });
+      expect(batches[0]!.pages.filter).toEqual({ organization: bySlug });
+      expect(batches[0]!.access_mine.filter).toEqual({ user: { _eq: "u-1" }, organization: bySlug });
+      expect(batches[0]!.access_restrictions.filter._and[0]).toEqual({ member: { user: { _eq: "u-1" }, organization: bySlug } });
+
+      // The standing is cached under the community's id.
+      expect(await accessSnapshot(event, "org-1")).toMatchObject({ orgId: "org-1", mine: rows.mine, teams: rows.teams });
+      expect(calls).toHaveLength(1);
+    });
+
+    it("an unknown slug is no community, as resolveOrgId answers", async () => {
+      orgRows = [];
+      expect(await batchWithAccessSnapshotBySlug({ context: {} } as any, "nope", pagesFor)).toEqual({ orgId: "", rows: { pages: [] } });
+    });
+
+    it("a shared slug, no session or a failed batch hands back to the route, caching nothing", async () => {
+      const event = { context: {} } as any;
+      orgRows = [{ id: "org-1" }, { id: "org-2" }];
+      expect(await batchWithAccessSnapshotBySlug(event, "demo", pagesFor)).toBeNull();
+      fail = true;
+      expect(await batchWithAccessSnapshotBySlug(event, "demo", pagesFor)).toBeNull();
+      fail = false;
+      vi.stubGlobal("getUserSession", async () => ({}));
+      expect(await batchWithAccessSnapshotBySlug({ context: {} } as any, "demo", pagesFor)).toBeNull();
+      expect(calls).toHaveLength(2);
+      expect(event.context.__accessSnapshot?.size ?? 0).toBe(0);
     });
   });
 });

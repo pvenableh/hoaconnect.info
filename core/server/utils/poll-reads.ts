@@ -30,11 +30,15 @@ export const POLL_FIELDS = [
   "date_created",
 ] as const;
 
-/** The route's read for these statuses: the same filter, fields, sort and limit. */
-export function pollListSpec(orgId: string, statuses: readonly string[]): BatchSpec {
+/**
+ * The route's read for these statuses: the same filter, fields, sort and
+ * limit. `org` names the community: by id unless given (by slug, when the
+ * route reads with batchWithAccessSnapshotBySlug).
+ */
+export function pollListSpec(orgId: string, statuses: readonly string[], org: Record<string, unknown> = { _eq: orgId }): BatchSpec {
   return {
     collection: "hoa_polls",
-    filter: { organization: { _eq: orgId }, status: { _in: [...statuses] } },
+    filter: { organization: org, status: { _in: [...statuses] } },
     fields: [...POLL_FIELDS],
     sort: ["-date_created"],
     limit: 100,
@@ -48,13 +52,17 @@ export type PollListKey = "polls_all" | "polls_public";
  * only when that includes a draft and something else, `polls_public` without
  * drafts. No status, no read.
  */
-export function pollListSpecs(orgId: string, requested: readonly string[]): Partial<Record<PollListKey, BatchSpec>> {
+export function pollListSpecs(
+  orgId: string,
+  requested: readonly string[],
+  org: Record<string, unknown> = { _eq: orgId }
+): Partial<Record<PollListKey, BatchSpec>> {
   const specs: Partial<Record<PollListKey, BatchSpec>> = {};
   if (!requested.length) return specs;
-  specs.polls_all = pollListSpec(orgId, requested);
+  specs.polls_all = pollListSpec(orgId, requested, org);
   const publicStatuses = requested.filter((s) => s !== "draft");
   if (publicStatuses.length && publicStatuses.length !== requested.length) {
-    specs.polls_public = pollListSpec(orgId, publicStatuses);
+    specs.polls_public = pollListSpec(orgId, publicStatuses, org);
   }
   return specs;
 }

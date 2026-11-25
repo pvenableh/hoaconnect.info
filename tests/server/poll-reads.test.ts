@@ -27,6 +27,13 @@ describe("pollListSpecs", () => {
     expect((specs.polls_public as any).filter.status._in).toEqual(["open"]);
   });
 
+  it("names the community by the filter given, both reads alike", () => {
+    const org = { slug: { _eq: "demo" } };
+    const specs = pollListSpecs("", ["open", "draft"], org);
+    expect((specs.polls_all as any).filter.organization).toEqual(org);
+    expect((specs.polls_public as any).filter.organization).toEqual(org);
+  });
+
   it("reads once when only drafts are asked for", () => {
     expect(Object.keys(pollListSpecs(ORG, ["draft"]))).toEqual(["polls_all"]);
   });

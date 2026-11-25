@@ -51,13 +51,22 @@ export interface AccessRoles {
 const roleOf = (role: unknown): string | null =>
   typeof role === "string" ? role : ((role as { id?: string } | null | undefined)?.id ?? null);
 
-/** The four reads: `mine` is the base; the other three complete the full snapshot. */
-export function accessSnapshotSpecs(userId: string, orgId: string, now = new Date()): Record<string, BatchSpec> {
+/**
+ * The four reads: `mine` is the base; the other three complete the full
+ * snapshot. `org` names the community for every read: by id unless given
+ * (batchWithAccessSnapshotBySlug names it by slug).
+ */
+export function accessSnapshotSpecs(
+  userId: string,
+  orgId: string,
+  now = new Date(),
+  org: Record<string, unknown> = { _eq: orgId }
+): Record<string, BatchSpec> {
   const iso = now.toISOString();
   return {
     mine: {
       collection: "hoa_members",
-      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
+      filter: { user: { _eq: userId }, organization: org },
       fields: [
         "id", "status", "role", "manager_permissions",
         "board_member_terms.title", "board_member_terms.status", "board_member_terms.term_start",
@@ -69,7 +78,7 @@ export function accessSnapshotSpecs(userId: string, orgId: string, now = new Dat
     },
     teams: {
       collection: "hoa_team_members",
-      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
+      filter: { user: { _eq: userId }, organization: org },
       fields: ["role", "team.id", "team.status", "team.organization"],
       limit: 100,
     },
@@ -77,7 +86,7 @@ export function accessSnapshotSpecs(userId: string, orgId: string, now = new Dat
       collection: "hoa_member_restrictions",
       filter: {
         _and: [
-          { member: { user: { _eq: userId }, organization: { _eq: orgId } } },
+          { member: { user: { _eq: userId }, organization: org } },
           { _or: [{ lifted_at: { _null: true } }, { lifted_at: { _gt: iso } }] },
           { _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: iso } }] },
         ],
@@ -88,7 +97,7 @@ export function accessSnapshotSpecs(userId: string, orgId: string, now = new Dat
     areaGrants: {
       collection: "hoa_area_grants",
       filter: {
-        _and: [{ organization: { _eq: orgId } }, { _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: iso } }] }],
+        _and: [{ organization: org }, { _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: iso } }] }],
       },
       fields: ["id", "organization", "area", "member", "team", "starts_at", "ends_at"],
       limit: -1,
@@ -216,6 +225,71 @@ export async function batchWithAccessSnapshot<K extends string>(
   // Another helper may have started a read while this one was out: keep its entry.
   if (!cache.has(key)) cache.set(key, { full: Promise.resolve(full), base: Promise.resolve({ userId, orgId, mine: full.mine }) });
   return Object.fromEntries(Object.keys(specs).map((k) => [k, r[k] ?? []])) as Record<K, any[]>;
+}
+
+/** The batch key batchWithAccessSnapshotBySlug reads the community under. */
+const SLUG_ORG_KEY = `${SNAPSHOT_PREFIX}org`;
+
+/**
+ * batchWithAccessSnapshot for a route that names its community by slug: the
+ * slug lookup, the caller's full standing and the route's own reads as ONE
+ * request, every read naming the community through its slug. `specsFor`
+ * gets the organization filter to use in place of `{ _eq: orgId }`.
+ *
+ * Answers `{ orgId: "" }` when no community has the slug, as resolveOrgId
+ * does; null (nothing cached) when two communities share it, there is no
+ * session, or the batch fails, so the route resolves the slug and reads as
+ * before. Otherwise the community's id and the route's rows, with the
+ * snapshot cached for the request as batchWithAccessSnapshot caches it.
+ */
+export async function batchWithAccessSnapshotBySlug<K extends string>(
+  event: H3Event,
+  slug: string,
+  specsFor: (org: Record<string, unknown>) => Record<K, BatchSpec>
+): Promise<{ orgId: string; rows: Record<K, any[]> } | null> {
+  const session = slug ? await getUserSession(event) : null;
+  const userId = session?.user?.id ? String(session.user.id) : "";
+  if (!userId) return null;
+
+  const org = { slug: { _eq: slug } };
+  const specs = specsFor(org);
+  for (const k of Object.keys(specs)) {
+    if (k.startsWith(SNAPSHOT_PREFIX)) throw new Error(`batch key ${k} uses the reserved ${SNAPSHOT_PREFIX} prefix`);
+  }
+  // As resolveOrgId reads it (any status), two rows to notice a shared slug.
+  const lookup: BatchSpec = { collection: "hoa_organizations", filter: org, fields: ["id"], limit: 2 };
+  const snap = accessSnapshotSpecs(userId, "", new Date(), { slug: { _eq: slug } });
+  const keys = [...BASE_KEYS, ...REST_KEYS];
+  let r: Record<string, any[]>;
+  try {
+    r = (await readItemsBatch({
+      ...specs,
+      [SLUG_ORG_KEY]: lookup,
+      ...Object.fromEntries(keys.map((k) => [`${SNAPSHOT_PREFIX}${k}`, snap[k]!])),
+    } as Record<string, BatchSpec>)) as Record<string, any[]>;
+  } catch {
+    return null;
+  }
+  const orgs = r[SLUG_ORG_KEY] ?? [];
+  if (orgs.length > 1) return null;
+  if (!orgs.length) return { orgId: "", rows: Object.fromEntries(Object.keys(specs).map((k) => [k, [] as any[]])) as Record<K, any[]> };
+  const orgId = String(orgs[0]?.id ?? "");
+  if (!orgId) return null;
+
+  const at = (k: string) => r[`${SNAPSHOT_PREFIX}${k}`] ?? [];
+  const full: AccessSnapshot = {
+    userId,
+    orgId,
+    mine: at("mine"),
+    teams: at("teams"),
+    restrictions: at("restrictions"),
+    areaGrants: at("areaGrants") as AreaGrantRow[],
+  };
+  const context = ((event as any).context ??= {}) as Record<string, any>;
+  const cache = (context.__accessSnapshot ??= new Map<string, Entry>()) as Map<string, Entry>;
+  const key = `${userId}:${orgId}`;
+  if (!cache.has(key)) cache.set(key, { full: Promise.resolve(full), base: Promise.resolve({ userId, orgId, mine: full.mine }) });
+  return { orgId, rows: Object.fromEntries(Object.keys(specs).map((k) => [k, r[k] ?? []])) as Record<K, any[]> };
 }
 
 /** checkAdminAccess's answer for an HOA Admin: an active or pending membership with that role (the first, as its limit-1 read). */

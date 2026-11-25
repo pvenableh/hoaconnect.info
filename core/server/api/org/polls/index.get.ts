@@ -29,25 +29,44 @@ export default defineEventHandler(async (event) => {
   await requireUserSession(event);
   const query = getQuery(event);
 
-  // Takes a slug OR an id. The page lives under `/{slug}/polls` and the
-  // client's SELECTED org resets to the user's first membership on a hard
-  // navigation — resolving from the URL means a bookmarked page shows the
-  // community it names rather than a different one, emptily.
-  const orgId = await resolveOrgId({ orgId: query.orgId, slug: query.slug });
-  if (!orgId) {
-    throw createError({ statusCode: 400, statusMessage: "orgId or slug is required" });
-  }
-
   const statuses = String(query.statuses || "open,closed")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
+  // Takes a slug OR an id. The page lives under `/{slug}/polls` and the
+  // client's SELECTED org resets to the user's first membership on a hard
+  // navigation — resolving from the URL means a bookmarked page shows the
+  // community it names rather than a different one, emptily.
+  //
   // The polls ride with the caller's access snapshot: one request
-  // (poll-reads.ts). The access answer below decides which rows, if any, go
-  // back. A failed batch (a malformed id, say) leaves the snapshot unread, and
-  // the route reads as it always did, failing the same way.
-  const batched = await batchWithAccessSnapshot(event, orgId, pollListSpecs(orgId, statuses) as Record<PollListKey, BatchSpec>).catch(
+  // (poll-reads.ts), the slug lookup included when the page names its
+  // community by slug (batchWithAccessSnapshotBySlug). The access answer
+  // below decides which rows, if any, go back. A failed batch (a malformed
+  // id, say) leaves the snapshot unread, and the route reads as it always
+  // did, failing the same way; a slug two communities share is resolved as
+  // before.
+  let orgId = String(query.orgId ?? "").trim();
+  let batched: Partial<Record<PollListKey, any[]>> | null = null;
+  const slug = String(query.slug ?? "").trim();
+  if (!orgId && slug) {
+    const bySlug = await batchWithAccessSnapshotBySlug(
+      event,
+      slug,
+      (org) => pollListSpecs("", statuses, org) as Record<PollListKey, BatchSpec>
+    );
+    if (bySlug) {
+      orgId = bySlug.orgId;
+      batched = bySlug.rows;
+      if (!orgId) throw createError({ statusCode: 400, statusMessage: "orgId or slug is required" });
+    }
+  }
+  if (!orgId) orgId = await resolveOrgId({ orgId: query.orgId, slug: query.slug });
+  if (!orgId) {
+    throw createError({ statusCode: 400, statusMessage: "orgId or slug is required" });
+  }
+
+  batched ??= await batchWithAccessSnapshot(event, orgId, pollListSpecs(orgId, statuses) as Record<PollListKey, BatchSpec>).catch(
     () => null
   );
 
