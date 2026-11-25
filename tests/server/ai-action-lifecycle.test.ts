@@ -638,3 +638,52 @@ describe("GET /api/ai/actions/trust", () => {
     );
   });
 });
+
+// ── GET /api/ai/actions ──────────────────────────────────────────────────────
+
+const loadFeed = async () => (await import("#core/server/api/ai/actions/index.get")).default as any;
+
+describe("GET /api/ai/actions", () => {
+  it("requires an orgId and refuses a community the caller has no standing in", async () => {
+    const handler = await loadFeed();
+    await expect(handler({ __query: {} })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(handler({ __query: { orgId: OTHER } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("reads the feed in one batch with the caller's standing", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadFeed();
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([["al_rows"]]);
+  });
+
+  it("answers the same, read on its own, when the batch fails", async () => {
+    rows.ai_actions = [
+      { ...pendingAction(), preview: JSON.stringify({ kind: "task" }) },
+      { ...pendingAction(), status: "executed" },
+      { ...pendingAction(), organization: OTHER },
+    ];
+    const handler = await loadFeed();
+    const ok = await handler({ __query: { orgId: HOME, status: "pending" } });
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await handler({ __query: { orgId: HOME, status: "pending" } })).toEqual(ok);
+    expect(ok.actions.map((a: any) => a.id)).toEqual(["act-1"]);
+    expect(ok.actions[0].preview).toEqual({ kind: "task" });
+  });
+
+  it("refuses with no rows when the batch has read for a stranger", async () => {
+    rows.ai_actions = [{ ...pendingAction(), organization: OTHER }];
+    const handler = await loadFeed();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("Chase the roofer");
+  });
+});

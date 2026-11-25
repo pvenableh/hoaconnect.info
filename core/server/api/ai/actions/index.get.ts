@@ -5,35 +5,35 @@
 
 import { readItems } from "@directus/sdk";
 import { parseActionPreview } from "#core/shared/ai/actions";
+import { actionListFilter, actionListLimit, actionListSpec } from "#core/server/utils/ai-action-reads";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
   const q = getQuery(event);
   const orgId = String(q.orgId || "").trim();
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
+  // The feed and the caller's standing as ONE request (ai-action-reads.ts);
+  // the gate then answers from the cached standing and refuses before any of
+  // these rows is used. A failed batch reads on its own below, as before.
+  const batched = await batchWithAccessSnapshot(event, orgId, { al_rows: actionListSpec(orgId, q) }).catch(() => null);
   await requireOrgComposeAccess(event, orgId);
 
-  const filter: any = { organization: { _eq: orgId } };
-  if (q.status) filter.status = { _eq: String(q.status) };
-  if (q.entityType && q.entityId) {
-    filter.entity_type = { _eq: String(q.entityType) };
-    filter.entity_id = { _eq: String(q.entityId) };
-  }
-
-  const rows = (await getTypedDirectus().request(
-    readItems("ai_actions", {
-      filter,
-      fields: [
-        "id", "action_type", "status", "category", "risk", "outbound",
-        "payload", "preview", "result", "error_message", "title",
-        "entity_type", "entity_id", "date_created", "date_updated",
-        { requested_by: ["first_name", "last_name"] },
-        { approved_by: ["first_name", "last_name"] },
-      ],
-      sort: ["-date_created"],
-      limit: Math.min(Number(q.limit) || 50, 200),
-    })
-  )) as any[];
+  const rows = batched
+    ? batched.al_rows
+    : ((await getTypedDirectus().request(
+        readItems("ai_actions", {
+          filter: actionListFilter(orgId, q) as any,
+          fields: [
+            "id", "action_type", "status", "category", "risk", "outbound",
+            "payload", "preview", "result", "error_message", "title",
+            "entity_type", "entity_id", "date_created", "date_updated",
+            { requested_by: ["first_name", "last_name"] },
+            { approved_by: ["first_name", "last_name"] },
+          ],
+          sort: ["-date_created"],
+          limit: actionListLimit(q),
+        })
+      )) as any[]);
 
   // `preview` is a `text` column, so Directus hands it back as a JSON STRING
   // while `payload` and `result` (real json columns) come back as objects —
