@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { actionListSpec, autonomyTierSpec, pendingCountSpec } from "#core/server/utils/ai-action-reads";
+import { actionListSpec, autonomyTierSpec, conversationListSpec, pendingCountSpec } from "#core/server/utils/ai-action-reads";
 
 describe("actionListSpec", () => {
   it("reads the community's feed newest first, 50 by default", () => {
@@ -50,6 +50,18 @@ describe("autonomyTierSpec", () => {
       filter: { id: { _eq: "org-1" } },
       fields: ["ai_autonomy_tier"],
       limit: 1,
+    });
+  });
+});
+
+describe("conversationListSpec", () => {
+  it("reads the caller's own conversations in the community, most recently active first", () => {
+    expect(conversationListSpec("org-1", "user-1")).toEqual({
+      collection: "ai_conversations",
+      filter: { organization: { _eq: "org-1" }, user: { _eq: "user-1" } },
+      fields: ["id", "title", "model", "date_updated", "date_created"],
+      sort: ["-date_updated"],
+      limit: 50,
     });
   });
 });

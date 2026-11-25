@@ -780,3 +780,58 @@ describe("GET /api/ai/autonomy", () => {
     expect(JSON.stringify(err)).not.toContain("tier");
   });
 });
+
+// ── GET /api/ai/conversations ────────────────────────────────────────────────
+
+const loadConversations = async () => (await import("#core/server/api/ai/conversations.get")).default as any;
+
+describe("GET /api/ai/conversations", () => {
+  const convo = (id: string, extra: any = {}) => ({
+    id,
+    organization: HOME,
+    user: ME,
+    title: `Thread ${id}`,
+    model: "m",
+    date_created: daysAgo(2),
+    date_updated: daysAgo(1),
+    ...extra,
+  });
+
+  it("requires an orgId and refuses a community the caller has no standing in", async () => {
+    const handler = await loadConversations();
+    await expect(handler({ __query: {} })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(handler({ __query: { orgId: OTHER } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("reads the list in one batch with the caller's standing", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadConversations();
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([["cv_rows"]]);
+  });
+
+  it("answers the same, read on its own, when the batch fails", async () => {
+    rows.ai_conversations = [convo("c1"), convo("c2", { user: "someone-else" }), convo("c3", { organization: OTHER })];
+    const handler = await loadConversations();
+    const ok = await handler({ __query: { orgId: HOME } });
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await handler({ __query: { orgId: HOME } })).toEqual(ok);
+    expect(ok.conversations.map((c: any) => c.id)).toEqual(["c1"]);
+  });
+
+  it("refuses with no rows when the batch has read for a stranger", async () => {
+    rows.ai_conversations = [convo("c9", { organization: OTHER, title: "Secret thread" })];
+    const handler = await loadConversations();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("Secret thread");
+  });
+});

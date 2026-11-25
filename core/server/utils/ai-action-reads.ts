@@ -61,3 +61,14 @@ export function pendingCountSpec(orgId: string): CountSpec {
 export function autonomyTierSpec(orgId: string): ReadSpec {
   return { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["ai_autonomy_tier"], limit: 1 };
 }
+
+/** The caller's own recent assistant conversations in a community, newest activity first (the panel's resume list). */
+export function conversationListSpec(orgId: string, userId: string | null): ReadSpec {
+  return {
+    collection: "ai_conversations",
+    filter: { organization: { _eq: orgId }, user: { _eq: userId } },
+    fields: ["id", "title", "model", "date_updated", "date_created"],
+    sort: ["-date_updated"],
+    limit: 50,
+  };
+}
