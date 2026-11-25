@@ -50,6 +50,11 @@ const RELATIONS: Record<string, Record<string, string>> = {
   // The register's one-batch read expands holders and verifiers through these (registerSpecs).
   hoa_responsibilities: { last_verified_by: "directus_users", project: "hoa_projects" },
   hoa_responsibility_assignees: { member: "hoa_members", user: "directus_users", vendor: "hoa_vendors", team: "hoa_teams" },
+  // tests/server/home-cards-batch.test.ts: getRoleContextWith and the home cards' batches.
+  hoa_organizations: { billing_account: "billing_accounts", subscription_plan: "subscription_plans" },
+  billing_accounts: { subscription_plan: "subscription_plans" },
+  hoa_form_signatures: { member: "hoa_members" },
+  hoa_acknowledgments: { member: "hoa_members" },
   // tests/server/admin-relation-writes.test.ts
   hoa_pets: { member_id: "hoa_members", unit_id: "hoa_units" },
   hoa_vehicles: { member_id: "hoa_members", unit_id: "hoa_units" },

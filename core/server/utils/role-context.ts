@@ -8,7 +8,8 @@
  * resolves identically.
  */
 import type { H3Event } from "h3";
-import { accessSnapshot } from "./access-snapshot";
+import { accessSnapshot, batchWithAccessSnapshot } from "./access-snapshot";
+import type { BatchSpec } from "./directus-graphql";
 import { readItem, readItems } from "@directus/sdk";
 import { capabilitiesFor, type Actor, type Capability } from "#core/shared/permissions";
 import { roleIdOf } from "#core/shared/ops/permissions";
@@ -70,12 +71,92 @@ export interface ResolvedRoleContext {
 
 /** The caller's RoleContext in `orgId`. */
 export async function getRoleContext(event: H3Event, orgId: string): Promise<ResolvedRoleContext> {
-  const session = await getUserSession(event);
-  const userId: string | null = session?.user?.id ?? null;
-  if (!userId) return { context: emptyRoleContext(orgId), allowed: false };
+  const { context, allowed } = await getRoleContextWith(event, orgId, {});
+  return { context, allowed };
+}
 
-  const roles = serverRoleIds();
-  const globalRoleId = roleIdOf(session?.user?.role);
+/** The membership fields resolveRoleContext reads (the `*` read's, named, plus residency). */
+export const ROLE_MEMBERSHIP_FIELDS = [
+  "id", "organization", "status", "role", "manager_permissions", "is_manager", "manager_title", "manager_areas",
+  "member_type", ...RESIDENCY_UNIT_FIELDS,
+] as const;
+
+type RoleKey = "rc_members" | "rc_terms" | "rc_org" | "rc_seats";
+
+/**
+ * getRoleContext's reads as batch specs, all keyed on the caller and the
+ * community so none waits for another: the caller's memberships, the current
+ * terms on any of them, the community's billing account (with its owner), and
+ * the caller's seats on billing accounts. `roleInputsFrom` narrows them to
+ * what the reads one by one return.
+ */
+export function roleContextSpecs(userId: string, orgId: string, today = new Date().toISOString().split("T")[0]): Record<RoleKey, BatchSpec> {
+  return {
+    rc_members: {
+      collection: "hoa_members",
+      filter: { user: { _eq: userId }, organization: { _eq: orgId } },
+      fields: ROLE_MEMBERSHIP_FIELDS,
+      limit: 10,
+    },
+    rc_terms: {
+      collection: "hoa_board_members",
+      filter: {
+        _and: [
+          { hoa_member: { user: { _eq: userId }, organization: { _eq: orgId } } },
+          { status: { _eq: "published" } },
+          { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
+          { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
+        ],
+      },
+      fields: ["title", "hoa_member"],
+      sort: ["sort"],
+      limit: -1,
+    },
+    rc_org: { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["billing_account.id", "billing_account.owner"], limit: 1 },
+    rc_seats: {
+      collection: "billing_account_members",
+      filter: { user: { _eq: userId } },
+      fields: ["user", "role", "billing_account"],
+      limit: -1,
+    },
+  };
+}
+
+interface RoleInputs {
+  membership: RoleMembership | null;
+  terms: RoleBoardTerm[];
+  billing: RoleBillingAccount | null;
+}
+
+/**
+ * The membership, current terms and billing account from `roleContextSpecs`'
+ * rows, as the reads one by one find them. Null when the community has no row:
+ * those reads fail there, so the caller runs them to fail the same way.
+ */
+export function roleInputsFrom(read: Record<RoleKey, any[]>): RoleInputs | null {
+  const org = read.rc_org?.[0];
+  if (!org) return null;
+  const membership = pickMembership((read.rc_members ?? []) as RoleMembership[]);
+  const active = membership?.id && membership.status === "active";
+  const terms = active
+    ? (read.rc_terms ?? []).filter((t) => roleIdOf(t.hoa_member) === membership.id).map((t) => ({ title: t.title }) as RoleBoardTerm)
+    : [];
+  const account = org.billing_account && typeof org.billing_account === "object" ? org.billing_account : null;
+  const accountId = roleIdOf(account);
+  const billing = accountId
+    ? {
+        owner: account.owner ?? null,
+        members: (read.rc_seats ?? [])
+          .filter((m) => roleIdOf(m.billing_account) === accountId)
+          .slice(0, 10)
+          .map((m) => ({ user: m.user, role: m.role })),
+      }
+    : null;
+  return { membership, terms, billing };
+}
+
+/** getRoleContext's reads one by one: the fallback, and the shape `roleInputsFrom` matches. */
+export async function readRoleInputsOneByOne(userId: string, orgId: string): Promise<RoleInputs> {
   const directus = getTypedDirectus();
 
   // `*`, not a field list: until scripts/add-manager-hat.ts has run the manager
@@ -89,12 +170,12 @@ export async function getRoleContext(event: H3Event, orgId: string): Promise<Res
   )) as RoleMembership[];
   const membership = pickMembership(rows ?? []);
 
-  // Terms, billing and helper areas all need only the membership above (or
-  // nothing), never each other: read them in one round trip.
+  // Terms and billing both need only the membership above (or nothing), never
+  // each other: read them in one round trip.
   const active = membership?.id && membership.status === "active";
   const today = new Date().toISOString().split("T")[0];
   // Current terms, read exactly as getBoardPosition reads them.
-  const [terms, billing, helperAreas] = await Promise.all([
+  const [terms, billing] = await Promise.all([
     active
       ? directus
           .request(
@@ -114,14 +195,52 @@ export async function getRoleContext(event: H3Event, orgId: string): Promise<Res
           .then((r) => ((r ?? []) as RoleBoardTerm[]))
       : Promise.resolve([] as RoleBoardTerm[]),
     readBillingAccount(orgId, userId),
-    // Helper and committee areas (docs/spec-delegation.md). The reader requires
-    // an active membership, and the resolver ignores them on any other status.
-    membership?.status === "active" ? getHelperAreas(event, orgId) : Promise.resolve([]),
   ]);
-  const context = resolveRoleContext(membership, terms, billing, { userId, globalRoleId, roles, orgId, helperAreas });
+  return { membership, terms, billing };
+}
+
+/**
+ * getRoleContext, with a route's own reads in the same Directus request: the
+ * caller's memberships, terms and billing, their full access standing
+ * (batchWithAccessSnapshot, which also answers the helper areas) and `extra`,
+ * as ONE batch. A route that decides from the context must still refuse
+ * before it returns any of `extra`'s rows. Keys `rc_*` and `access_*` are
+ * reserved. If the batch fails (manager fields not migrated yet, say), the
+ * context is read one by one as before and `extra` on its own.
+ */
+export async function getRoleContextWith<K extends string>(
+  event: H3Event,
+  orgId: string,
+  extra: Record<K, BatchSpec>
+): Promise<ResolvedRoleContext & { rows: Record<K, any[]> }> {
+  const readExtra = async (): Promise<Record<K, any[]>> =>
+    Object.keys(extra).length ? readItemsBatch(extra) : ({} as Record<K, any[]>);
+  const session = await getUserSession(event);
+  const userId: string | null = session?.user?.id ?? null;
+  if (!userId) return { context: emptyRoleContext(orgId), allowed: false, rows: await readExtra() };
+
+  const roles = serverRoleIds();
+  const globalRoleId = roleIdOf(session?.user?.role);
+
+  for (const k of Object.keys(extra)) {
+    if (k.startsWith("rc_")) throw new Error(`batch key ${k} uses the reserved rc_ prefix`);
+  }
+  const read = await batchWithAccessSnapshot(event, orgId, { ...roleContextSpecs(userId, orgId), ...extra } as Record<RoleKey | K, BatchSpec>).catch(
+    (e: any) => {
+      if (!(e instanceof ReferenceError)) console.warn("[role-context] batch failed; reading one by one:", e?.message ?? e);
+      return null;
+    }
+  );
+  const inputs = (read && roleInputsFrom(read)) || (await readRoleInputsOneByOne(userId, orgId));
+  const rows = read ? (Object.fromEntries(Object.keys(extra).map((k) => [k, read[k as K] ?? []])) as Record<K, any[]>) : await readExtra();
+
+  // Helper and committee areas (docs/spec-delegation.md). The reader requires
+  // an active membership, and the resolver ignores them on any other status.
+  const helperAreas = inputs.membership?.status === "active" ? await getHelperAreas(event, orgId) : [];
+  const context = resolveRoleContext(inputs.membership, inputs.terms, inputs.billing, { userId, globalRoleId, roles, orgId, helperAreas });
   const isAppAdmin = !!roles.appAdmin && globalRoleId === roles.appAdmin;
-  const live = membership?.status === "active" || membership?.status === "pending";
-  return { context, allowed: live || isAppAdmin };
+  const live = inputs.membership?.status === "active" || inputs.membership?.status === "pending";
+  return { context, allowed: live || isAppAdmin, rows };
 }
 
 /**

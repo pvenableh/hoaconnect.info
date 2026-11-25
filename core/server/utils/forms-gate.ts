@@ -6,7 +6,30 @@
 import { readItem } from "@directus/sdk";
 import { formsGate, formsGateMessage, type FormsGate, type FormsPlanOrg } from "#core/shared/billing/forms-plan";
 
+import type { ReadSpec } from "./directus-graphql";
+
 const PLAN = ["slug", "features", "is_contact_only"];
+
+const ORG_FIELDS = ["subscription_status", "trial_ends_at", "is_free_account", "grace_ends_at"];
+const ACCOUNT_FIELDS = ["subscription_status", "trial_ends_at", "is_free_account"];
+
+/**
+ * getFormsGate's read, as a batch spec: the community's plan fields, dotted.
+ * A missing row means a missing community; call getFormsGate to fail as it fails.
+ */
+export function formsGateSpec(orgId: string): ReadSpec {
+  return {
+    collection: "hoa_organizations",
+    filter: { id: { _eq: orgId } },
+    fields: [
+      ...ORG_FIELDS,
+      ...PLAN.map((f) => `subscription_plan.${f}`),
+      ...ACCOUNT_FIELDS.map((f) => `billing_account.${f}`),
+      ...PLAN.map((f) => `billing_account.subscription_plan.${f}`),
+    ],
+    limit: 1,
+  };
+}
 
 export async function getFormsGate(orgId: string): Promise<FormsGate> {
   const org = (await getTypedDirectus().request(

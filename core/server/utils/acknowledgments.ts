@@ -8,6 +8,7 @@ import { readItems } from "@directus/sdk";
 import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 import { todayUtc } from "#core/shared/roles/role-context";
 import type { AckNotice, AckRecipient, AckRecord } from "#core/shared/home/acknowledgments";
+import type { ReadSpec } from "./directus-graphql";
 
 const idOf = (v: any): string | null => (v && typeof v === "object" ? (v.id ?? null) : v ? String(v) : null);
 
@@ -16,7 +17,7 @@ const audienceOf = (v: unknown) => (typeof v === "string" ? v.replace(/_/g, " ")
 
 const NOTICE_FIELDS = ["id", "organization", "status", "title", "target_audience", "requires_acknowledgment", "ack_due", "publish_date", "expiry_date"] as const;
 
-const toNotice = (r: any): AckNotice => ({
+export const toNotice = (r: any): AckNotice => ({
   id: String(r.id),
   organization: idOf(r.organization) as string,
   status: r.status ?? null,
@@ -30,40 +31,57 @@ const toNotice = (r: any): AckNotice => ({
 
 /** Published notices in `orgId` that ask for acknowledgment (liveness is the pure core's call). */
 export async function readAckNotices(orgId: string, onlyId?: string): Promise<AckNotice[]> {
-  const rows = (await getTypedDirectus().request(
-    readItems("hoa_announcements", {
-      filter: {
-        organization: { _eq: orgId },
-        requires_acknowledgment: { _eq: true },
-        status: { _eq: "published" },
-        ...(onlyId ? { id: { _eq: onlyId } } : {}),
-      } as never,
-      fields: [...NOTICE_FIELDS] as never,
-      limit: -1,
-    })
-  )) as any[];
+  const { collection, ...query } = ackNoticesSpec(orgId, onlyId);
+  const rows = (await getTypedDirectus().request(readItems(collection as "hoa_announcements", query as never))) as any[];
   return (rows ?? []).map(toNotice);
+}
+
+/** readAckNotices' read, as a batch spec (rows map through `toNotice`). */
+export function ackNoticesSpec(orgId: string, onlyId?: string): ReadSpec {
+  return {
+    collection: "hoa_announcements",
+    filter: {
+      organization: { _eq: orgId },
+      requires_acknowledgment: { _eq: true },
+      status: { _eq: "published" },
+      ...(onlyId ? { id: { _eq: onlyId } } : {}),
+    },
+    fields: [...NOTICE_FIELDS],
+    limit: -1,
+  };
 }
 
 /** Acknowledgment rows in `orgId`, for one member or one notice. */
 export async function readAcks(orgId: string, by: { member?: string; announcement?: string }): Promise<AckRecord[]> {
-  const rows = (await getTypedDirectus().request(
-    readItems("hoa_acknowledgments", {
-      filter: {
-        organization: { _eq: orgId },
-        ...(by.member ? { member: { _eq: by.member } } : {}),
-        ...(by.announcement ? { announcement: { _eq: by.announcement } } : {}),
-      } as never,
-      fields: ["announcement", "member", "organization"] as never,
-      limit: -1,
-    })
-  )) as any[];
-  return (rows ?? []).map((r) => ({
-    announcement: idOf(r.announcement) as string,
-    member: idOf(r.member) as string,
-    organization: idOf(r.organization) as string,
-  }));
+  const { collection, ...query } = acksSpec(orgId, by);
+  const rows = (await getTypedDirectus().request(readItems(collection as "hoa_acknowledgments", query as never))) as any[];
+  return (rows ?? []).map(toAck);
 }
+
+/**
+ * readAcks' read, as a batch spec (rows map through `toAck`). `memberOf` reads
+ * the rows of every membership that user holds here, for a batch that cannot
+ * wait for the membership id: keep the one you mean afterwards.
+ */
+export function acksSpec(orgId: string, by: { member?: string; announcement?: string; memberOf?: string }): ReadSpec {
+  return {
+    collection: "hoa_acknowledgments",
+    filter: {
+      organization: { _eq: orgId },
+      ...(by.member ? { member: { _eq: by.member } } : {}),
+      ...(by.memberOf ? { member: { user: { _eq: by.memberOf } } } : {}),
+      ...(by.announcement ? { announcement: { _eq: by.announcement } } : {}),
+    },
+    fields: ["announcement", "member", "organization"],
+    limit: -1,
+  };
+}
+
+export const toAck = (r: any): AckRecord => ({
+  announcement: idOf(r.announcement) as string,
+  member: idOf(r.member) as string,
+  organization: idOf(r.organization) as string,
+});
 
 export interface AckPerson extends AckRecipient {
   userId: string | null;
@@ -74,16 +92,27 @@ export interface AckPerson extends AckRecipient {
 /** Every active member of `orgId` with the residency and board hat the audience check reads. */
 export async function readAckRecipients(orgId: string): Promise<AckPerson[]> {
   const directus = getTypedDirectus();
-  const members = (await directus.request(
-    readItems("hoa_members", {
-      filter: { organization: { _eq: orgId }, status: { _eq: "active" } } as never,
-      fields: ["id", "user", "first_name", "last_name", "member_type", ...RESIDENCY_UNIT_FIELDS] as never,
+  const specs = ackRecipientSpecs(orgId);
+  const read = (s: ReadSpec) => {
+    const { collection, ...query } = s;
+    return directus.request(readItems(collection as "hoa_members", query as never)) as Promise<any[]>;
+  };
+  const members = await read(specs.members);
+  const terms = await read(specs.terms);
+  return ackRecipientsFrom(orgId, members, terms);
+}
+
+/** readAckRecipients' two reads (the active members, the current board terms), as batch specs for `ackRecipientsFrom`. */
+export function ackRecipientSpecs(orgId: string, today = todayUtc()): { members: ReadSpec; terms: ReadSpec } {
+  return {
+    members: {
+      collection: "hoa_members",
+      filter: { organization: { _eq: orgId }, status: { _eq: "active" } },
+      fields: ["id", "user", "first_name", "last_name", "member_type", ...RESIDENCY_UNIT_FIELDS],
       limit: -1,
-    })
-  )) as any[];
-  const today = todayUtc();
-  const terms = (await directus.request(
-    readItems("hoa_board_members", {
+    },
+    terms: {
+      collection: "hoa_board_members",
       filter: {
         hoa_member: { organization: { _eq: orgId } },
         status: { _eq: "published" },
@@ -91,11 +120,15 @@ export async function readAckRecipients(orgId: string): Promise<AckPerson[]> {
           { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
           { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
         ],
-      } as never,
-      fields: ["hoa_member"] as never,
+      },
+      fields: ["hoa_member"],
       limit: -1,
-    })
-  )) as any[];
+    },
+  };
+}
+
+/** The recipients from `ackRecipientSpecs`' rows. Pure. */
+export function ackRecipientsFrom(orgId: string, members: readonly any[] | null | undefined, terms: readonly any[] | null | undefined): AckPerson[] {
   const board = new Set((terms ?? []).map((t) => idOf(t.hoa_member)).filter(Boolean) as string[]);
   return (members ?? []).map((m) => ({
     memberId: String(m.id),

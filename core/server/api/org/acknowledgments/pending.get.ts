@@ -5,8 +5,13 @@
  * of THIS organization only: Directus has no board read-all (the board uses the
  * Member policy), so the check is here. The list is people the notice reaches
  * in this community, computed by `unacknowledgedBy`.
+ *
+ * One Directus request: the caller's role context and this list's rows go out
+ * as one batch (getRoleContextWith); a caller who may not see the list gets
+ * its 403 before any of those rows leave the server.
  */
 import { ackNotices, unacknowledgedBy } from "#core/shared/home/acknowledgments";
+import { ackNoticesSpec, ackRecipientSpecs, ackRecipientsFrom, acksSpec, toAck, toNotice } from "#core/server/utils/acknowledgments";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -15,16 +20,20 @@ export default defineEventHandler(async (event) => {
   const announcementId = q.announcementId ? String(q.announcementId) : undefined;
   if (!orgId) throw createError({ statusCode: 400, statusMessage: "orgId is required" });
 
-  const { context, allowed } = await getRoleContext(event, orgId);
+  const people = ackRecipientSpecs(orgId);
+  const { context, allowed, rows } = await getRoleContextWith(event, orgId, {
+    notices: ackNoticesSpec(orgId, announcementId),
+    members: people.members,
+    terms: people.terms,
+    acks: acksSpec(orgId, announcementId ? { announcement: announcementId } : {}),
+  });
   if (!allowed || !(context.hats.admin || context.hats.board)) {
     throw createError({ statusCode: 403, statusMessage: "Only this community's board or administrators can see who has not acknowledged." });
   }
 
-  const [all, recipients, acks] = await Promise.all([
-    readAckNotices(orgId, announcementId),
-    readAckRecipients(orgId),
-    readAcks(orgId, announcementId ? { announcement: announcementId } : {}),
-  ]);
+  const all = rows.notices.map(toNotice);
+  const recipients = ackRecipientsFrom(orgId, rows.members, rows.terms);
+  const acks = rows.acks.map(toAck);
   const notices = ackNotices(all, orgId, new Date());
   return {
     notices: notices.map((n) => ({
