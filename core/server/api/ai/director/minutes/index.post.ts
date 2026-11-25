@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
 
   // Authorization first — before a single row of this community is read.
   const admin = await checkAdminAccess(event, orgId);
-  const allowed = admin.isAdmin || (await isActiveBoardMember(directus, userId, orgId));
+  const allowed = admin.isAdmin || (await isCallerActiveBoardMember(event, directus, userId, orgId));
   if (!allowed) {
     throw createError({ statusCode: 403, message: "Admin or board access required" });
   }

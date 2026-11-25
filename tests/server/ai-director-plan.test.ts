@@ -161,7 +161,7 @@ beforeEach(() => {
     isAdmin: isAdminOf.includes(orgId),
     memberId: "hm-1",
   }));
-  vi.stubGlobal("isActiveBoardMember", async (_d: any, _u: string, orgId: string) =>
+  vi.stubGlobal("isCallerActiveBoardMember", async (_e: any, _d: any, _u: string, orgId: string) =>
     isBoardOf.includes(orgId)
   );
   vi.stubGlobal("announceEvent", async () => {});

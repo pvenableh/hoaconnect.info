@@ -8,6 +8,7 @@
 // board member is seated. These helpers compute who should be enrolled.
 
 import { readItems, readItem } from "@directus/sdk";
+import { accessSnapshot, activeBoardMemberFrom } from "./access-snapshot";
 
 export interface ChannelEnrollee {
   user: string;
@@ -168,6 +169,23 @@ export async function isActiveBoardMember(
     })
   );
   return (terms as any[]).some((t) => !t.term_end || t.term_end >= nowIso);
+}
+
+/**
+ * isActiveBoardMember for the signed-in caller (`userId` is the session's
+ * user), answered from the access snapshot checkAdminAccess has already read
+ * for this request: no further request. activeBoardMemberFrom applies the
+ * same rule to the snapshot's memberships and terms. Without a snapshot, the
+ * two reads above.
+ */
+export async function isCallerActiveBoardMember(
+  event: any,
+  directus: ReturnType<typeof getTypedDirectus>,
+  userId: string,
+  orgId: string
+): Promise<boolean> {
+  const snapshot = await accessSnapshot(event, orgId, "base");
+  return snapshot ? activeBoardMemberFrom(snapshot) : isActiveBoardMember(directus, userId, orgId);
 }
 
 /**
