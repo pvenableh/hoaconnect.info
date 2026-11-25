@@ -1,6 +1,5 @@
-import { readItem, readItems } from "@directus/sdk";
-import { memberOwnedUnitsInOrg, memberUnitsInOrg } from "#core/server/utils/unit-record-writes";
 import { withInvitedTenants } from "#core/server/utils/lease-requests";
+import { householdFrom, householdSpecs, soleActiveMembership, type HouseholdRows } from "#core/server/utils/household-reads";
 
 /**
  * The authenticated resident's own household data for the self-service page:
@@ -10,72 +9,38 @@ import { withInvitedTenants } from "#core/server/utils/lease-requests";
  * active leases they are the owner or tenant of, and any pending change
  * requests so the UI can show "awaiting review" badges.
  * Org-scoped to the caller's membership — never another member's data.
+ *
+ * One Directus request in the usual case (household-reads.ts): the reads ride
+ * with the caller's access snapshot, keyed on "the caller's active membership",
+ * and are kept only when that is the member the membership check picks.
  */
 export default defineEventHandler(async (event) => {
-  await requireAuthenticatedUser(event);
+  const { userId } = await requireAuthenticatedUser(event);
   const orgId = String(getQuery(event).orgId || "");
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
+  let rows = (await batchWithAccessSnapshot(event, orgId, householdSpecs(orgId, { userId: String(userId), orgId }))) as HouseholdRows;
+
+  // The refusal comes before any of these rows leave.
   const { memberId } = await requireMembership(event, orgId);
   if (!memberId) throw createError({ statusCode: 403, message: "No member record in this organization" });
 
-  const admin = getTypedDirectus();
+  const snapshot = await accessSnapshot(event, orgId, "base");
+  if (!snapshot || !soleActiveMembership(snapshot.mine)) {
+    // Several active memberships (or no snapshot): read again for the one the check picked.
+    rows = (await readItemsBatch(householdSpecs(orgId, { memberId }))) as HouseholdRows;
+  }
 
-  const [member, vehicles, pets, pendingRequests, units, ownedUnits, leases] = await Promise.all([
-    admin.request(
-      readItem("hoa_members", memberId, {
-        fields: ["id", "first_name", "last_name", "email", "phone", "mailing_address"],
-      })
-    ),
-    admin.request(
-      readItems("hoa_vehicles", {
-        filter: { member_id: { _eq: memberId }, status: { _neq: "archived" } },
-        fields: ["id", "make", "model", "year", "license_plate", "parking_spot", "image"],
-        sort: ["make"],
-        limit: 100,
-      })
-    ),
-    admin.request(
-      readItems("hoa_pets", {
-        filter: { member_id: { _eq: memberId }, status: { _neq: "archived" } },
-        fields: ["id", "name", "type", "breed", "weight", "image"],
-        sort: ["name"],
-        limit: 100,
-      })
-    ),
-    admin.request(
-      readItems("hoa_member_change_requests", {
-        filter: { member: { _eq: memberId }, status: { _eq: "pending" } },
-        fields: ["id", "kind", "action", "target_id", "payload", "date_created"],
-        sort: ["-date_created"],
-        limit: 100,
-      })
-    ),
-    memberUnitsInOrg(orgId, memberId),
-    memberOwnedUnitsInOrg(orgId, memberId),
-    admin.request(
-      readItems("hoa_leases", {
-        filter: {
-          organization: { _eq: orgId },
-          status: { _eq: "active" },
-          _or: [{ owner: { _eq: memberId } }, { tenant: { _eq: memberId } }],
-        },
-        fields: ["id", "status", "start_date", "end_date", "document", "owner", { unit: ["id", "unit_number"], tenant: ["id", "first_name", "last_name"] }],
-        sort: ["-start_date"],
-        limit: 50,
-      })
-    ),
-  ]);
-
+  const household = householdFrom(rows, orgId, new Date().toISOString().slice(0, 10));
   return {
     memberId,
-    member,
-    vehicles,
-    pets,
-    pendingRequests,
-    units,
-    ownedUnits,
+    member: household.member,
+    vehicles: household.vehicles,
+    pets: household.pets,
+    pendingRequests: household.pendingRequests,
+    units: household.units,
+    ownedUnits: household.ownedUnits,
     // The owner typed the tenant's email; a tenant on the lease is the tenant.
-    leases: await withInvitedTenants(orgId, leases as Array<{ id: string; tenant?: unknown }>, { withEmail: true }),
+    leases: await withInvitedTenants(orgId, household.leases, { withEmail: true }),
   };
 });
