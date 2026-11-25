@@ -1,6 +1,6 @@
 # Perf — find and batch the next slowest routes
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Already batched on `main` (local, unpushed): money routes, the ledger, ai/notices, responsibilities, the home cards, channels/unread, hoa/find, then `0aa07caf` (org/my-household, 9 → 1 request), `f3330980` (governing overview/documents/search, 7 → 2) and `a0a03502` (support/context, 6–12 → 1).
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Already batched on `main` (local, unpushed): money routes, the ledger, ai/notices, responsibilities, the home cards, channels/unread, hoa/find, then `0aa07caf` (org/my-household, 9 → 1 request), `f3330980` (governing overview/documents/search, 7 → 2) and `a0a03502` (support/context, 6–12 → 1). Since then: polls, hats, email activity and list, channel search, news audience, trust, area grants, and the AI action feed, pending-count and autonomy (`d9895486`, `2e3f1747`, `5791f4fa`, 2 → 1 each). dm-peers needs a hoa_channels members alias before it can batch.
 
 Parked for later, not part of this prompt:
 
@@ -62,14 +62,26 @@ governing-data.ts as the pattern.
 Gotchas: GraphQL returns decimals as numbers (readItemsBatch converts them);
 count with CountSpec; in zsh never name a loop variable `path`; vitest's
 happy-dom strips Authorization on cross-origin fetch (live checks need the
-node environment); the shared Directus is noisy, so re-time outliers with 30
+node environment); the counter plugin needs a plain global counter reset in the
+"request" hook (AsyncLocalStorage.enterWith from a hook counts 0), so time
+one request at a time, and a 403 response carries no header; the shared
+Directus is noisy, so re-time outliers with 30
 requests and A/B back to back when a change looks like a regression.
 
+Checks, sized to the change. Per route, before its commit: the changed
+route's own test files (`pnpm exec vitest run <files>`), `pnpm exec eslint
+<changed files>`, re-recording ONLY that route's responses, its live
+equivalence block, and a 30-request median for the board persona (A/B back
+to back if it looks like a regression; add other personas only when the
+answer differs by role). Once at the end, before asking to push: the full
+`pnpm exec vitest run` and `pnpm typecheck`. Don't re-run the full suite,
+typecheck or earlier routes' recordings after every commit.
+
 Done means: identical responses for every recorded case, a big median drop,
-and `pnpm exec vitest run`, `pnpm exec eslint <changed files>` and
-`pnpm typecheck` all clean. The pre-commit hook runs scripts/audit-all.ts:
-never raise a baseline; `await` instead of detaching promises. Each commit
-message gives before/after medians, request counts and how equivalence was
-checked, ending with the Co-Authored-By trailer. At the end, report a
-before/after table and the next starter sentence.
+and the end-of-session full suite, eslint and typecheck all clean. The
+pre-commit hook runs scripts/audit-all.ts: never raise a baseline; `await`
+instead of detaching promises. Each commit message gives before/after
+medians, request counts and how equivalence was checked, ending with the
+Co-Authored-By trailer. At the end, report a before/after table and the
+next starter sentence.
 ```
