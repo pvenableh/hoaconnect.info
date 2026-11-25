@@ -122,3 +122,31 @@ describe("badge text", () => {
     expect(hatLine(b({ hats: { board: false, manager: true, admin: false } }))).toBe("");
   });
 });
+
+describe("GET /api/user/hats, batched", () => {
+  let batches: any[];
+  beforeEach(() => {
+    batches = [];
+    // One readItemsBatch: the caller's memberships, and the published terms on
+    // any of them (the date filters are left to the per-read tests above).
+    vi.stubGlobal("readItemsBatch", async (specs: any) => {
+      batches.push(specs);
+      const uid = specs.hats_members.filter.user._eq;
+      const mine = TABLES.hoa_members!.filter((m) => m.user === uid);
+      const ids = new Set(mine.map((m) => m.id));
+      return {
+        hats_members: mine,
+        hats_terms: TABLES.hoa_board_members!.filter((t) => ids.has(t.hoa_member) && t.status === "published"),
+      };
+    });
+  });
+
+  it("reads once, in one batch, and answers as the reads one by one do", async () => {
+    const { hats } = await call();
+    expect(batches).toHaveLength(1);
+    expect(ops).toHaveLength(0);
+    expect(batches[0].hats_terms.filter._and[0]).toEqual({ hoa_member: { user: { _eq: ME } } });
+    expect(hats.find((h: any) => h.orgId === LENOX)).toMatchObject({ hats: { admin: true, board: true, manager: true }, managerTitle: "Accounting" });
+    expect(hats.find((h: any) => h.orgId === LINCOLN)).toMatchObject({ hats: { admin: false, board: false, manager: false } });
+  });
+});

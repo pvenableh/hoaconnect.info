@@ -278,6 +278,41 @@ export async function resolveCapabilities(
   return { actors, capabilities: [...caps] };
 }
 
+/** Published board terms on `who` that are current on `today`, as getRoleContext reads them. */
+function currentTermsOf(who: Record<string, unknown>, today: string) {
+  return {
+    _and: [
+      who,
+      { status: { _eq: "published" } },
+      { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
+      { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
+    ],
+  } as any;
+}
+
+/**
+ * getMembershipHats' reads as ONE batch: the caller's memberships in every
+ * community, and the current terms on any of them (each membership's are
+ * picked out by id, as the read per membership found them). The members read
+ * names ROLE_MEMBERSHIP_FIELDS rather than `*`, as roleContextSpecs does.
+ */
+export function membershipHatsSpecs(userId: string, today: string) {
+  return {
+    hats_members: {
+      collection: "hoa_members",
+      filter: { user: { _eq: userId } },
+      fields: ROLE_MEMBERSHIP_FIELDS,
+      limit: 200,
+    },
+    hats_terms: {
+      collection: "hoa_board_members",
+      filter: currentTermsOf({ hoa_member: { user: { _eq: userId } } }, today),
+      fields: ["title", "hoa_member"],
+      limit: -1,
+    },
+  } satisfies Record<string, BatchSpec>;
+}
+
 /** One membership's hats, for the org switcher's badge. Identity only. */
 export interface MembershipHats {
   orgId: string;
@@ -298,15 +333,24 @@ export async function getMembershipHats(event: H3Event): Promise<MembershipHats[
   if (!userId) return [];
   const roles = serverRoleIds();
   const globalRoleId = roleIdOf(session?.user?.role);
+  const today = new Date().toISOString().split("T")[0]!;
+  const batched = await Promise.resolve()
+    .then(() => readItemsBatch(membershipHatsSpecs(userId, today)))
+    .catch((e: any) => {
+    if (!(e instanceof ReferenceError)) console.warn("[role-context] hats batch failed; reading one by one:", e?.message ?? e);
+    return null;
+  });
   const directus = getTypedDirectus();
 
-  const rows = ((await directus.request(
-    readItems("hoa_members", {
-      filter: { user: { _eq: userId } },
-      fields: ["*", ...RESIDENCY_UNIT_FIELDS] as any,
-      limit: 200,
-    })
-  )) ?? []) as RoleMembership[];
+  const rows = (batched
+    ? batched.hats_members
+    : ((await directus.request(
+        readItems("hoa_members", {
+          filter: { user: { _eq: userId } },
+          fields: ["*", ...RESIDENCY_UNIT_FIELDS] as any,
+          limit: 200,
+        })
+      )) ?? [])) as RoleMembership[];
 
   const byOrg = new Map<string, RoleMembership[]>();
   for (const row of rows) {
@@ -315,25 +359,19 @@ export async function getMembershipHats(event: H3Event): Promise<MembershipHats[
     byOrg.set(orgId, [...(byOrg.get(orgId) ?? []), row]);
   }
 
-  const today = new Date().toISOString().split("T")[0];
   const out: MembershipHats[] = [];
   for (const [orgId, orgRows] of byOrg) {
     const membership = pickMembership(orgRows);
     let terms: RoleBoardTerm[] = [];
     if (membership?.id && membership.status === "active") {
-      terms = ((await directus.request(
-        readItems("hoa_board_members", {
-          filter: {
-            _and: [
-              { hoa_member: { _eq: membership.id } },
-              { status: { _eq: "published" } },
-              { _or: [{ term_start: { _lte: today } }, { term_start: { _null: true } }] },
-              { _or: [{ term_end: { _gte: today } }, { term_end: { _null: true } }] },
-            ],
-          } as any,
-          fields: ["title"],
-        })
-      )) ?? []) as RoleBoardTerm[];
+      terms = batched
+        ? batched.hats_terms.filter((t) => roleIdOf(t.hoa_member) === membership.id).map((t) => ({ title: t.title }) as RoleBoardTerm)
+        : (((await directus.request(
+            readItems("hoa_board_members", {
+              filter: currentTermsOf({ hoa_member: { _eq: membership.id } }, today),
+              fields: ["title"],
+            })
+          )) ?? []) as RoleBoardTerm[]);
     }
     const ctx = resolveRoleContext(membership, terms, null, { userId, globalRoleId, roles, orgId });
     out.push({ orgId, hats: ctx.hats, managerTitle: ctx.managerTitle, residency: ctx.residency });
