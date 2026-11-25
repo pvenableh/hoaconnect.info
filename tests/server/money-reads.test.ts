@@ -2,9 +2,9 @@
  * The community's books are read through the server only (plan decision 16):
  * GET /api/org/money/charges, /api/org/money/schedules and /api/org/expenses
  * admit admins and every board seat (money:read) — never a plain member, a
- * manager or a non-member — and read only the org asked for. Charges and
- * schedules check first and read nothing for a refused caller; expenses reads
- * in one batch (readItemsBatch) and answers money:read from the memberships it
+ * manager or a non-member — and read only the org asked for. Schedules check
+ * first and read nothing for a refused caller; charges and expenses read in
+ * one batch (readItemsBatch) and answer money:read from the memberships they
  * read, so a refused caller gets a 403 and no rows, never the data.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -82,6 +82,8 @@ beforeEach(async () => {
   const corrections = await import("#core/server/utils/charge-corrections");
   vi.stubGlobal("CHARGE_APPROVAL_KINDS", corrections.CHARGE_APPROVAL_KINDS);
   vi.stubGlobal("factsOf", corrections.factsOf);
+  vi.stubGlobal("LATE_FEE_FIELDS", corrections.LATE_FEE_FIELDS);
+  vi.stubGlobal("lateFeesByCharge", corrections.lateFeesByCharge);
   vi.stubGlobal("lateFeesOf", async () => new Map());
   vi.stubGlobal("chargesWithPayments", async () => new Set());
   vi.stubGlobal("namesFor", async () => new Map());
@@ -115,14 +117,24 @@ beforeEach(async () => {
       Object.entries(specs).map(([k, spec]) => {
         const org = spec.filter?.organization?._eq;
         if (spec.collection === "hoa_members") return [k, membersOf(org)];
-        return [k, (TABLES[spec.collection] ?? []).filter((r) => r.organization === org)];
+        const f = spec.filter ?? {};
+        return [
+          k,
+          (TABLES[spec.collection] ?? []).filter((r) => {
+            if (r.organization !== org) return false;
+            if (f.request_type && r.request_type !== f.request_type._eq) return false;
+            if (f._or) return !!r.paid_at || !["paid", "canceled"].includes(r.status);
+            return true;
+          }),
+        ];
       })
     );
   });
 });
 
 /** The org filter of the route's first read, whichever way it read. */
-const firstOrgFilter = () => reads[0]?.query.filter.organization ?? batches[0]?.expenses?.filter.organization;
+const firstOrgFilter = () => reads[0]?.query.filter.organization ?? (batches[0]?.expenses ?? batches[0]?.charges)?.filter.organization;
+const BATCHED = new Set(["charges", "expenses"]);
 
 const ROUTES = {
   charges: "#core/server/api/org/money/charges.get",
@@ -158,7 +170,7 @@ describe("money reads", () => {
         expect((Object.values(res)[0] as any[]).length).toBeGreaterThan(0);
       });
 
-      it(route === "expenses" ? "refuses a member, a manager or a non-member, and returns nothing" : "refuses a member, a manager or a non-member, and reads nothing", async () => {
+      it(BATCHED.has(route) ? "refuses a member, a manager or a non-member, and returns nothing" : "refuses a member, a manager or a non-member, and reads nothing", async () => {
         caps = ["documents:read", "projects:read", "governing:read"];
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
         caps = ["documents:read"];
@@ -167,7 +179,7 @@ describe("money reads", () => {
         manager = null;
         caps = new Error("not a member");
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
-        if (route !== "expenses") expect(reads).toHaveLength(0);
+        if (!BATCHED.has(route)) expect(reads).toHaveLength(0);
       });
     });
   }
@@ -182,8 +194,8 @@ describe("money reads", () => {
     isAdmin = true;
     await call("charges", { orgId: LENOX, limit: "999999" });
     await call("schedules", { orgId: LENOX, limit: "nonsense" });
-    expect(reads[0].query.limit).toBe(1000);
-    expect(reads[1].query.limit).toBe(200);
+    expect(batches[0].charges.limit).toBe(1000);
+    expect(reads[0].query.limit).toBe(200);
   });
 });
 

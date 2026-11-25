@@ -70,6 +70,7 @@ const RELATIONS: Record<string, Record<string, string>> = {
 /** One-to-many aliases: collection.alias → [the many collection, its key back to the one]. */
 const ALIASES: Record<string, Record<string, [string, string]>> = {
   hoa_members: { board_member_terms: ["hoa_board_members", "hoa_member"] },
+  payment_requests: { transactions: ["payment_transactions", "payment_request"] },
 };
 
 export type Db = Record<string, any[]>;

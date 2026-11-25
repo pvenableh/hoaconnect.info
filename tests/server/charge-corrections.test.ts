@@ -505,6 +505,15 @@ describe("the Charges read says what may be done to each charge", () => {
     }
   });
 
+  it("counts a succeeded or refunded payment against moving and withdrawing, never a failed one; and never returns the payments", async () => {
+    state.db.payment_transactions!.push({ id: uuid(851), payment_request: C.fresh, status: "failed", amount: 40 });
+    expect(row(await read(), C.fresh)).toMatchObject({ withdrawable: true, movable: true });
+    state.db.payment_transactions!.push({ id: uuid(852), payment_request: C.fresh, status: "succeeded", amount: 40 });
+    const fresh = row(await read(), C.fresh);
+    expect(fresh).toMatchObject({ withdrawable: false, movable: false });
+    expect(fresh).not.toHaveProperty("transactions");
+  });
+
   it("names who withdrew a charge", async () => {
     await withdraw(C.fresh);
     expect(row(await read(), C.fresh)).toMatchObject({ status: "canceled", withdrawn_by_name: "Ada Min", withdrawn_reason: "Wrong month" });
