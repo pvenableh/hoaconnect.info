@@ -22,20 +22,8 @@
 
 import { readItems } from "@directus/sdk";
 import { visibleStatusesFor } from "#core/shared/polls/access";
-
-const POLL_FIELDS = [
-  "id",
-  "status",
-  "title",
-  "description",
-  "options",
-  "allow_multiple",
-  "is_anonymous",
-  "closes_at",
-  "target_audience",
-  "organization",
-  "date_created",
-] as const;
+import { POLL_FIELDS, pollListRowsFor, pollListSpecs, type PollListKey } from "#core/server/utils/poll-reads";
+import type { BatchSpec } from "#core/server/utils/directus-graphql";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -50,16 +38,28 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: "orgId or slug is required" });
   }
 
-  const access = await requirePollAccess(event, orgId);
-
   const statuses = String(query.statuses || "open,closed")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
+  // The polls ride with the caller's access snapshot: one request
+  // (poll-reads.ts). The access answer below decides which rows, if any, go
+  // back. A failed batch (a malformed id, say) leaves the snapshot unread, and
+  // the route reads as it always did, failing the same way.
+  const batched = await batchWithAccessSnapshot(event, orgId, pollListSpecs(orgId, statuses) as Record<PollListKey, BatchSpec>).catch(
+    () => null
+  );
+
+  const access = await requirePollAccess(event, orgId);
+
   const visibleStatuses = visibleStatusesFor(access, statuses);
   if (!visibleStatuses.length) {
     return { polls: [], viewer: viewerOf(access) };
+  }
+
+  if (batched) {
+    return { polls: pollListRowsFor(batched, statuses, visibleStatuses), viewer: viewerOf(access) };
   }
 
   const polls = (await getTypedDirectus().request(
