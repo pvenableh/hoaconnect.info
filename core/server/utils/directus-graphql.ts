@@ -20,7 +20,7 @@
  * REST reads (today's behaviour), so the batch is never slower or wronger
  * than the reads it replaces. Related primary keys are assumed to be `id`.
  */
-import { readItems } from "@directus/sdk";
+import { aggregate, readItems } from "@directus/sdk";
 
 export interface ReadSpec {
   collection: string;
@@ -29,7 +29,25 @@ export interface ReadSpec {
   deep?: Record<string, unknown>;
   sort?: readonly string[];
   limit?: number;
+  offset?: number;
 }
+
+/**
+ * A row count, REST's `aggregate: { count: "*" }`, optionally grouped by
+ * plain (non-relational) fields. Rows come back as REST returns them: the
+ * group's fields and `count` as text ({ event_type, count: "3" }). GraphQL's
+ * `countAll` reads null under groupBy, so the batch counts primary keys.
+ */
+export interface CountSpec {
+  collection: string;
+  count: "*";
+  groupBy?: readonly string[];
+  filter?: Record<string, unknown>;
+  limit?: number;
+}
+
+export type BatchSpec = ReadSpec | CountSpec;
+const isCount = (s: BatchSpec): s is CountSpec => "count" in s;
 
 /** `collection.field` → the collection it points at (m2o fields, o2m aliases), or a decimal's scale. */
 export interface RelationMap {
@@ -143,11 +161,17 @@ export function gqlFilter(collection: string, filter: unknown, rel: RelationMap)
   return out;
 }
 
-function argsOf(collection: string, a: { filter?: unknown; sort?: unknown; limit?: unknown }, rel: RelationMap): string {
+function argsOf(
+  collection: string,
+  a: { filter?: unknown; sort?: unknown; limit?: unknown; offset?: unknown; groupBy?: unknown },
+  rel: RelationMap
+): string {
   const parts: string[] = [];
   if (a.filter) parts.push(`filter: ${gqlLiteral(gqlFilter(collection, a.filter, rel))}`);
   if (a.sort) parts.push(`sort: ${gqlLiteral(a.sort)}`);
+  if (a.groupBy) parts.push(`groupBy: ${gqlLiteral(a.groupBy)}`);
   if (a.limit !== undefined) parts.push(`limit: ${gqlLiteral(a.limit)}`);
+  if (a.offset !== undefined) parts.push(`offset: ${gqlLiteral(a.offset)}`);
   return parts.length ? `(${parts.join(", ")})` : "";
 }
 
@@ -170,9 +194,15 @@ function selection(collection: string, tree: Tree, deep: Record<string, any> | u
 }
 
 /** The GraphQL query for a batch of specs, one aliased root field per key. */
-export function buildBatchQuery(specs: Record<string, ReadSpec>, rel: RelationMap): string {
+export function buildBatchQuery(specs: Record<string, BatchSpec>, rel: RelationMap): string {
   const roots = Object.entries(specs).map(([key, s]) => {
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`batch key ${key} is not a GraphQL name`);
+    if (isCount(s)) {
+      for (const g of s.groupBy ?? []) {
+        if (g.includes(".") || rel.m2o.has(`${s.collection}.${g}`) || rel.o2m.has(`${s.collection}.${g}`)) throw new Error(`groupBy ${g} is not a plain field`);
+      }
+      return `${key}: ${s.collection}_aggregated${argsOf(s.collection, s, rel)} { group count { id } }`;
+    }
     return `${key}: ${s.collection}${argsOf(s.collection, s, rel)} { ${selection(s.collection, treeOf(s.fields), s.deep as any, rel)} }`;
   });
   return `query {\n  ${roots.join("\n  ")}\n}`;
@@ -205,9 +235,25 @@ export function restShaped(collection: string, fields: readonly string[], rows: 
   return rows.map((r) => flatten(collection, tree, r));
 }
 
+/** GraphQL count rows back to REST's: the group's fields and `count` as text. */
+export function restCounts(rows: readonly any[]): any[] {
+  return rows.map((r) => ({ ...(r?.group ?? {}), count: String(r?.count?.id ?? 0) }));
+}
+
 // ── The batch ────────────────────────────────────────────────────────────────
 
-function restRead(s: ReadSpec): Promise<any[]> {
+function restRead(s: BatchSpec): Promise<any[]> {
+  if (isCount(s)) {
+    return getTypedDirectus()
+      .request(
+        aggregate(s.collection as any, {
+          aggregate: { count: "*" },
+          ...(s.groupBy ? { groupBy: [...s.groupBy] } : {}),
+          query: { ...(s.filter ? { filter: s.filter } : {}), ...(s.limit !== undefined ? { limit: s.limit } : {}) },
+        } as any)
+      )
+      .then((r) => ((r ?? []) as any[]));
+  }
   return getTypedDirectus()
     .request(
       readItems(s.collection as any, {
@@ -216,23 +262,24 @@ function restRead(s: ReadSpec): Promise<any[]> {
         ...(s.deep ? { deep: s.deep as any } : {}),
         ...(s.sort ? { sort: [...s.sort] as any } : {}),
         ...(s.limit !== undefined ? { limit: s.limit } : {}),
+        ...(s.offset !== undefined ? { offset: s.offset } : {}),
       })
     )
     .then((r) => ((r ?? []) as any[]));
 }
 
 /** The same specs as parallel REST reads: the fallback, and what tests run against a fake Directus. */
-export async function readItemsBatchRest<K extends string>(specs: Record<K, ReadSpec>): Promise<Record<K, any[]>> {
+export async function readItemsBatchRest<K extends string>(specs: Record<K, BatchSpec>): Promise<Record<K, any[]>> {
   const keys = Object.keys(specs) as K[];
   const rows = await Promise.all(keys.map((k) => restRead(specs[k])));
   return Object.fromEntries(keys.map((k, i) => [k, rows[i]])) as Record<K, any[]>;
 }
 
 /**
- * The rows for each spec, as `readItems` would return them, read in one
+ * The rows for each spec, as `readItems` (or `aggregate`, for a CountSpec) would return them, read in one
  * GraphQL request when the relation map is loaded, else as parallel REST reads.
  */
-export async function readItemsBatch<K extends string>(specs: Record<K, ReadSpec>): Promise<Record<K, any[]>> {
+export async function readItemsBatch<K extends string>(specs: Record<K, BatchSpec>): Promise<Record<K, any[]>> {
   const rel = currentRelations();
   if (!rel) return readItemsBatchRest(specs);
   let query: string;
@@ -256,6 +303,9 @@ export async function readItemsBatch<K extends string>(specs: Record<K, ReadSpec
     return readItemsBatchRest(specs);
   }
   const out = {} as Record<K, any[]>;
-  for (const k of Object.keys(specs) as K[]) out[k] = restShaped(specs[k].collection, specs[k].fields, body.data[k] ?? [], rel);
+  for (const k of Object.keys(specs) as K[]) {
+    const s = specs[k];
+    out[k] = isCount(s) ? restCounts(body.data[k] ?? []) : restShaped(s.collection, s.fields, body.data[k] ?? [], rel);
+  }
   return out;
 }

@@ -35,30 +35,56 @@ export interface MoneyAccess {
   canEnter: boolean;
 }
 
+/** The hats the caller wears in a community, from rows already read. */
+export interface OrgHats {
+  userId: string;
+  /** checkAdminAccess: App Administrator, or HOA Admin on an active or pending membership. */
+  isAdmin: boolean;
+  /** checkMembership: an active membership. */
+  isMember: boolean;
+  /** getBoardPosition: a current published term with an office, on an active membership. */
+  offices: Actor[];
+  isBoard: boolean;
+  /** getManagerGrants: an active Property Manager membership, with its grants. */
+  managerGrants: Record<string, unknown> | null;
+}
+
 /**
- * canReadMoney's and canEnterMoney's answers from rows a route already read for
- * the org: its memberships (orgMembersSpec: `role`, `manager_permissions`, any
- * status) and its current board seats (seatsOfMembers). The same questions
- * with no reads of their own: the admin hat (App Administrator, or HOA Admin
- * on an active or pending membership), a current seat (every office has
- * money:read and money:enter), and a property manager's projects grant on an
- * active membership (getManagerGrants).
+ * The caller's hats from the community's memberships (orgMembersSpec: `role`,
+ * `manager_permissions`, board terms, any status) and its current seats
+ * (seatsOfMembers): the same questions checkAdminAccess, checkMembership,
+ * getBoardPosition and getManagerGrants ask, with no reads of their own.
  */
-export async function moneyAccessFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<MoneyAccess> {
+export async function orgHatsFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<OrgHats> {
   const session = await requireUserSession(event);
   const userId = String((session.user as { id?: unknown } | undefined)?.id ?? "");
   const own = members.filter((m) => String(m?.user?.id ?? m?.user ?? "") === userId);
-  const isAdmin = isAppAdminSession(session) || own.some((m) => ["active", "pending"].includes(m.status) && isHoaAdminRole(m.role));
-  const offices = seats.filter((s) => s.userId === userId).map((s) => boardTitleToActor(s.office)).filter((a): a is Actor => !!a);
-  const caps = capabilitiesFor(offices);
-  const managesProjects = own.some(
-    (m) => m.status === "active" && isPropertyManagerRole(m.role) && (m.manager_permissions as Record<string, unknown> | null)?.projects === true
-  );
+  const ownSeats = seats.filter((s) => s.userId === userId && !!s.office);
+  const manager = own.find((m) => m.status === "active" && isPropertyManagerRole(m.role));
+  const mp = manager?.manager_permissions;
   return {
     userId,
-    isAdmin,
-    canRead: isAdmin || caps.includes("money:read"),
-    canEnter: isAdmin || caps.includes("money:enter") || managesProjects,
+    isAdmin: isAppAdminSession(session) || own.some((m) => ["active", "pending"].includes(m.status) && isHoaAdminRole(m.role)),
+    isMember: own.some((m) => m.status === "active"),
+    offices: ownSeats.map((s) => boardTitleToActor(s.office)).filter((a): a is Actor => !!a),
+    isBoard: ownSeats.length > 0,
+    managerGrants: manager ? (mp && typeof mp === "object" ? (mp as Record<string, unknown>) : {}) : null,
+  };
+}
+
+/**
+ * canReadMoney's and canEnterMoney's answers from rows a route already read
+ * (orgHatsFrom): money:read is the admin hat or a current seat (every office
+ * has it); money:enter adds a property manager's projects grant.
+ */
+export async function moneyAccessFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<MoneyAccess> {
+  const hats = await orgHatsFrom(event, members, seats);
+  const caps = capabilitiesFor(hats.offices);
+  return {
+    userId: hats.userId,
+    isAdmin: hats.isAdmin,
+    canRead: hats.isAdmin || caps.includes("money:read"),
+    canEnter: hats.isAdmin || caps.includes("money:enter") || hats.managerGrants?.projects === true,
   };
 }
 

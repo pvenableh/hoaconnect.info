@@ -3,7 +3,7 @@
  * specs to one GraphQL query, and GraphQL rows back to REST's shape.
  */
 import { describe, expect, it } from "vitest";
-import { buildBatchQuery, gqlFilter, gqlLiteral, relationMapOf, restShaped } from "#core/server/utils/directus-graphql";
+import { buildBatchQuery, gqlFilter, gqlLiteral, relationMapOf, restCounts, restShaped } from "#core/server/utils/directus-graphql";
 
 const rel = relationMapOf(
   [
@@ -79,6 +79,31 @@ describe("buildBatchQuery", () => {
     expect(() => buildBatchQuery({ a: { collection: "hoa_members", fields: ["*"] } }, rel)).toThrow(/wildcard/);
     expect(() => buildBatchQuery({ a: { collection: "hoa_members", fields: ["first_name.x"] } }, rel)).toThrow(/not a relation/);
     expect(() => buildBatchQuery({ "a-b": { collection: "hoa_members", fields: ["id"] } }, rel)).toThrow(/GraphQL name/);
+  });
+});
+
+describe("counts", () => {
+  it("count by primary key under groupBy (countAll reads null there), with offset on a page", () => {
+    const q = buildBatchQuery(
+      {
+        counts: { collection: "money_approvals", count: "*", groupBy: ["kind", "state"], filter: { organization: { _eq: "o1" } }, limit: -1 },
+        page: { collection: "money_approvals", fields: ["id"], limit: 2, offset: 4 },
+      },
+      rel
+    );
+    expect(q).toContain('counts: money_approvals_aggregated(filter: {organization: {id: {_eq: "o1"}}}, groupBy: ["kind", "state"], limit: -1) { group count { id } }');
+    expect(q).toContain("page: money_approvals(limit: 2, offset: 4) { id }");
+  });
+
+  it("refuses to group by a relation, so the caller falls back to REST", () => {
+    expect(() => buildBatchQuery({ c: { collection: "money_approvals", count: "*", groupBy: ["organization"] } }, rel)).toThrow(/plain field/);
+  });
+
+  it("come back as REST's: the group's fields and count as text", () => {
+    expect(restCounts([{ group: { kind: "waive", state: "pending" }, count: { id: 3 } }, { group: null, count: { id: 7 } }])).toEqual([
+      { kind: "waive", state: "pending", count: "3" },
+      { count: "7" },
+    ]);
   });
 });
 
