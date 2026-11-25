@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { H3Event } from "h3";
 import { MemoryDirectus } from "./support/memory-directus";
+import { memoryBatch } from "./support/memory-batch";
 
 const h = vi.hoisted(() => ({
   session: null as any,
@@ -194,6 +195,17 @@ beforeEach(() => {
     return h.session;
   });
   vi.stubGlobal("getTypedDirectus", () => ({ request: directusRequest }));
+  // GET /api/support/context reads in one batch (support-context.ts).
+  vi.stubGlobal("readItemsBatch", (specs: Record<string, any>) =>
+    memoryBatch(db, {
+      m2o: {
+        "hoa_members.organization": "hoa_organizations",
+        "hoa_board_members.hoa_member": "hoa_members",
+        "billing_account_members.billing_account": "billing_accounts",
+      },
+      o2m: { "hoa_members.units": ["hoa_member_units", "member_id"] },
+    })(specs)
+  );
   vi.stubGlobal("useRuntimeConfig", () => ({
     public: {
       appUrl: "https://app.test",

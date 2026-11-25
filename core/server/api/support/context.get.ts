@@ -3,63 +3,32 @@
 // Per community they belong to: whether they can "Ask my community" (a question
 // in its request inbox) and which "Contact HOA Connect" categories they may use.
 // Per billing account they own or administer: the same for the account.
-import { readItems } from "@directus/sdk";
-import { canAskCommunity, supportCategoriesFor } from "#core/shared/support/access";
-import { supportRolesFor, supportViewerFor } from "#core/server/utils/support";
-
-const readAny = readItems as any;
-const idOf = (v: unknown): string | null =>
-  v && typeof v === "object" ? ((v as { id?: string }).id ?? null) : typeof v === "string" && v ? v : null;
+//
+// One Directus request (support-context.ts): the caller's memberships, their
+// board terms and their billing accounts, read together.
+import { opsCan } from "#core/shared/ops/permissions";
+import { getPlatformActor } from "#core/server/utils/admin-auth";
+import { supportContextFrom, supportContextSpecs, type SupportContextRows } from "#core/server/utils/support-context";
 
 export default defineEventHandler(async (event) => {
-  const viewer = await supportViewerFor(event);
-  const directus = getTypedDirectus() as any;
+  const session = await getUserSession(event);
+  const userId = session?.user?.id;
+  if (!userId) throw createError({ statusCode: 401, message: "Authentication required" });
+  const actor = await getPlatformActor(event);
+  const pub = useRuntimeConfig().public as { directusRoleHoaAdmin?: string; directusRolePropertyManager?: string };
 
-  const memberships = (await directus.request(
-    readAny("hoa_members", {
-      filter: { user: { _eq: viewer.userId }, status: { _eq: "active" } },
-      fields: ["organization.id", "organization.name", "organization.slug"],
-      limit: -1,
-    })
-  )) as any[];
-  const communities = await Promise.all(
-    (memberships ?? [])
-      .map((m) => m.organization)
-      .filter((o: any) => o && idOf(o))
-      .map(async (o: any) => {
-        const roles = await supportRolesFor(viewer.userId, { organizationId: idOf(o) });
-        return {
-          id: idOf(o)!,
-          name: o.name || o.slug,
-          slug: o.slug ?? null,
-          canAsk: canAskCommunity(roles),
-          categories: supportCategoriesFor(roles),
-          isAdmin: viewer.adminOf.has(idOf(o)!),
-        };
-      })
-  );
+  const specs = supportContextSpecs(String(userId), new Date().toISOString().slice(0, 10));
+  let rows: SupportContextRows;
+  try {
+    rows = (await readItemsBatch(specs)) as SupportContextRows;
+  } catch {
+    // As before, no billing accounts where that collection cannot be read.
+    const { sup_accounts: _accounts, ...rest } = specs;
+    rows = { ...((await readItemsBatch(rest)) as Omit<SupportContextRows, "sup_accounts">), sup_accounts: [] };
+  }
 
-  const accountRows = (await directus
-    .request(
-      readAny("billing_account_members", {
-        filter: { user: { _eq: viewer.userId }, role: { _in: ["owner", "billing_admin"] } },
-        fields: ["role", "billing_account.id", "billing_account.name"],
-        limit: -1,
-      })
-    )
-    .catch(() => [])) as any[];
-  const accounts = (accountRows ?? [])
-    .filter((a) => idOf(a.billing_account))
-    .map((a) => ({
-      id: idOf(a.billing_account)!,
-      name: a.billing_account?.name ?? "Billing account",
-      categories: supportCategoriesFor({ membership: null, boardTitles: [], residency: null, managerGrants: [], billingAccountRole: a.role }),
-    }));
-
-  return {
-    communities: communities.sort((a, b) => String(a.name).localeCompare(String(b.name))),
-    accounts,
-    staff: viewer.staff,
-    adminOfAny: viewer.adminOf.size > 0,
-  };
+  return supportContextFrom(rows, { staff: opsCan(actor?.role, "support") }, {
+    hoaAdmin: pub.directusRoleHoaAdmin,
+    propertyManager: pub.directusRolePropertyManager,
+  });
 });
