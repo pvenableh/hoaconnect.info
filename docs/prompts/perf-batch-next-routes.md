@@ -1,6 +1,8 @@
 # Perf — find and batch the next slowest routes
 
-Model: Sonnet 5.5 (`claude-sonnet-5-5`). Already batched on `main` (local, unpushed): money routes, the ledger, ai/notices, responsibilities, the home cards, channels/unread, hoa/find, then `0aa07caf` (org/my-household, 9 → 1 request), `f3330980` (governing overview/documents/search, 7 → 2) and `a0a03502` (support/context, 6–12 → 1). Since then: polls, hats, email activity and list, channel search, news audience, trust, area grants, and the AI action feed, pending-count and autonomy (`d9895486`, `2e3f1747`, `5791f4fa`, 2 → 1 each). dm-peers needs a hoa_channels members alias before it can batch.
+Model: Sonnet 5.5 (`claude-sonnet-5-5`). Already batched on `main` (local, unpushed): money routes, the ledger, ai/notices, responsibilities, the home cards, channels/unread, hoa/find, then `0aa07caf` (org/my-household, 9 → 1 request), `f3330980` (governing overview/documents/search, 7 → 2) and `a0a03502` (support/context, 6–12 → 1). Since then: polls, hats, email activity and list, channel search, news audience, trust, area grants, and the AI action feed, pending-count and autonomy (`d9895486`, `2e3f1747`, `5791f4fa`, 2 → 1 each). Then ai/conversations, ai/credits and member-restrictions/mine (`a84de06b`, `f0fe6e60`, `7e647c65`, 2 → 1 each). dm-peers already reads in one request.
+
+Not batchable as they stand: ai/notices (3 requests) and ai/director/briefing (2) must refuse before any read (their tests say so), so the standing can't ride with their reads; notices' second round (each channel's newest message) would need a `messages` o2m alias on hoa_channels, since GraphQL won't `max` a timestamp. org/activity and org/change-requests filter on the caller's first membership id, which a pre-gate batch can't express exactly.
 
 Parked for later, not part of this prompt:
 
@@ -9,7 +11,7 @@ Parked for later, not part of this prompt:
 
 Start it with (the prompt itself is the one code block below):
 
-> Read docs/prompts/perf-batch-next-routes.md and carry out the prompt in its code block exactly: measure, then batch the three slowest unbatched routes, on main, committing each locally and asking before you push.
+> Read docs/prompts/perf-batch-next-routes.md and carry out the prompt in its code block exactly: measure, then batch the three slowest unbatched routes (skip the ones listed as not batchable), on main, running only route-specific checks per commit and the full suite and typecheck once at the end, committing each locally and asking before you push.
 
 ```
 Make the next slowest HOA Connect API routes much faster without changing
