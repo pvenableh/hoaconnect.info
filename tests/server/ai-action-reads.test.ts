@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { actionListSpec } from "#core/server/utils/ai-action-reads";
+import { actionListSpec, pendingCountSpec } from "#core/server/utils/ai-action-reads";
 
 describe("actionListSpec", () => {
   it("reads the community's feed newest first, 50 by default", () => {
@@ -30,5 +30,15 @@ describe("actionListSpec", () => {
     expect(actionListSpec("o", { limit: "500" }).limit).toBe(200);
     expect(actionListSpec("o", { limit: "abc" }).limit).toBe(50);
     expect(actionListSpec("o", { limit: "0" }).limit).toBe(50);
+  });
+});
+
+describe("pendingCountSpec", () => {
+  it("counts the community's pending proposals, as the route's aggregate did", () => {
+    expect(pendingCountSpec("org-1")).toEqual({
+      collection: "ai_actions",
+      count: "*",
+      filter: { organization: { _eq: "org-1" }, status: { _eq: "pending" } },
+    });
   });
 });

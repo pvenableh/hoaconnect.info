@@ -687,3 +687,47 @@ describe("GET /api/ai/actions", () => {
     expect(JSON.stringify(err)).not.toContain("Chase the roofer");
   });
 });
+
+// ── GET /api/ai/actions/pending-count ────────────────────────────────────────
+
+const loadPending = async () => (await import("#core/server/api/ai/actions/pending-count.get")).default as any;
+
+describe("GET /api/ai/actions/pending-count", () => {
+  it("requires an orgId and refuses a community the caller has no standing in", async () => {
+    const handler = await loadPending();
+    await expect(handler({ __query: {} })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(handler({ __query: { orgId: OTHER } })).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("counts in one batch with the caller's standing", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadPending();
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([["pc_count"]]);
+  });
+
+  it("answers the same, counted on its own, when the batch fails", async () => {
+    rows.ai_actions = [pendingAction(), pendingAction(), { ...pendingAction(), status: "executed" }, { ...pendingAction(), organization: OTHER }];
+    const handler = await loadPending();
+    const ok = await handler({ __query: { orgId: HOME } });
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await handler({ __query: { orgId: HOME } })).toEqual(ok);
+    expect(ok).toEqual({ count: 2 });
+  });
+
+  it("refuses with no count when the batch has read for a stranger", async () => {
+    rows.ai_actions = [{ ...pendingAction(), organization: OTHER }];
+    const handler = await loadPending();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("count");
+  });
+});

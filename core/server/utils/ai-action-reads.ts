@@ -7,7 +7,7 @@
  * snapshot as ONE request (batchWithAccessSnapshot); each route still
  * refuses before it returns any of the rows.
  */
-import type { ReadSpec } from "./directus-graphql";
+import type { CountSpec, ReadSpec } from "./directus-graphql";
 
 /** The query GET /api/ai/actions takes: the community, and optional status, entity and limit. */
 export interface ActionListQuery {
@@ -45,5 +45,14 @@ export function actionListSpec(orgId: string, q: ActionListQuery): ReadSpec {
     ],
     sort: ["-date_created"],
     limit: actionListLimit(q),
+  };
+}
+
+/** How many of the community's proposals await approval (the launcher badge). */
+export function pendingCountSpec(orgId: string): CountSpec {
+  return {
+    collection: "ai_actions",
+    count: "*",
+    filter: { organization: { _eq: orgId }, status: { _eq: "pending" } },
   };
 }
