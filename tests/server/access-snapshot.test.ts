@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   accessSnapshot,
   activeBoardMemberFrom,
+  batchWithAccessSnapshot,
   adminFrom,
   boardPositionFrom,
   boardSeatActorFrom,
@@ -209,5 +210,55 @@ describe("one read per request", () => {
     vi.stubGlobal("getUserSession", async () => ({ user: { id: "u-1" } }));
     expect(await accessSnapshot({ context: {} } as any, "")).toBeNull();
     expect(calls).toEqual([]);
+  });
+
+  describe("batchWithAccessSnapshot", () => {
+    const pages = { collection: "pages", fields: ["id"] };
+    const answer = (specs: Record<string, any>) =>
+      Object.fromEntries(Object.keys(specs).map((k) => [k, k === "pages" ? [{ id: "p1" }] : (rows as any)[k.replace(/^access_/, "")]]));
+
+    beforeEach(() => {
+      vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+        calls.push(Object.keys(specs));
+        batches.push(specs);
+        if (fail) throw new Error("directus down");
+        return answer(specs);
+      });
+    });
+
+    it("reads the route's rows and the full standing in one request, and the helpers then read nothing", async () => {
+      const event = { context: {} } as any;
+      const out = await batchWithAccessSnapshot(event, "org-1", { pages });
+      expect(out).toEqual({ pages: [{ id: "p1" }] });
+      expect(calls).toEqual([["pages", "access_mine", "access_teams", "access_restrictions", "access_areaGrants"]]);
+      expect(batches[0]!.access_mine.filter).toEqual({ user: { _eq: "u-1" }, organization: { _eq: "org-1" } });
+
+      const full = await accessSnapshot(event, "org-1");
+      expect(full).toMatchObject({ userId: "u-1", orgId: "org-1", mine: rows.mine, teams: rows.teams });
+      expect((await accessSnapshot(event, "org-1", "base"))?.mine).toEqual(rows.mine);
+      expect(calls).toHaveLength(1);
+    });
+
+    it("with the standing already read, or no session, reads only the route's rows", async () => {
+      const event = { context: {} } as any;
+      await accessSnapshot(event, "org-1", "base");
+      await batchWithAccessSnapshot(event, "org-1", { pages });
+      vi.stubGlobal("getUserSession", async () => ({}));
+      await batchWithAccessSnapshot({ context: {} } as any, "org-1", { pages });
+      expect(calls).toEqual([["mine"], ["pages"], ["pages"]]);
+    });
+
+    it("a failed batch throws and leaves the standing unread", async () => {
+      const event = { context: {} } as any;
+      fail = true;
+      await expect(batchWithAccessSnapshot(event, "org-1", { pages })).rejects.toThrow("directus down");
+      fail = false;
+      expect((await accessSnapshot(event, "org-1"))?.mine).toEqual(rows.mine);
+    });
+
+    it("refuses a route key that could collide with the standing's", async () => {
+      await expect(batchWithAccessSnapshot({ context: {} } as any, "org-1", { access_mine: pages })).rejects.toThrow(/reserved/);
+      expect(calls).toEqual([]);
+    });
   });
 });

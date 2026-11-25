@@ -22,6 +22,7 @@ import {
   type TermWithName,
 } from "#core/shared/responsibilities/views";
 import type { ResponsibilityAccess } from "./responsibility-access";
+import type { BatchSpec } from "./directus-graphql";
 
 export const RESPONSIBILITY_FIELDS = [
   "id", "organization", "title", "description", "category", "cadence", "basis", "basis_reference",
@@ -312,14 +313,17 @@ export interface OrgSwitches {
   moduleOn: boolean;
 }
 
+const ORG_SWITCH_FIELDS = ["id", "name", "modules", "responsibilities_published", "responsibilities_show_unassigned"] as const;
+
 export async function loadOrgSwitches(orgId: string): Promise<OrgSwitches> {
   const org = (await getTypedDirectus()
-    .request(
-      readItem("hoa_organizations", orgId, {
-        fields: ["id", "name", "modules", "responsibilities_published", "responsibilities_show_unassigned"] as any,
-      })
-    )
+    .request(readItem("hoa_organizations", orgId, { fields: [...ORG_SWITCH_FIELDS] as any }))
     .catch(() => null)) as any;
+  return orgSwitchesFrom(org);
+}
+
+/** The switches from a `hoa_organizations` row (ORG_SWITCH_FIELDS); 404 without one. */
+function orgSwitchesFrom(org: any): OrgSwitches {
   if (!org) throw createError({ statusCode: 404, message: "Community not found" });
   const modules = org.modules && typeof org.modules === "object" ? org.modules : {};
   return {
@@ -372,6 +376,109 @@ export async function loadRegister(orgId: string, asOf: string): Promise<Registe
   const [jobs, assignees, terms] = await Promise.all([loadJobs(orgId), loadAssignees(orgId), loadBoardTerms(orgId)]);
   const [names, extras] = await Promise.all([loadNames(orgId, assignees), loadRegisterExtras(orgId, jobs)]);
   return registerRows(jobs, assignees, names, terms, asOf, todayUtc(), extras);
+}
+
+// ── The register in one request ─────────────────────────────────────────────
+
+/**
+ * The register's reads as one batch (readItemsBatch, or batchWithAccessSnapshot
+ * to bring the caller's standing along): the jobs, every holder row and board
+ * term, the community's switches and the evidence links. The names loadNames
+ * and loadRegisterExtras read afterwards come through each row's relations
+ * instead, and `registerFrom` keeps only those inside this community, as those
+ * reads' filters did. Keys are prefixed `reg_` so they can share a batch.
+ */
+export function registerSpecs(orgId: string): Record<RegisterKey, BatchSpec> {
+  const org = { organization: { _eq: orgId } };
+  const bare = (fields: readonly string[], drop: readonly string[]) => fields.filter((f) => !drop.includes(f));
+  return {
+    reg_jobs: {
+      collection: "hoa_responsibilities",
+      filter: org,
+      fields: [
+        ...bare(RESPONSIBILITY_FIELDS, ["last_verified_by", "project"]),
+        "last_verified_by.id", "last_verified_by.first_name", "last_verified_by.last_name", "last_verified_by.email",
+        "project.id", "project.title", "project.organization",
+      ],
+      sort: ["sort", "title"],
+      limit: -1,
+    },
+    reg_assignees: {
+      collection: "hoa_responsibility_assignees",
+      filter: org,
+      fields: [
+        ...bare(ASSIGNEE_FIELDS, ["member", "user", "vendor", "team"]),
+        "member.id", "member.first_name", "member.last_name", "member.organization", "member.user.avatar",
+        "user.id", "user.first_name", "user.last_name", "user.email", "user.avatar",
+        "vendor.id", "vendor.company", "vendor.name", "vendor.organization",
+        "team.id", "team.name", "team.color", "team.organization",
+      ],
+      sort: ["start_date"],
+      limit: -1,
+    },
+    reg_terms: {
+      collection: "hoa_board_members",
+      filter: { hoa_member: org },
+      fields: TERM_FIELDS,
+      sort: ["term_start"],
+      limit: -1,
+    },
+    reg_org: { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ORG_SWITCH_FIELDS, limit: 1 },
+    reg_evidence: {
+      collection: "hoa_responsibilities_files",
+      filter: { hoa_responsibilities_id: org },
+      fields: ["id", "hoa_responsibilities_id", "directus_files_id.id", "directus_files_id.title", "directus_files_id.type"],
+      limit: -1,
+    },
+  };
+}
+
+export type RegisterKey = "reg_jobs" | "reg_assignees" | "reg_terms" | "reg_org" | "reg_evidence";
+
+/**
+ * The register and the switches from `registerSpecs`' rows, as loadRegister
+ * and loadOrgSwitches return them (404 when the community has no row).
+ */
+export function registerFrom(
+  orgId: string,
+  read: Record<RegisterKey, any[]>,
+  asOf: string,
+  today = todayUtc()
+): { rows: RegisterRow[]; org: OrgSwitches } {
+  const org = orgSwitchesFrom(read.reg_org[0] ?? null);
+  const rawJobs = read.reg_jobs ?? [];
+  const rawAssignees = read.reg_assignees ?? [];
+  const jobs = rawJobs.map(normaliseJob);
+  const assignees = rawAssignees.map(normaliseAssignee);
+  const terms = (read.reg_terms ?? []).map(normaliseTerm);
+  const inOrg = (r: any) => r && typeof r === "object" && idOf(r.organization) === orgId;
+
+  const names = emptyNames();
+  for (const a of rawAssignees) {
+    const m = a.member;
+    if (inOrg(m)) names.members[m.id] = { name: fullName(m) ?? "Member", avatar: idOf(m.user?.avatar) };
+    const u = a.user;
+    if (u && typeof u === "object" && u.id) names.users[u.id] = { name: fullName(u) ?? u.email ?? "User", avatar: idOf(u.avatar) };
+    const v = a.vendor;
+    if (inOrg(v)) names.vendors[v.id] = { name: v.company || v.name || "Vendor" };
+    const t = a.team;
+    if (inOrg(t)) names.teams[t.id] = { name: t.name || "Team", color: t.color ?? null };
+  }
+
+  const extras: Required<RegisterExtras> = { users: {}, projects: {}, evidence: {} };
+  for (const j of rawJobs) {
+    const u = j.last_verified_by;
+    if (u && typeof u === "object" && u.id) extras.users[u.id] = { name: fullName(u) ?? u.email ?? "User" };
+    if (inOrg(j.project)) extras.projects[j.project.id] = { title: j.project.title };
+  }
+  for (const r of read.reg_evidence ?? []) {
+    const job = idOf(r.hoa_responsibilities_id);
+    const f = r.directus_files_id;
+    if (!job || !f) continue;
+    (extras.evidence[job] ??= []).push({ id: idOf(f)!, title: f.title ?? null, type: f.type ?? null });
+  }
+
+  return { rows: registerRows(jobs, assignees, names, terms, asOf, today, extras), org };
 }
 
 /** The route's `[id]` param, or 400. */

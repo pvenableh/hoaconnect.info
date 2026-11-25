@@ -47,6 +47,9 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_board_members: { hoa_member: "hoa_members" },
   hoa_members: { user: "directus_users", organization: "hoa_organizations" },
   hoa_responsibilities_files: { directus_files_id: "directus_files", hoa_responsibilities_id: "hoa_responsibilities" },
+  // The register's one-batch read expands holders and verifiers through these (registerSpecs).
+  hoa_responsibilities: { last_verified_by: "directus_users", project: "hoa_projects" },
+  hoa_responsibility_assignees: { member: "hoa_members", user: "directus_users", vendor: "hoa_vendors", team: "hoa_teams" },
   // tests/server/admin-relation-writes.test.ts
   hoa_pets: { member_id: "hoa_members", unit_id: "hoa_units" },
   hoa_vehicles: { member_id: "hoa_members", unit_id: "hoa_units" },
@@ -254,6 +257,7 @@ export function sdkMock() {
   return {
     readItems: (collection: string, query?: any) => ({ op: "readItems", collection, query }),
     readItem: (collection: string, id: string, query?: any) => ({ op: "readItem", collection, id, query }),
+    aggregate: (collection: string, query?: any) => ({ op: "aggregate", collection, query }),
     readFile: (id: string, query?: any) => ({ op: "readItem", collection: "directus_files", id, query }),
     readUsers: (query?: any) => ({ op: "readItems", collection: "directus_users", query }),
     readUser: (id: string, query?: any) => ({ op: "readItem", collection: "directus_users", id, query }),
@@ -318,6 +322,12 @@ export function stubGlobals(state: { who: Who; db: Db; fail?: { failCreate?: str
   // Each community's library, with its Records folders (org-storage.ts STORAGE_TREE).
   vi.stubGlobal("ensureOrgStorage", async (orgId: string) => storageOf(orgId));
   vi.stubGlobal("getTypedDirectus", () => client);
+  // A route's batch runs as the same reads, one by one, against the fake. The
+  // access helpers stay on the personas above (readItemsBatch is not stubbed,
+  // so accessSnapshot finds no batch reader and they read as before).
+  vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _orgId: string, specs: any) =>
+    (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+  );
   return {
     reset: () => (client = directus()),
     get calls() {

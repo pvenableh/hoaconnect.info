@@ -160,6 +160,46 @@ describe("who reads, who edits", () => {
   });
 });
 
+describe("the register in one request", () => {
+  it("reads the same register and switches as the reads one by one", async () => {
+    const { registerSpecs, registerFrom, loadRegister, loadOrgSwitches } = await import("#core/server/utils/responsibilities");
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    for (const asOf of ["2026-06-01", "2026-11-01", "2026-12-31"]) {
+      const { rows, org } = registerFrom(ORG, await readItemsBatchRest(registerSpecs(ORG)), asOf);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows).toEqual(await loadRegister(ORG, asOf));
+      expect(org).toEqual(await loadOrgSwitches(ORG));
+    }
+  });
+
+  it("asks once, for the register and the caller's standing together", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(ORG);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    await call("index", VALID.index);
+    expect(seen).toEqual([["reg_jobs", "reg_assignees", "reg_terms", "reg_org", "reg_evidence"]]);
+  });
+
+  it("falls back to the reads one by one when the batch fails", async () => {
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    const ok = await call("index", VALID.index);
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(await call("index", VALID.index)).toEqual(ok);
+    } finally {
+      warn.mockRestore();
+      vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _o: string, specs: any) => readItemsBatchRest(specs));
+    }
+  });
+});
+
 describe("visibility", () => {
   it("is admin only: a non-admin editor gets 403", async () => {
     as(PERSONAS.editor);

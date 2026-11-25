@@ -167,6 +167,57 @@ export async function accessSnapshot(event: H3Event, orgId: string, need: "base"
   return entry.full;
 }
 
+/** The prefix `batchWithAccessSnapshot` puts on the snapshot's own keys; a caller's keys must not use it. */
+const SNAPSHOT_PREFIX = "access_";
+
+/**
+ * A route's own reads and the caller's full standing in `orgId`, as ONE
+ * request: the snapshot's four reads ride in the same batch and are cached
+ * for the request, so every access helper after this (checkAdminAccess,
+ * getManagerGrants, getHelperAreas, getBoardPosition, checkMembership, …)
+ * answers without reading. A route that reads before it decides must still
+ * refuse before it returns any of these rows.
+ *
+ * When the snapshot is already read or on its way, or there is no session,
+ * only the route's specs are read. Throws as readItemsBatch throws (the
+ * snapshot is then left unread, and the helpers read it as usual).
+ */
+export async function batchWithAccessSnapshot<K extends string>(
+  event: H3Event,
+  orgId: string,
+  specs: Record<K, BatchSpec>
+): Promise<Record<K, any[]>> {
+  const session = orgId ? await getUserSession(event) : null;
+  const userId = session?.user?.id ? String(session.user.id) : "";
+  const context = ((event as any).context ??= {}) as Record<string, any>;
+  const cache = (context.__accessSnapshot ??= new Map<string, Entry>()) as Map<string, Entry>;
+  const key = `${userId}:${orgId}`;
+  if (!userId || cache.has(key)) return readItemsBatch(specs);
+
+  for (const k of Object.keys(specs)) {
+    if (k.startsWith(SNAPSHOT_PREFIX)) throw new Error(`batch key ${k} uses the reserved ${SNAPSHOT_PREFIX} prefix`);
+  }
+  const mine = accessSnapshotSpecs(userId, orgId);
+  const keys = [...BASE_KEYS, ...REST_KEYS];
+  const r = (await readItemsBatch({
+    ...specs,
+    ...Object.fromEntries(keys.map((k) => [`${SNAPSHOT_PREFIX}${k}`, mine[k]!])),
+  } as Record<string, BatchSpec>)) as Record<string, any[]>;
+
+  const at = (k: string) => r[`${SNAPSHOT_PREFIX}${k}`] ?? [];
+  const full: AccessSnapshot = {
+    userId,
+    orgId,
+    mine: at("mine"),
+    teams: at("teams"),
+    restrictions: at("restrictions"),
+    areaGrants: at("areaGrants") as AreaGrantRow[],
+  };
+  // Another helper may have started a read while this one was out: keep its entry.
+  if (!cache.has(key)) cache.set(key, { full: Promise.resolve(full), base: Promise.resolve({ userId, orgId, mine: full.mine }) });
+  return Object.fromEntries(Object.keys(specs).map((k) => [k, r[k] ?? []])) as Record<K, any[]>;
+}
+
 /** checkAdminAccess's answer for an HOA Admin: an active or pending membership with that role (the first, as its limit-1 read). */
 export function adminFrom(s: AccessBase, roles: AccessRoles) {
   const member = s.mine.find((m) => ["active", "pending"].includes(m.status));
