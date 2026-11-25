@@ -1,6 +1,6 @@
 /**
- * The list reads behind GET /api/org/projects and /api/org/projects-timeline,
- * made in the same request as the caller's access snapshot.
+ * The list reads behind GET /api/org/projects, /api/org/projects-timeline and
+ * /api/org/tasks, made in the same request as the caller's access snapshot.
  *
  * Each route asked getProjectAccess first (the snapshot's memberships, then
  * its teams, restrictions and area grants for the helper check, then the
@@ -78,6 +78,48 @@ export function projectTimelineSpecs(orgId: string): { pr_all: ReadSpec; pr_visi
     pr_all: spec({ organization: { _eq: orgId } }),
     pr_visible: spec({ organization: { _eq: orgId }, member_visible: { _eq: true } }),
   };
+}
+
+/** The fields /api/org/tasks reads, as dotted paths. */
+export const TASK_LIST_FIELDS = [
+  "id", "status", "title", "description", "priority", "schedule",
+  "due_date", "date_completed", "parent_task", "category", "sort",
+  "project.id", "project.title",
+  "project_event.id", "project_event.title",
+  "request.id", "request.title",
+  "subtasks.id", "subtasks.status", "subtasks.title", "subtasks.priority", "subtasks.sort",
+  "assigned_to.directus_users_id.id", "assigned_to.directus_users_id.first_name",
+  "assigned_to.directus_users_id.last_name", "assigned_to.directus_users_id.avatar",
+] as const;
+
+/**
+ * GET /api/org/tasks: the elevated caller's read (`tk_all`), and, when a
+ * member would be scoped to one project, that read limited to a
+ * member-visible project (`tk_visible`). A member asking for their own tasks
+ * reads what an elevated caller reads; any other member query is refused.
+ */
+export function taskListSpecs(orgId: string, query: Query, userId: string): { tk_all: ReadSpec; tk_visible?: ReadSpec } {
+  const filter: Record<string, unknown> = { organization: { _eq: orgId } };
+  if (query.project) filter.project = { _eq: String(query.project) };
+  if (query.event) filter.project_event = { _eq: String(query.event) };
+  if (query.request) filter.request = { _eq: String(query.request) };
+  if (query.team) filter.team = { _eq: String(query.team) };
+  if (query.schedule) filter.schedule = { _eq: String(query.schedule) };
+  if (query.parent === "none") filter.parent_task = { _null: true };
+  if (query.assignee === "me") filter.assigned_to = { directus_users_id: { _eq: userId } };
+  const spec = (f: Record<string, unknown>): ReadSpec => ({
+    collection: "hoa_tasks",
+    filter: f,
+    fields: TASK_LIST_FIELDS,
+    sort: ["sort", "-date_created"],
+    limit: 300,
+  });
+  const out: { tk_all: ReadSpec; tk_visible?: ReadSpec } = { tk_all: spec(filter) };
+  if (query.assignee !== "me" && query.project) {
+    // The route's `{ _eq: id, member_visible: { _eq: true } }`, as a relational filter GraphQL accepts.
+    out.tk_visible = spec({ ...filter, project: { id: { _eq: String(query.project) }, member_visible: { _eq: true } } });
+  }
+  return out;
 }
 
 /**

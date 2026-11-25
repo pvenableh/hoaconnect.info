@@ -1,4 +1,5 @@
 import { readItems } from "@directus/sdk";
+import { projectRowsWithAccess, taskListSpecs } from "#core/server/utils/project-reads";
 
 /**
  * List tasks for an org, scoped by query:
@@ -14,6 +15,22 @@ export default defineEventHandler(async (event) => {
   const orgId = String(query.orgId || "");
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
+  // Signed out is refused before anything is read.
+  const { userId } = await requireAuthenticatedUser(event);
+
+  // The tasks (as an elevated caller reads them, and limited to a
+  // member-visible project when a member is scoped to one) and the caller's
+  // standing, in one request (project-reads.ts). The access check decides what
+  // comes back; a refused caller gets none of these rows.
+  const batched = await projectRowsWithAccess(event, orgId, taskListSpecs(orgId, query, userId));
+  if (batched) {
+    const { access, rows } = batched;
+    if (access.elevated || query.assignee === "me") return rows.tk_all;
+    if (query.project) return rows.tk_visible ?? [];
+    throw createError({ statusCode: 403, message: "Not authorized" });
+  }
+
+  // The batch failed: read as before.
   const access = await getProjectAccess(event, orgId);
   const directus = getTypedDirectus();
 
