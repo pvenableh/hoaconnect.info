@@ -67,6 +67,11 @@ const RELATIONS: Record<string, Record<string, string>> = {
   hoa_member_restrictions: { member: "hoa_members", imposed_by: "directus_users", lifted_by: "directus_users", organization: "hoa_organizations" },
 };
 
+/** One-to-many aliases: collection.alias → [the many collection, its key back to the one]. */
+const ALIASES: Record<string, Record<string, [string, string]>> = {
+  hoa_members: { board_member_terms: ["hoa_board_members", "hoa_member"] },
+};
+
 export type Db = Record<string, any[]>;
 
 export function seed(): Db {
@@ -161,6 +166,13 @@ function expand(db: Db, collection: string, row: any, fields: string[] | undefin
     if (rest.length) nested.set(head!, [...(nested.get(head!) ?? []), rest.join(".")]);
   }
   for (const [head, sub] of nested) {
+    const alias = ALIASES[collection]?.[head];
+    if (alias) {
+      // `deep` is not applied: callers filter what they nest themselves.
+      const [many, back] = alias;
+      out[head] = (db[many] ?? []).filter((r) => idOf(r[back]) === row.id).map((r) => expand(db, many, r, sub));
+      continue;
+    }
     const related = RELATIONS[collection]?.[head];
     if (!related) continue;
     const target = (db[related] ?? []).find((r) => r.id === idOf(row[head]));

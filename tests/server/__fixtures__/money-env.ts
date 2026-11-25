@@ -29,6 +29,9 @@ export async function stubMoney(state: { who: Who; db: Db }): Promise<MoneyCaptu
     return { actors, capabilities: [...caps] };
   });
   vi.stubGlobal("getBoardSeatActor", async (_e: unknown, org: string) => (org === ORG ? boardTitleToActor(state.who.office ?? null) : null));
+  // The list route answers money:read from the memberships it read: the admin hat is the membership's role.
+  vi.stubGlobal("isAppAdminSession", () => false);
+  vi.stubGlobal("isHoaAdminRole", (role: unknown) => (role && typeof role === "object" ? (role as { id?: string }).id : role) === ROLE.admin);
   vi.stubGlobal("serverRoleIds", () => ({ appAdmin: null, propertyManager: ROLE.pm, adminRoleIds: [ROLE.admin] }));
   vi.stubGlobal("safeRequestOrigin", async () => "https://app.test");
   vi.stubGlobal("notifyUsers", async (opts: any) => {

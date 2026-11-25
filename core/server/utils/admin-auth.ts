@@ -53,11 +53,22 @@ async function perRequest<T>(event: H3Event, kind: string, organizationId: strin
   return read;
 }
 
+/** The session's Directus role is App Administrator: no read needed. */
+export function isAppAdminSession(session: { user?: any } | null | undefined): boolean {
+  const role = session?.user?.role;
+  return !!role && (role?.id || role) === useRuntimeConfig().public.directusRoleAppAdmin;
+}
+
+/** A membership's `role` (id or expanded) is HOA Admin. */
+export function isHoaAdminRole(role: unknown): boolean {
+  const id = typeof role === "string" ? role : (role as { id?: string } | null | undefined)?.id;
+  return !!id && id === useRuntimeConfig().public.directusRoleHoaAdmin;
+}
+
 async function readAdminAccess(
   event: H3Event,
   organizationId: string
 ): Promise<AdminCheckResult> {
-  const config = useRuntimeConfig();
   const session = await getUserSession(event);
 
   if (!session?.user?.id) {
@@ -65,10 +76,9 @@ async function readAdminAccess(
   }
 
   const userId = session.user.id;
-  const userRoleId = session.user.role?.id || session.user.role;
 
   // Check if user is App Administrator (system-wide admin)
-  const isAppAdmin = userRoleId === config.public.directusRoleAppAdmin;
+  const isAppAdmin = isAppAdminSession(session);
 
   if (isAppAdmin) {
     return {
@@ -97,8 +107,7 @@ async function readAdminAccess(
 
     const member = members?.[0];
     if (member) {
-      const memberRoleId = typeof member.role === "string" ? member.role : member.role?.id;
-      const isHoaAdmin = memberRoleId === config.public.directusRoleHoaAdmin;
+      const isHoaAdmin = isHoaAdminRole(member.role);
 
       return {
         isAdmin: isHoaAdmin,

@@ -148,6 +148,26 @@ export async function loadCurrentSeats(orgId: string, today = todayUtc()): Promi
     .filter((s) => !!s.userId);
 }
 
+/** The board terms to nest in a `hoa_members` read for `seatsOfMembers`. */
+export const MEMBER_TERM_FIELDS = [
+  "board_member_terms.title", "board_member_terms.status", "board_member_terms.term_start", "board_member_terms.term_end",
+] as const;
+
+/**
+ * loadCurrentSeats' answer from the community's memberships read with
+ * MEMBER_TERM_FIELDS nested: an active membership with a login, one seat per
+ * current published term.
+ */
+export function seatsOfMembers(members: readonly any[], orgId: string, today = todayUtc()): Seat[] {
+  return members
+    .filter((m) => m?.status === "active" && !!idOf(m.user) && (idOf(m.organization) ?? orgId) === orgId)
+    .flatMap((m) =>
+      ((m.board_member_terms ?? []) as any[])
+        .filter((t) => t && typeof t === "object" && isCurrentBoardTerm(t, today))
+        .map((t) => ({ userId: idOf(m.user)!, office: t.title ?? null }))
+    );
+}
+
 export async function loadApprovals(orgId: string, filter: Record<string, unknown> = {}): Promise<ApprovalRow[]> {
   return (await readApprovalRows(orgId, filter)).map(normaliseApproval).filter((a) => a.organization === orgId);
 }

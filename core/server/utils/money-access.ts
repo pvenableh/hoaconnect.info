@@ -10,7 +10,8 @@
  * board seats only (core/shared/money/approval-rule.ts).
  */
 import type { H3Event } from "h3";
-import { capabilitiesFor } from "#core/shared/permissions";
+import { boardTitleToActor, capabilitiesFor, type Actor } from "#core/shared/permissions";
+import type { Seat } from "#core/shared/money/approval-rule";
 
 export async function canReadMoney(event: H3Event, orgId: string): Promise<boolean> {
   // Money:read belongs to the admin hat and the board seats, nothing else, so
@@ -22,6 +23,24 @@ export async function canReadMoney(event: H3Event, orgId: string): Promise<boole
   const [admin, seat] = await Promise.all([checkAdminAccess(event, orgId), getBoardSeatActor(event, orgId)]);
   if (admin.isAdmin) return true;
   return !!seat && capabilitiesFor([seat]).includes("money:read");
+}
+
+/**
+ * canReadMoney's answer from rows a route already read for the org: its
+ * memberships (with `role`, any status) and its current board seats. The same
+ * two questions (the admin hat: App Administrator, or HOA Admin on an active
+ * or pending membership; a current seat whose office has money:read) with no
+ * reads of their own. 401 without a session, 403 otherwise.
+ */
+export async function requireMoneyReadFrom(event: H3Event, members: readonly any[], seats: readonly Seat[]): Promise<void> {
+  const session = await requireUserSession(event);
+  const userId = String((session.user as { id?: unknown } | undefined)?.id ?? "");
+  const own = (m: any) => String(m?.user?.id ?? m?.user ?? "") === userId;
+  const ok =
+    isAppAdminSession(session) ||
+    members.some((m) => own(m) && ["active", "pending"].includes(m.status) && isHoaAdminRole(m.role)) ||
+    seats.some((s) => s.userId === userId && capabilitiesFor([boardTitleToActor(s.office)].filter((a): a is Actor => !!a)).includes("money:read"));
+  if (!ok) throw createError({ statusCode: 403, message: "Board or admin access required" });
 }
 
 /** 401 without a session, 400 without `orgId`, 403 unless admin or money:read. Returns the orgId. */

@@ -135,35 +135,36 @@ export interface ApprovalList {
 }
 
 /**
- * The approvals, the board seats, every decision, every membership and each
- * approval's expense/charge subject, all started at once from the org: none of
- * them needs another's answer. The subjects ride in the approvals read as
- * nested fields; the decisions are filtered by their approval's community
- * instead of by id; the names and households come from one read of the
- * community's memberships (the same rows `memberNamesFor` filters by user),
- * and the late fees still owed, which a full waiver would take with it.
+ * The approvals, every decision, every membership with its board terms, each
+ * approval's expense/charge subject and the late fees still owed, all started
+ * at once from the org: none of them needs another's answer. Four reads, and
+ * it matters: Directus answers concurrent item reads nearly one after another
+ * (~40ms each on top of ~110ms), so every read dropped here is time saved.
+ * The subjects ride in the approvals read as nested fields; the decisions are
+ * filtered by their approval's community instead of by id; the names, the
+ * households and the board seats (`seatsOfMembers`, loadCurrentSeats' rule)
+ * come from one read of the community's memberships, whose `role` also lets
+ * the route answer money:read without reads of its own (moneyReadFromList).
  * `describeApprovals` picks out what the page shows.
  */
 export async function readApprovalList(orgId: string, approvalFilter: Record<string, unknown>): Promise<ApprovalList> {
-  const [raw, seats, decisions, members, owedLateFees] = await Promise.all([
+  const [raw, decisions, members, owedLateFees] = await Promise.all([
     readApprovalRows(orgId, approvalFilter, [...EXPENSE_NESTED, ...CHARGE_NESTED]),
-    loadCurrentSeats(orgId),
     loadOrgDecisions(orgId, approvalFilter),
+    // No fallback to []: the seats and the money:read answer come from these rows.
     getTypedDirectus()
       .request(
         readItems("hoa_members", {
           filter: { organization: { _eq: orgId } } as any,
-          fields: ["id", "user", "first_name", "last_name", "email", "status"] as any,
+          fields: ["id", "user", "first_name", "last_name", "email", "status", "role", ...MEMBER_TERM_FIELDS] as any,
+          deep: { board_member_terms: { _filter: { status: { _eq: "published" } }, _limit: -1 } } as any,
           limit: -1,
         })
       )
-      .then((r) => ((r ?? []) as any[]))
-      .catch((e: any) => {
-        console.error("[member-names] lookup failed:", e?.message ?? e);
-        return [] as any[];
-      }),
+      .then((r) => ((r ?? []) as any[])),
     owedLateFeesByCharge(orgId),
   ]);
+  const seats = seatsOfMembers(members, orgId);
   // The subject must be the community's own, as the id-filtered reads required.
   const expenseById = new Map<string, any>();
   const chargeById = new Map<string, any>();
