@@ -1,12 +1,106 @@
 // server/api/hoa/find.get.ts
-import { readItems } from "@directus/sdk";
+//
+// A community's public record by slug, with its management company, unit
+// stats and announcement cadence — and, for a signed-in admin of THIS
+// community, what the site builder edits. Every read is one readItemsBatch
+// request: the reads after the community's own are filtered by its slug
+// (unique) through their `organization` relation, so none waits for its id.
 import type { HoaOrganization } from "#core/types/directus";
+import type { BatchSpec } from "../../utils/directus-graphql";
 import {
-  PUBLIC_ORG_FIELDS,
+  PUBLIC_ORG_FIELD_PATHS,
+  ORG_ADMIN_EXTRA_FIELD_PATHS,
   toPublicOrg,
-  isOrgAdminCaller,
-  attachOrgAdminExtras,
+  applyOrgAdminExtras,
+  unitStatsFrom,
+  announcementStatsFrom,
 } from "../../utils/public-org";
+
+type FindKey = "org" | "vendors" | "units" | "emails" | "mine" | "extras";
+
+/** The reads, keyed: `extras` only for a signed-in caller, `mine` only for one who is not an App Administrator. */
+function findSpecs(slug: string, userId: string, appAdmin: boolean): Partial<Record<FindKey, BatchSpec>> {
+  const community = {
+    _and: [
+      { slug: { _eq: slug } },
+      { status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] } },
+    ],
+  };
+  const specs: Partial<Record<FindKey, BatchSpec>> = {
+    // This answer is public: only what the public pages read (see
+    // utils/public-org.ts), never "*".
+    org: { collection: "hoa_organizations", filter: community, fields: PUBLIC_ORG_FIELD_PATHS, limit: 1 },
+    // The primary management company (first active `management` vendor), so the
+    // public landing can feature it when the admin opts in. Public-safe fields
+    // only — never notes / internal flags.
+    vendors: {
+      collection: "hoa_vendors",
+      filter: {
+        _and: [{ organization: community }, { category: { _eq: "management" } }, { status: { _eq: "active" } }],
+      },
+      fields: ["company", "name", "email", "phone", "website", "address", "management_role"],
+      sort: ["sort", "company"],
+      limit: 1,
+    },
+    // Unit count + owner-occupancy for the building widget.
+    units: {
+      collection: "hoa_units",
+      count: "*",
+      groupBy: ["occupancy"],
+      filter: { _and: [{ organization: community }, { status: { _neq: "archived" } }] },
+      limit: -1,
+    },
+    // How much this community communicates: sent dates only, no subjects or bodies.
+    emails: {
+      collection: "hoa_emails",
+      filter: {
+        _and: [{ organization: community }, { status: { _eq: "sent" } }, { sent_at: { _nnull: true } }],
+      },
+      fields: ["sent_at"],
+      sort: ["sent_at"],
+      limit: -1,
+    },
+  };
+  if (userId) {
+    // checkAdminAccess's read: the caller's memberships here (adminFrom picks the first active or pending).
+    if (!appAdmin) {
+      specs.mine = {
+        collection: "hoa_members",
+        filter: { user: { _eq: userId }, organization: community },
+        fields: ["id", "status", "role"],
+        sort: ["id"],
+        limit: -1,
+      };
+    }
+    // Read for anyone signed in, returned only to this community's admin.
+    specs.extras = { collection: "hoa_organizations", filter: community, fields: ORG_ADMIN_EXTRA_FIELD_PATHS, limit: 1 };
+  }
+  return specs;
+}
+
+/**
+ * The batch, or — when it fails — each read on its own, so a failing extra
+ * costs only its own section (as when they were separate reads). Only the
+ * community's own read is required; a missing one is null.
+ */
+async function readFind(specs: Partial<Record<FindKey, BatchSpec>>): Promise<Partial<Record<FindKey, any[] | null>>> {
+  try {
+    return await readItemsBatch(specs as Record<FindKey, BatchSpec>);
+  } catch {
+    const keys = Object.keys(specs) as FindKey[];
+    const rows = await Promise.all(
+      keys.map(async (k) => {
+        try {
+          return (await readItemsBatchRest({ [k]: specs[k]! }))[k];
+        } catch (e) {
+          if (k === "org") throw e;
+          return null;
+        }
+      })
+    );
+    return Object.fromEntries(keys.map((k, i) => [k, rows[i]]));
+  }
+}
 
 export default defineEventHandler(async (event) => {
   const { slug } = getQuery(event);
@@ -18,140 +112,42 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const directus = getTypedDirectus();
+  // The route is public: a failing session lookup means a visitor, not an error.
+  const session = await getUserSession(event).catch(() => null);
+  const userId = session?.user?.id ? String(session.user.id) : "";
+  const appAdmin = !!userId && isAppAdminSession(session);
 
   try {
-    const organizations = await directus.request(
-      readItems("hoa_organizations", {
-        filter: {
-          _and: [
-            { slug: { _eq: slug as string } },
-            { status: { _in: ["active", "published"] as string[] as NonNullable<HoaOrganization["status"]>[] } },
-          ],
-        },
-        // This answer is public: only what the public pages read (see
-        // utils/public-org.ts), never "*".
-        fields: PUBLIC_ORG_FIELDS,
-        limit: 1,
-      })
-    );
+    const rows = await readFind(findSpecs(slug as string, userId, appAdmin));
 
-    if (!organizations || organizations.length === 0) {
+    const found = rows.org?.[0];
+    if (!found) {
       throw createError({
         statusCode: 404,
         message: "Organization not found",
       });
     }
 
-    const org = toPublicOrg(organizations[0] as Record<string, any>);
+    const org = toPublicOrg(found as Record<string, any>);
 
     // The site builder (an admin page) loads through this route too, and it
     // edits two things the public must not see: the library folder its uploads
     // go into and the inquiry recipient. Only a signed-in admin of THIS
     // community gets them, and that answer is never cached.
-    if (await isOrgAdminCaller(event, org.id)) {
-      await attachOrgAdminExtras(directus, org);
+    const isAdmin =
+      !!userId && (appAdmin || (!!rows.mine && adminFrom({ userId, orgId: org.id, mine: rows.mine }, accessRoles()).isAdmin));
+    if (isAdmin) {
+      // Answering an admin with the redacted landing would let the site
+      // builder save it back and lose the inquiry recipient.
+      if (!rows.extras) throw createError({ statusCode: 500, message: "Failed to read the community's admin fields" });
+      applyOrgAdminExtras(org, rows.extras[0]);
       setResponseHeader(event, "cache-control", "private, no-store");
     }
 
-    // Attach the primary management company (first active `management` vendor) so
-    // the public landing can feature it when the admin opts in. Public-safe
-    // fields only — never notes / internal flags. Best-effort: failures don't
-    // block the landing.
-    try {
-      const vendors = await directus.request(
-        readItems("hoa_vendors", {
-          filter: {
-            _and: [
-              { organization: { _eq: org.id } },
-              { category: { _eq: "management" } },
-              { status: { _eq: "active" } },
-            ],
-          },
-          fields: ["company", "name", "email", "phone", "website", "address", "management_role"],
-          sort: ["sort", "company"],
-          limit: 1,
-        })
-      );
-      org.property_manager = vendors?.[0] || null;
-    } catch {
-      org.property_manager = null;
-    }
-
-    // Unit count + owner-occupancy for the building widget. The reference site
-    // leads with "28 / UNITS · 18 owner-occupied · 64% ownership", and a unit
-    // count is a truer description of a building than the denormalized
-    // `member_count` the widget used to read — that counts people, drifts
-    // whenever a member record changes, and said "1 household" for a 28-unit
-    // building. Best-effort: a failure here must not take the landing down.
-    try {
-      const units = await directus.request(
-        readItems("hoa_units", {
-          filter: {
-            _and: [{ organization: { _eq: org.id } }, { status: { _neq: "archived" } }],
-          },
-          fields: ["occupancy"],
-          limit: -1,
-        })
-      );
-      const total = units?.length || 0;
-      const ownerOccupied = (units || []).filter((u: any) => u.occupancy === "owner").length;
-      org.unit_stats = total
-        ? {
-            total,
-            owner_occupied: ownerOccupied,
-            // Only meaningful once somebody has actually recorded occupancy.
-            ownership_pct: ownerOccupied ? Math.round((ownerOccupied / total) * 100) : null,
-          }
-        : null;
-    } catch {
-      org.unit_stats = null;
-    }
-
-    // How much this community actually communicates: how many notices have gone
-    // out, since when, and roughly how often. A count and a cadence only — no
-    // subject lines, no bodies, nothing a visitor could read. Best-effort.
-    try {
-      const emails = await directus.request(
-        readItems("hoa_emails", {
-          filter: {
-            _and: [
-              { organization: { _eq: org.id } },
-              { status: { _eq: "sent" } },
-              { sent_at: { _nnull: true } },
-            ],
-          },
-          fields: ["sent_at"],
-          sort: ["sent_at"],
-          limit: -1,
-        })
-      );
-      const sent = (emails || [])
-        .map((e: any) => (e.sent_at ? new Date(e.sent_at) : null))
-        .filter((d: Date | null): d is Date => !!d && !Number.isNaN(d.getTime()));
-
-      if (sent.length) {
-        const first = sent[0]!;
-        const last = sent[sent.length - 1]!;
-        // Inclusive month span, so a single month reads as 1 rather than 0 and
-        // the average never divides by zero.
-        const months = Math.max(
-          1,
-          (last.getFullYear() - first.getFullYear()) * 12 +
-            (last.getMonth() - first.getMonth()) +
-            1
-        );
-        org.announcement_stats = {
-          total: sent.length,
-          since: first.toISOString(),
-          avg_per_month: Math.round((sent.length / months) * 10) / 10,
-        };
-      } else {
-        org.announcement_stats = null;
-      }
-    } catch {
-      org.announcement_stats = null;
-    }
+    // Best-effort: a failed read is a missing section, never a missing landing.
+    org.property_manager = rows.vendors ? rows.vendors[0] || null : null;
+    org.unit_stats = rows.units ? unitStatsFrom(rows.units) : null;
+    org.announcement_stats = rows.emails ? announcementStatsFrom(rows.emails) : null;
 
     return org;
   } catch (error: any) {

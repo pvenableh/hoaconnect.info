@@ -30,8 +30,6 @@
 // check ever disagreed with the server's, a missing `settings.id` would make it
 // create a blank settings row and point the community at it — dropping its
 // logo, colours and email sender setup.
-import type { H3Event } from "h3";
-import { readItem } from "@directus/sdk";
 import type { QueryFields } from "@directus/sdk";
 import type { Schema, HoaOrganization } from "#core/types/directus";
 
@@ -72,6 +70,21 @@ export const PUBLIC_ORG_FIELDS = [
   },
 ] as QueryFields<Schema, HoaOrganization>;
 
+/** SDK-style fields (strings and `{ relation: [...] }`) as REST's dotted paths, in order. */
+export function fieldPaths(fields: readonly unknown[], prefix = ""): string[] {
+  const out: string[] = [];
+  for (const f of fields) {
+    if (typeof f === "string") out.push(prefix + f);
+    else if (f && typeof f === "object") {
+      for (const [k, v] of Object.entries(f)) out.push(...fieldPaths(v as unknown[], `${prefix}${k}.`));
+    }
+  }
+  return out;
+}
+
+/** PUBLIC_ORG_FIELDS as dotted paths, for readItemsBatch. */
+export const PUBLIC_ORG_FIELD_PATHS = fieldPaths(PUBLIC_ORG_FIELDS as unknown[]);
+
 /**
  * What only an admin of the community gets on top of the public shape — the
  * site builder (app/components/pages/LandingBuilderPage.vue) reads them:
@@ -109,34 +122,15 @@ export function toPublicOrg<T extends Record<string, any>>(org: T): T {
   return { ...org, settings: { ...settings, landing: redactLandingForPublic(settings.landing) } };
 }
 
-/**
- * Is the caller a signed-in admin of this community? Never throws and never
- * requires a session — the routes stay public; a visitor is simply not an admin.
- */
-export async function isOrgAdminCaller(event: H3Event, organizationId: string): Promise<boolean> {
-  if (!organizationId) return false;
-  try {
-    const session = await getUserSession(event);
-    if (!session?.user?.id) return false;
-    const access = await checkAdminAccess(event, organizationId);
-    return access?.isAdmin === true;
-  } catch {
-    return false;
-  }
-}
+/** ORG_ADMIN_EXTRA_FIELDS as dotted paths, for readItemsBatch. */
+export const ORG_ADMIN_EXTRA_FIELD_PATHS = fieldPaths(ORG_ADMIN_EXTRA_FIELDS as unknown[]);
 
 /**
- * Put the admin-only fields onto a public-shaped org (mutates it). Throws if the
- * read fails: answering an admin with the redacted landing would let the site
- * builder save it back and lose the inquiry recipient.
+ * Put the admin-only fields (a row read with ORG_ADMIN_EXTRA_FIELDS) onto a
+ * public-shaped org (mutates it). No row, no change: the answer then stays
+ * the public one, which the site builder will not save.
  */
-export async function attachOrgAdminExtras(
-  directus: ReturnType<typeof getTypedDirectus>,
-  org: Record<string, any>
-): Promise<void> {
-  const extra = (await directus.request(
-    readItem("hoa_organizations", org.id, { fields: ORG_ADMIN_EXTRA_FIELDS })
-  )) as Record<string, any> | null;
+export function applyOrgAdminExtras(org: Record<string, any>, extra: Record<string, any> | null | undefined): void {
   if (!extra) return;
   org.folder = extra.folder ?? null;
   const extraSettings = extra.settings;
@@ -149,4 +143,52 @@ export async function attachOrgAdminExtras(
   // The site builder saves only an answer carrying this: anything else has the
   // public, redacted landing, and saving it would erase the inquiry recipient.
   org.admin_view = true;
+}
+
+/**
+ * The building widget's unit count and owner-occupancy, from the community's
+ * non-archived units counted by `occupancy` ({ occupancy, count } rows). A
+ * unit count describes a building better than the denormalized member_count.
+ */
+export function unitStatsFrom(groups: ReadonlyArray<{ occupancy?: unknown; count?: unknown }>) {
+  let total = 0;
+  let ownerOccupied = 0;
+  for (const g of groups) {
+    const n = Number(g?.count ?? 0) || 0;
+    total += n;
+    if (g?.occupancy === "owner") ownerOccupied += n;
+  }
+  return total
+    ? {
+        total,
+        owner_occupied: ownerOccupied,
+        // Only meaningful once somebody has actually recorded occupancy.
+        ownership_pct: ownerOccupied ? Math.round((ownerOccupied / total) * 100) : null,
+      }
+    : null;
+}
+
+/**
+ * How much a community communicates, from its sent emails' `sent_at` (oldest
+ * first): how many, since when, and roughly how often. A count and a cadence
+ * only — nothing a visitor could read.
+ */
+export function announcementStatsFrom(emails: ReadonlyArray<{ sent_at?: unknown }>) {
+  const sent = emails
+    .map((e) => (e?.sent_at ? new Date(e.sent_at as string) : null))
+    .filter((d: Date | null): d is Date => !!d && !Number.isNaN(d.getTime()));
+  if (!sent.length) return null;
+  const first = sent[0]!;
+  const last = sent[sent.length - 1]!;
+  // Inclusive month span, so a single month reads as 1 rather than 0 and the
+  // average never divides by zero.
+  const months = Math.max(
+    1,
+    (last.getFullYear() - first.getFullYear()) * 12 + (last.getMonth() - first.getMonth()) + 1
+  );
+  return {
+    total: sent.length,
+    since: first.toISOString(),
+    avg_per_month: Math.round((sent.length / months) * 10) / 10,
+  };
 }

@@ -114,6 +114,28 @@ describe("counts", () => {
   });
 });
 
+describe("fields the schema does not have", () => {
+  const full = relationMapOf(
+    [{ collection: "hoa_members", field: "organization", related_collection: "hoa_organizations" }],
+    [
+      { collection: "hoa_members", field: "id" },
+      { collection: "hoa_members", field: "organization" },
+      { collection: "hoa_organizations", field: "id" },
+      { collection: "hoa_organizations", field: "name" },
+    ],
+    true
+  );
+
+  it("are left out of the selection, as REST leaves them out of the row", () => {
+    const q = buildBatchQuery({ m: { collection: "hoa_members", fields: ["id", "logo.id", "organization.name", "organization.gone"] } }, full);
+    expect(q).toContain("m: hoa_members { id organization { name } }");
+  });
+
+  it("are kept when the field rows are not the whole schema", () => {
+    expect(() => buildBatchQuery({ m: { collection: "hoa_members", fields: ["id", "logo.id"] } }, rel)).toThrow(/not a relation/);
+  });
+});
+
 describe("restShaped", () => {
   it("flattens id-only relations, keeps nested ones, and writes decimals at their scale", () => {
     const rows = restShaped(

@@ -12,6 +12,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
+import { adminFrom } from "#core/server/utils/access-snapshot";
+import { announcementStatsFrom, fieldPaths, unitStatsFrom, PUBLIC_ORG_FIELDS } from "#core/server/utils/public-org";
 
 const h = vi.hoisted(() => ({
   query: {} as Record<string, unknown>,
@@ -20,6 +22,7 @@ const h = vi.hoisted(() => ({
   adminChecks: [] as string[],
   headers: {} as Record<string, string>,
   ops: [] as Array<{ op: string; collection: string; id?: string; query?: any }>,
+  batches: 0,
 }));
 
 vi.mock("@directus/sdk", () => ({
@@ -121,7 +124,35 @@ const NEEDED = [
 
 const orgReads = () => h.ops.filter((o) => o.collection === "hoa_organizations");
 
+const HOA_ADMIN = "role-hoa-admin";
+
+/**
+ * /api/hoa/find reads through readItemsBatch: each spec is logged as a read
+ * (dotted `fields`) and answered from the fixtures. The caller's membership in
+ * the community (filtered by its slug) carries the HOA Admin role when
+ * `h.adminOf` names the community.
+ */
+async function batch(specs: Record<string, any>): Promise<Record<string, any[]>> {
+  h.batches++;
+  const out: Record<string, any[]> = {};
+  for (const [key, spec] of Object.entries(specs)) {
+    h.ops.push({ op: "batch", collection: spec.collection, query: spec });
+    if (spec.collection === "hoa_organizations") {
+      out[key] = spec.fields.includes("folder") ? [{ folder: "folder-lenox", settings: { landing: storedLanding() } }] : [orgRow()];
+    } else if (spec.collection === "hoa_members") {
+      out[key] = [{ id: "m-1", status: "active", role: h.adminOf.includes("org-lenox") ? HOA_ADMIN : "role-member" }];
+    } else out[key] = [];
+  }
+  return out;
+}
+
 beforeEach(() => {
+  h.batches = 0;
+  vi.stubGlobal("readItemsBatch", batch);
+  vi.stubGlobal("readItemsBatchRest", batch);
+  vi.stubGlobal("adminFrom", adminFrom);
+  vi.stubGlobal("accessRoles", () => ({ hoaAdmin: HOA_ADMIN }));
+  vi.stubGlobal("isAppAdminSession", (session: any) => session?.user?.role === "role-app-admin");
   h.query = { slug: "lenox" };
   h.session = null;
   h.adminOf = [];
@@ -189,11 +220,15 @@ describe.each([
   });
 });
 
+const membershipReads = () => h.ops.filter((o) => o.collection === "hoa_members");
+const extrasReads = () => orgReads().filter((o) => paths(o.query.fields).includes("folder"));
+
 describe("GET /api/hoa/find — what the site builder needs", () => {
-  it("a visitor gets the public shape from one read, and no admin lookup runs", async () => {
+  it("a visitor gets the public shape from one request, and no admin lookup runs", async () => {
     const org = await find({} as H3Event);
+    expect(h.batches).toBe(1);
     expect(orgReads()).toHaveLength(1);
-    expect(h.adminChecks).toEqual([]);
+    expect(membershipReads()).toEqual([]);
     expect(org).not.toHaveProperty("folder");
     expect(org).not.toHaveProperty("admin_view");
     expect(h.headers["cache-control"]).toBeUndefined();
@@ -202,18 +237,22 @@ describe("GET /api/hoa/find — what the site builder needs", () => {
   it("a signed-in member who is not an admin gets the public shape", async () => {
     h.session = { user: { id: "u-member" } };
     const org = await find({} as H3Event);
-    expect(h.adminChecks).toEqual(["org-lenox"]);
-    expect(orgReads()).toHaveLength(1);
+    expect(h.batches).toBe(1);
+    // Their membership in THIS community, found by its slug.
+    const [mine] = membershipReads();
+    expect(mine!.query.filter.user).toEqual({ _eq: "u-member" });
+    expect(JSON.stringify(mine!.query.filter.organization)).toContain('"slug":{"_eq":"lenox"}');
     expect(org).not.toHaveProperty("folder");
     expect(org).not.toHaveProperty("admin_view");
     expect(org.settings.landing.inquiry).toEqual({ enabled: true });
+    expect(JSON.stringify(org)).not.toContain("board@lenox.example");
+    expect(h.headers["cache-control"]).toBeUndefined();
   });
 
   it("an admin of another community gets the public shape", async () => {
     h.session = { user: { id: "u-oscar" } };
     h.adminOf = ["org-other"];
     const org = await find({} as H3Event);
-    expect(orgReads()).toHaveLength(1);
     expect(org).not.toHaveProperty("folder");
     expect(org).not.toHaveProperty("admin_view");
     expect(org.settings.landing.inquiry).toEqual({ enabled: true });
@@ -224,10 +263,12 @@ describe("GET /api/hoa/find — what the site builder needs", () => {
     h.adminOf = ["org-lenox"];
     const org = await find({} as H3Event);
 
-    const [publicRead, adminRead] = orgReads();
+    expect(h.batches).toBe(1);
+    const [publicRead] = orgReads().filter((o) => !extrasReads().includes(o));
+    const [adminRead] = extrasReads();
     expect(paths(publicRead!.query.fields)).not.toContain("folder");
-    expect(adminRead).toMatchObject({ op: "readItem", id: "org-lenox" });
     expect(paths(adminRead!.query.fields).sort()).toEqual(["folder", "settings.landing"]);
+    expect(adminRead!.query.filter).toEqual(publicRead!.query.filter);
 
     expect(org.folder).toBe("folder-lenox");
     // The site builder saves only an answer marked as the admin view.
@@ -239,6 +280,14 @@ describe("GET /api/hoa/find — what the site builder needs", () => {
     expect(h.headers["cache-control"]).toBe("private, no-store");
   });
 
+  it("an App Administrator gets the admin view without a membership read", async () => {
+    h.session = { user: { id: "u-ops", role: "role-app-admin" } };
+    const org = await find({} as H3Event);
+    expect(membershipReads()).toEqual([]);
+    expect(org.admin_view).toBe(true);
+    expect(org.folder).toBe("folder-lenox");
+  });
+
   it("a failing session lookup leaves the route public, not broken", async () => {
     vi.stubGlobal("getUserSession", async () => {
       throw new Error("bad cookie");
@@ -247,6 +296,65 @@ describe("GET /api/hoa/find — what the site builder needs", () => {
     expect(org.name).toBe("1033 Lenox");
     expect(org).not.toHaveProperty("folder");
     expect(org).not.toHaveProperty("admin_view");
+  });
+
+  it("when the batch fails, a failing extra read costs only its own section", async () => {
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("boom");
+    });
+    vi.stubGlobal("readItemsBatchRest", async (specs: Record<string, any>) => {
+      const [spec] = Object.values(specs);
+      if (spec.collection === "hoa_units") throw new Error("units down");
+      return batch(specs);
+    });
+    const org = await find({} as H3Event);
+    expect(org.name).toBe("1033 Lenox");
+    expect(org.unit_stats).toBeNull();
+    expect(org.property_manager).toBeNull();
+    expect(org.announcement_stats).toBeNull();
+  });
+
+  it("is a 404 when no active community has the slug", async () => {
+    vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) =>
+      Object.fromEntries(Object.keys(specs).map((k) => [k, []]))
+    );
+    await expect(find({} as H3Event)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe("public-org helpers", () => {
+  it("fieldPaths writes SDK fields as REST's dotted paths, in order", () => {
+    expect(fieldPaths(["id", { hero: ["id", { background_image: ["id"] }] }, "name"])).toEqual([
+      "id",
+      "hero.id",
+      "hero.background_image.id",
+      "name",
+    ]);
+    expect(fieldPaths(PUBLIC_ORG_FIELDS as unknown[])).toEqual(paths(PUBLIC_ORG_FIELDS as unknown[]));
+  });
+
+  it("unitStatsFrom totals the occupancy groups", () => {
+    expect(unitStatsFrom([])).toBeNull();
+    expect(
+      unitStatsFrom([
+        { occupancy: "owner", count: "18" },
+        { occupancy: "tenant", count: "7" },
+        { occupancy: null, count: "3" },
+      ])
+    ).toEqual({ total: 28, owner_occupied: 18, ownership_pct: 64 });
+    expect(unitStatsFrom([{ occupancy: null, count: "4" }])).toEqual({ total: 4, owner_occupied: 0, ownership_pct: null });
+  });
+
+  it("announcementStatsFrom gives a count and a cadence, skipping unreadable dates", () => {
+    expect(announcementStatsFrom([])).toBeNull();
+    expect(
+      announcementStatsFrom([
+        { sent_at: "2026-01-15T12:00:00.000Z" },
+        { sent_at: "not a date" },
+        { sent_at: "2026-01-20T12:00:00.000Z" },
+        { sent_at: "2026-03-10T12:00:00.000Z" },
+      ])
+    ).toEqual({ total: 3, since: "2026-01-15T12:00:00.000Z", avg_per_month: 1 });
   });
 });
 

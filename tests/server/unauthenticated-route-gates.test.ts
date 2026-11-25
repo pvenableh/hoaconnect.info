@@ -61,6 +61,13 @@ beforeEach(() => {
       return [];
     },
   }));
+  // /api/hoa/find reads through readItemsBatch: log each spec as a read.
+  vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+    for (const s of Object.values(specs)) h.ops.push({ op: "readItems", collection: s.collection, query: s });
+    return Object.fromEntries(Object.keys(specs).map((k) => [k, []]));
+  });
+  vi.stubGlobal("getUserSession", async () => h.session ?? {});
+  vi.stubGlobal("isAppAdminSession", () => false);
 });
 
 describe("POST /api/coupons/record-usage", () => {
@@ -132,8 +139,12 @@ describe("GET /api/hoa/find and /api/hoa/by-slug (public)", () => {
     await handler({} as H3Event).catch(() => {});
     const orgRead = h.ops.find((o) => o.op === "readItems" && o.collection === "hoa_organizations");
     expect(orgRead).toBeDefined();
-    const relations = Object.assign({}, ...orgRead!.query.fields.filter((f: unknown) => typeof f === "object"));
-    expect(relations).not.toHaveProperty("invitations");
-    expect(relations).not.toHaveProperty("subscription");
+    // SDK-style fields ({ relation: [...] }) or readItemsBatch's dotted paths ("relation.field").
+    const relations = (orgRead!.query.fields as unknown[]).flatMap((f) =>
+      typeof f === "object" && f ? Object.keys(f) : String(f).includes(".") ? [String(f).split(".")[0]] : []
+    );
+    expect(relations).not.toContain("invitations");
+    expect(relations).not.toContain("subscription");
+    expect(relations).toContain("settings");
   });
 });

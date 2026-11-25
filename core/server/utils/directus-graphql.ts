@@ -55,26 +55,41 @@ export interface RelationMap {
   m2o: Map<string, string>;
   o2m: Map<string, string>;
   decimals: Map<string, number>;
+  /**
+   * Each collection's fields, when the map was built from the whole schema. A
+   * REST read silently leaves out a field the collection does not have;
+   * GraphQL refuses the whole query. With this, the batch leaves it out too.
+   */
+  fields?: Map<string, Set<string>>;
 }
 
 const RELATIONS_TTL_MS = 10 * 60_000;
 let relations: { map: RelationMap; at: number } | null = null;
 let loading: Promise<void> | null = null;
 
-/** Build the map from Directus relation rows and field rows (`type`, `schema.numeric_scale`). */
-export function relationMapOf(rows: readonly any[], fields: readonly any[] = []): RelationMap {
+/**
+ * Build the map from Directus relation rows and field rows (`type`,
+ * `schema.numeric_scale`). `allFields`: the field rows are the whole schema,
+ * so a field missing from them does not exist.
+ */
+export function relationMapOf(rows: readonly any[], fields: readonly any[] = [], allFields = false): RelationMap {
   const m2o = new Map<string, string>();
   const o2m = new Map<string, string>();
   const decimals = new Map<string, number>();
+  const known = new Map<string, Set<string>>();
   for (const f of fields) {
     if (f?.type === "decimal" && f.collection && f.field) decimals.set(`${f.collection}.${f.field}`, Number(f.schema?.numeric_scale ?? 0));
+    if (allFields && f?.collection && f.field) {
+      if (!known.has(f.collection)) known.set(f.collection, new Set());
+      known.get(f.collection)!.add(f.field);
+    }
   }
   for (const r of rows) {
     if (!r?.collection || !r?.field || !r?.related_collection) continue; // m2a and the like: not handled
     m2o.set(`${r.collection}.${r.field}`, r.related_collection);
     if (r.meta?.one_field) o2m.set(`${r.related_collection}.${r.meta.one_field}`, r.collection);
   }
-  return { m2o, o2m, decimals };
+  return allFields ? { m2o, o2m, decimals, fields: known } : { m2o, o2m, decimals };
 }
 
 function loadRelations(): void {
@@ -90,7 +105,7 @@ function loadRelations(): void {
     .then(async (r) => {
       const body = (await r.json()) as any;
       if (!r.ok || body?.errors?.length || !body?.data?.relations) throw new Error(`schema read ${r.status}`);
-      relations = { map: relationMapOf(body.data.relations, body.data.fields ?? []), at: Date.now() };
+      relations = { map: relationMapOf(body.data.relations, body.data.fields ?? [], true), at: Date.now() };
     })
     .catch((e) => console.warn("[directus-graphql] schema read failed; using REST:", e?.message ?? e))
     .finally(() => (loading = null));
@@ -178,7 +193,10 @@ function argsOf(
 
 function selection(collection: string, tree: Tree, deep: Record<string, any> | undefined, rel: RelationMap): string {
   const parts: string[] = [];
+  const known = rel.fields?.get(collection);
   for (const [name, sub] of tree) {
+    // As REST does: a field the collection does not have is left out of the row.
+    if (known && !known.has(name)) continue;
     const m2o = rel.m2o.get(`${collection}.${name}`);
     const o2m = rel.o2m.get(`${collection}.${name}`);
     const related = m2o ?? o2m;
