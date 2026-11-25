@@ -55,5 +55,7 @@ export async function stubMoney(state: { who: Who; db: Db }): Promise<MoneyCaptu
   for (const path of modules) {
     for (const [k, v] of Object.entries(await import(/* @vite-ignore */ path))) vi.stubGlobal(k, v);
   }
+  // The fake Directus speaks REST only: batches run as the REST reads they replace.
+  vi.stubGlobal("readItemsBatch", (await import("#core/server/utils/directus-graphql")).readItemsBatchRest);
   return capture;
 }

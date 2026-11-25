@@ -51,18 +51,27 @@ export async function lateFeesOf(orgId: string, chargeIds: readonly string[]): P
  * approvals instead of after them.
  */
 export async function owedLateFeesByCharge(orgId: string): Promise<Map<string, LateFeeFacts[]>> {
-  return readLateFees({ organization: { _eq: orgId }, request_type: { _eq: "late_fee" }, amount_remaining: { _gt: 0 } });
+  return readLateFees(owedLateFeesFilter(orgId));
 }
 
+/** owedLateFeesByCharge's filter, for a caller that reads the rows itself (readItemsBatch). */
+export const owedLateFeesFilter = (orgId: string) => ({ organization: { _eq: orgId }, request_type: { _eq: "late_fee" }, amount_remaining: { _gt: 0 } });
+export const LATE_FEE_FIELDS = ["id", "status", "amount", "amount_paid", "amount_remaining", "source_id"] as const;
+
 async function readLateFees(filter: Record<string, unknown>): Promise<Map<string, LateFeeFacts[]>> {
-  const out = new Map<string, LateFeeFacts[]>();
   const rows = ((await getTypedDirectus().request(
     readItems("payment_requests", {
       filter: filter as any,
-      fields: ["id", "status", "amount", "amount_paid", "amount_remaining", "source_id"] as any,
+      fields: [...LATE_FEE_FIELDS] as any,
       limit: -1,
     })
   )) ?? []) as any[];
+  return lateFeesByCharge(rows);
+}
+
+/** Late-fee rows grouped by the charge they were added to (`source_id`). */
+export function lateFeesByCharge(rows: readonly any[]): Map<string, LateFeeFacts[]> {
+  const out = new Map<string, LateFeeFacts[]>();
   for (const r of rows) {
     const key = String(r.source_id ?? "");
     if (!key) continue;

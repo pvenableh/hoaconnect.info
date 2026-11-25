@@ -79,7 +79,7 @@ export const APPROVAL_FIELDS = [
   "id", "organization", "kind", "expense", "charge", "round", "state", "mode", "needed",
   "requested_by", "excluded", "reason", "date_created", "decided_at", "amount", "proposed",
 ] as const;
-const DECISION_FIELDS = ["id", "approval", "decided_by", "office", "decision", "note", "date_created"] as const;
+export const DECISION_FIELDS = ["id", "approval", "decided_by", "office", "decision", "note", "date_created"] as const;
 export const EXPENSE_SUBJECT_FIELDS = [
   "id", "organization", "title", "vendor", "amount", "category", "status", "entered_by", "approval",
   "paid_by", "paid_date", "paid_reference", "paid_without_approval", "void_reason",
@@ -198,11 +198,15 @@ export async function loadDecisions(approvalIds: readonly string[]): Promise<Map
 
 /** Every decision on the community's approvals (narrowed by `approvalFilter`), without waiting to know their ids. */
 export async function loadOrgDecisions(orgId: string, approvalFilter: Record<string, unknown> = {}): Promise<Map<string, DecisionRow[]>> {
-  return readDecisions({ approval: { organization: { _eq: orgId }, ...approvalFilter } });
+  return readDecisions(orgDecisionsFilter(orgId, approvalFilter));
 }
 
+/** loadOrgDecisions' filter, for a caller that reads the rows itself (readItemsBatch). */
+export const orgDecisionsFilter = (orgId: string, approvalFilter: Record<string, unknown> = {}) => ({
+  approval: { organization: { _eq: orgId }, ...approvalFilter },
+});
+
 async function readDecisions(filter: Record<string, unknown>): Promise<Map<string, DecisionRow[]>> {
-  const out = new Map<string, DecisionRow[]>();
   const rows = ((await getTypedDirectus().request(
     readItems("money_approval_decisions" as any, {
       filter: filter as any,
@@ -211,6 +215,12 @@ async function readDecisions(filter: Record<string, unknown>): Promise<Map<strin
       limit: -1,
     })
   )) ?? []) as any[];
+  return decisionsByApproval(rows);
+}
+
+/** Decision rows (sorted by date_created) grouped by their approval. */
+export function decisionsByApproval(rows: readonly any[]): Map<string, DecisionRow[]> {
+  const out = new Map<string, DecisionRow[]>();
   for (const d of rows.map(normaliseDecision)) out.set(d.approval, [...(out.get(d.approval) ?? []), d]);
   return out;
 }
