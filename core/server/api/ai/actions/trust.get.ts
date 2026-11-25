@@ -24,6 +24,8 @@
 import { aggregate } from "@directus/sdk";
 import { trustNudge } from "#core/shared/ai/trust";
 import { getOrgAutonomyTier } from "#core/server/utils/ai-autonomy";
+import { trustSpecs } from "#core/server/utils/ai-trust-reads";
+import { clampAutonomyTier, DEFAULT_AUTONOMY_TIER } from "#core/shared/ai/actions";
 
 async function countActions(
   directus: any,
@@ -58,7 +60,19 @@ export default defineEventHandler(async (event) => {
 
   const orgId = String(getQuery(event).orgId || "").trim();
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
+  // The tier, the two counts and the caller's standing as ONE request
+  // (ai-trust-reads.ts); the gate then answers from the cached standing and
+  // refuses before any of these rows is used. A failed batch reads one by
+  // one below, as before.
+  const batched = await batchWithAccessSnapshot(event, orgId, trustSpecs(orgId, String(userId))).catch(() => null);
   await requireOrgComposeAccess(event, orgId);
+
+  if (batched) {
+    const tier = clampAutonomyTier(batched.tr_org[0]?.ai_autonomy_tier ?? DEFAULT_AUTONOMY_TIER);
+    const approved = Number(batched.tr_approved[0]?.count ?? 0);
+    const rejected = Number(batched.tr_rejected[0]?.count ?? 0);
+    return { approved, rejected, tier, nudge: trustNudge({ approved, rejected }, tier) };
+  }
 
   const tier = await getOrgAutonomyTier(orgId);
 

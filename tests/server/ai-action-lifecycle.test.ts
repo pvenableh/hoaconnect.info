@@ -136,6 +136,11 @@ beforeEach(() => {
     }
     return ["admin"];
   });
+  // trust.get.ts reads with the caller's standing in one batch; here the
+  // batch is the same specs read one by one against the fake.
+  vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _orgId: string, specs: any) =>
+    (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+  );
   vi.stubGlobal("announceEvent", async () => {});
   vi.stubGlobal("writeAuditEntry", async (entry: any) => {
     ledger.push(entry);
@@ -586,6 +591,42 @@ describe("GET /api/ai/actions/trust", () => {
     const res = await handler({ __query: { orgId: HOME } });
     expect(res.tier).toBe(3);
     expect(res.nudge.suggest).toBe(false);
+  });
+
+  it("reads the tier and both counts in one batch with the caller's standing", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadTrust();
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([["tr_org", "tr_approved", "tr_rejected"]]);
+  });
+
+  it("answers the same, one read at a time, when the batch fails", async () => {
+    rows.hoa_organizations = [{ id: HOME, name: "Home", ai_autonomy_tier: 2 }];
+    rows.ai_actions = [
+      { ...pendingAction(), status: "executed", approved_by: ME },
+      { ...pendingAction(), status: "rejected", approved_by: ME },
+    ];
+    const handler = await loadTrust();
+    const ok = await handler({ __query: { orgId: HOME } });
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await handler({ __query: { orgId: HOME } })).toEqual(ok);
+    expect(ok).toMatchObject({ approved: 1, rejected: 1, tier: 2 });
+  });
+
+  it("refuses with no data when the batch has read for a stranger", async () => {
+    rows.ai_actions = [{ ...pendingAction(), status: "executed", approved_by: ME, organization: OTHER }];
+    const handler = await loadTrust();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("approved");
   });
 
   it("writes nothing at all", async () => {
