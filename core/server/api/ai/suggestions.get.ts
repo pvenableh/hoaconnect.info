@@ -5,11 +5,7 @@
 // a pet policy that may not exist). Auth-gated to the same staff actors as chat.
 
 import { readItems } from "@directus/sdk";
-
-const clip = (s: unknown, n = 72): string => {
-  const t = String(s ?? "").replace(/\s+/g, " ").trim();
-  return t.length > n ? `${t.slice(0, n)}…` : t;
-};
+import { groundedChips, suggestionSpecs, type SuggestionKey } from "#core/server/utils/ai-suggestion-reads";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -17,9 +13,17 @@ export default defineEventHandler(async (event) => {
   const orgId = String(q.orgId || "").trim();
   const entityType = String(q.entityType || "").trim();
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
-  await requireOrgComposeAccess(event, orgId);
 
-  const directus = getTypedDirectus();
+  // The grounding reads and the caller's standing as ONE request
+  // (ai-suggestion-reads.ts); the gate then answers from the cached standing
+  // and refuses before any of these rows is used. A failed batch reads one by
+  // one below, each read non-fatal, as before.
+  const specs = suggestionSpecs(orgId, isRagConfigured());
+  const batched = (await batchWithAccessSnapshot(event, orgId, specs as Record<SuggestionKey, any>).catch(() => null)) as Record<
+    SuggestionKey,
+    any[]
+  > | null;
+  await requireOrgComposeAccess(event, orgId);
 
   // When a specific record is focused, lead with prompts about it — they land on
   // the injected dossier and teach "the assistant knows this record."
@@ -35,53 +39,14 @@ export default defineEventHandler(async (event) => {
   };
   const entityChips = entityType ? ENTITY_PROMPTS[entityType] || [] : [];
 
-  const grounded: string[] = [];
-
   // 1) An actually-indexed document — the chip that teaches doc-awareness.
-  if (isRagConfigured()) {
-    try {
-      const chunks = (await directus.request(
-        readItems("ai_doc_chunks", {
-          filter: { organization: { _eq: orgId } },
-          fields: ["source_title"],
-          limit: 25,
-        })
-      )) as { source_title?: string | null }[];
-      const titles = [...new Set(chunks.map((c) => c.source_title).filter(Boolean))] as string[];
-      if (titles[0]) grounded.push(`Summarize “${clip(titles[0])}”`);
-    } catch {
-      /* non-fatal */
-    }
-  }
-
   // 2) A real governing rule, if any are published.
-  try {
-    const rules = (await directus.request(
-      readItems("hoa_governance", {
-        filter: { organization: { _eq: orgId }, status: { _eq: "published" } },
-        fields: ["title"],
-        limit: 1,
-      })
-    )) as { title?: string | null }[];
-    if (rules[0]?.title) grounded.push(`What do our rules say about ${clip(rules[0].title, 48)}?`);
-  } catch {
-    /* non-fatal */
-  }
-
   // 3) The latest announcement, if any have been sent.
-  try {
-    const emails = (await directus.request(
-      readItems("hoa_emails", {
-        filter: { organization: { _eq: orgId }, status: { _eq: "sent" } },
-        fields: ["subject"],
-        sort: ["-sent_at"],
-        limit: 1,
-      })
-    )) as { subject?: string | null }[];
-    if (emails[0]?.subject) grounded.push(`What was “${clip(emails[0].subject)}” about?`);
-  } catch {
-    /* non-fatal */
-  }
+  const grounded = groundedChips(
+    batched
+      ? { chunks: batched.sg_chunks, rules: batched.sg_rules, emails: batched.sg_emails }
+      : await readOneByOne(specs)
+  );
 
   // Always-useful fallbacks fill any remaining slots (never duplicate a grounded one).
   const fallbacks = [
@@ -97,3 +62,27 @@ export default defineEventHandler(async (event) => {
 
   return { suggestions: suggestions.slice(0, 4) };
 });
+
+/** The three reads one after another, as the route made them; a read that fails adds nothing. */
+async function readOneByOne(specs: ReturnType<typeof suggestionSpecs>) {
+  const directus = getTypedDirectus();
+  const read = async (spec: (typeof specs)[SuggestionKey]) => {
+    if (!spec) return undefined;
+    try {
+      return (await directus.request(
+        readItems(spec.collection as any, {
+          filter: spec.filter as any,
+          fields: [...spec.fields] as any,
+          ...(spec.sort ? { sort: [...spec.sort] as any } : {}),
+          limit: spec.limit,
+        })
+      )) as any[];
+    } catch {
+      return undefined; // non-fatal
+    }
+  };
+  const chunks = await read(specs.sg_chunks);
+  const rules = await read(specs.sg_rules);
+  const emails = await read(specs.sg_emails);
+  return { chunks, rules, emails };
+}

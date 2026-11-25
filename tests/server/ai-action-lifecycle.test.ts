@@ -835,3 +835,80 @@ describe("GET /api/ai/conversations", () => {
     expect(JSON.stringify(err)).not.toContain("Secret thread");
   });
 });
+
+// ── GET /api/ai/suggestions ──────────────────────────────────────────────────
+
+const loadSuggestions = async () => (await import("#core/server/api/ai/suggestions.get")).default as any;
+
+describe("GET /api/ai/suggestions", () => {
+  beforeEach(() => {
+    vi.stubGlobal("isRagConfigured", () => true);
+    rows.ai_doc_chunks = [{ id: "k1", organization: HOME, source_title: "Bylaws" }];
+    rows.hoa_governance = [{ id: "g1", organization: HOME, status: "published", title: "Parking" }];
+    rows.hoa_emails = [{ id: "e1", organization: HOME, status: "sent", subject: "Pool opening", sent_at: daysAgo(1) }];
+  });
+
+  it("grounds the chips in the community's document, rule and latest email", async () => {
+    const handler = await loadSuggestions();
+    expect(await handler({ __query: { orgId: HOME } })).toEqual({
+      suggestions: [
+        "Summarize “Bylaws”",
+        "What do our rules say about Parking?",
+        "What was “Pool opening” about?",
+        "When is the next board meeting?",
+      ],
+    });
+  });
+
+  it("reads them in one batch with the caller's standing, and no document read without RAG", async () => {
+    const seen: string[][] = [];
+    const { readItemsBatchRest } = await import("#core/server/utils/directus-graphql");
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, orgId: string, specs: any) => {
+      expect(orgId).toBe(HOME);
+      seen.push(Object.keys(specs));
+      return readItemsBatchRest(specs);
+    });
+    const handler = await loadSuggestions();
+    await handler({ __query: { orgId: HOME } });
+    vi.stubGlobal("isRagConfigured", () => false);
+    await handler({ __query: { orgId: HOME } });
+    expect(seen).toEqual([
+      ["sg_chunks", "sg_rules", "sg_emails"],
+      ["sg_rules", "sg_emails"],
+    ]);
+  });
+
+  it("answers the same, read one by one, when the batch fails; a failing read adds nothing", async () => {
+    const handler = await loadSuggestions();
+    const ok = await handler({ __query: { orgId: HOME, entityType: "vendor" } });
+    vi.stubGlobal("batchWithAccessSnapshot", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await handler({ __query: { orgId: HOME, entityType: "vendor" } })).toEqual(ok);
+    expect(ok.suggestions).toEqual([
+      "What projects has this vendor worked on?",
+      "Draft an email to this vendor",
+      "Summarize “Bylaws”",
+      "What do our rules say about Parking?",
+    ]);
+    const real = (globalThis as any).getTypedDirectus();
+    vi.stubGlobal("getTypedDirectus", () => ({
+      request: async (desc: any) => {
+        if (desc.collection === "ai_doc_chunks") throw new Error("no such collection");
+        return real.request(desc);
+      },
+    }));
+    expect((await handler({ __query: { orgId: HOME } })).suggestions.slice(0, 2)).toEqual([
+      "What do our rules say about Parking?",
+      "What was “Pool opening” about?",
+    ]);
+  });
+
+  it("refuses a stranger with no rows, though the batch has read them", async () => {
+    rows.hoa_governance = [{ id: "g9", organization: OTHER, status: "published", title: "Secret rule" }];
+    const handler = await loadSuggestions();
+    const err = await handler({ __query: { orgId: OTHER } }).catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toContain("Secret rule");
+  });
+});
