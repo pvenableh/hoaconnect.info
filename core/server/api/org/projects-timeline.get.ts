@@ -1,4 +1,5 @@
 import { readItems } from "@directus/sdk";
+import { projectRowsWithAccess, projectTimelineSpecs } from "#core/server/utils/project-reads";
 
 /**
  * All projects for an org with the timeline data the org-wide view needs:
@@ -12,6 +13,15 @@ export default defineEventHandler(async (event) => {
   const orgId = String(query.orgId || "");
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
+  // Signed out is refused before anything is read.
+  await requireAuthenticatedUser(event);
+
+  // Both lists and the caller's standing in one request (project-reads.ts);
+  // the access check picks the list, and a refused caller gets neither.
+  const batched = await projectRowsWithAccess(event, orgId, projectTimelineSpecs(orgId));
+  if (batched) return batched.access.elevated ? batched.rows.pr_all : batched.rows.pr_visible;
+
+  // The batch failed: read as before.
   const access = await getProjectAccess(event, orgId);
   const directus = getTypedDirectus();
 

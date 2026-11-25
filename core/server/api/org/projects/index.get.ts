@@ -1,4 +1,5 @@
 import { readItems } from "@directus/sdk";
+import { projectListSpecs, projectRowsWithAccess } from "#core/server/utils/project-reads";
 
 /**
  * List projects for an org.
@@ -12,6 +13,20 @@ export default defineEventHandler(async (event) => {
   const orgId = String(query.orgId || "");
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
 
+  // Signed out is refused before anything is read.
+  await requireAuthenticatedUser(event);
+
+  // The list (both ways: every project, and the member-visible ones) and the
+  // caller's standing, in one request (project-reads.ts). The access check
+  // decides which list comes back, and a refused caller gets neither.
+  const batched = await projectRowsWithAccess(event, orgId, projectListSpecs(orgId, query));
+  if (batched) {
+    const { access, rows } = batched;
+    if (access.elevated) return rows.pr_all;
+    return rows.pr_visible.map((r) => stripBudgetFields(r, PROJECT_BUDGET_FIELDS));
+  }
+
+  // The batch failed: read as before.
   const access = await getProjectAccess(event, orgId);
   const directus = getTypedDirectus();
 

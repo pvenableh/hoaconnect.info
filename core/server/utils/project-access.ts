@@ -20,6 +20,7 @@ import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { randomBytes } from "node:crypto";
 import { boardTitleToActor, hasCapability } from "#core/shared/permissions";
+import { accessSnapshot } from "./access-snapshot";
 
 export interface ProjectAccess {
   userId: string;
@@ -40,6 +41,9 @@ export interface ProjectAccess {
  */
 export async function getProjectAccess(event: H3Event, organizationId: string): Promise<ProjectAccess> {
   const { userId } = await requireAuthenticatedUser(event);
+  // The caller's whole standing, as one request: the membership, admin,
+  // manager-grant and helper checks below and the team rows all answer from it.
+  const snapshot = await accessSnapshot(event, organizationId);
   await requireMembership(event, organizationId);
 
   const admin = await checkAdminAccess(event, organizationId);
@@ -59,17 +63,20 @@ export async function getProjectAccess(event: H3Event, organizationId: string): 
   let leadTeamIds: string[] = [];
   let teamIds: string[] = [];
   try {
-    const directus = getTypedDirectus();
-    const rows = await directus.request(
-      readItems("hoa_team_members", {
-        filter: {
-          user: { _eq: userId },
-          organization: { _eq: organizationId },
-        },
-        fields: ["team", "role"],
-        limit: 50,
-      })
-    );
+    // The snapshot's team rows are the caller's rows in this org (its `team`
+    // expanded); without a snapshot, the read this always made.
+    const rows = snapshot
+      ? snapshot.teams
+      : await getTypedDirectus().request(
+          readItems("hoa_team_members", {
+            filter: {
+              user: { _eq: userId },
+              organization: { _eq: organizationId },
+            },
+            fields: ["team", "role"],
+            limit: 50,
+          })
+        );
     teamIds = (rows || []).map((r: any) => (typeof r.team === "string" ? r.team : r.team?.id)).filter(Boolean);
     leadTeamIds = (rows || [])
       .filter((r: any) => r.role === "lead")
