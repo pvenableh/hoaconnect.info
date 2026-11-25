@@ -1,4 +1,5 @@
 import { readItems, aggregate } from "@directus/sdk";
+import { EMAIL_LIST_FIELDS, emailListFilter, emailListSpecs } from "#core/server/utils/email-list-reads";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -20,47 +21,40 @@ export default defineEventHandler(async (event) => {
   // any community's emails (subjects, dates, counts) by its id.
   await requireAdminOrManagerGrant(event, organizationId, "communications");
 
+  const filter = emailListFilter(organizationId, status);
+
+  // The page and its count go as one request (email-list-reads.ts), after the
+  // gate: a refusal reads nothing. A failed batch reads one by one as before,
+  // failing the same way.
+  const batched = await Promise.resolve()
+    .then(() => readItemsBatch(emailListSpecs(filter, page, limit)))
+    .catch(() => null);
+
   try {
     const directus = getTypedDirectus();
 
-    // Build filter
-    const filter: Record<string, any> = {
-      organization: { _eq: organizationId },
-    };
-
-    if (status) {
-      filter.status = { _eq: status };
-    }
-
     // Get emails with pagination
-    const emails = await directus.request(
-      readItems("hoa_emails", {
-        filter,
-        fields: [
-          "id",
-          "status",
-          "subject",
-          "email_type",
-          "date_created",
-          "sent_at",
-          "scheduled_at",
-          "recipient_count",
-          "delivered_count",
-          "failed_count",
-        ],
-        sort: ["-date_created"],
-        limit,
-        offset: (page - 1) * limit,
-      })
-    );
+    const emails = batched
+      ? batched.el_emails
+      : await directus.request(
+          readItems("hoa_emails", {
+            filter,
+            fields: [...EMAIL_LIST_FIELDS],
+            sort: ["-date_created"],
+            limit,
+            offset: (page - 1) * limit,
+          })
+        );
 
     // Get total count for pagination
-    const countResult = await directus.request(
-      aggregate("hoa_emails", {
-        aggregate: { count: "*" },
-        query: { filter },
-      })
-    );
+    const countResult = batched
+      ? batched.el_total
+      : await directus.request(
+          aggregate("hoa_emails", {
+            aggregate: { count: "*" },
+            query: { filter },
+          })
+        );
 
     const total = countResult[0]?.count || 0;
 

@@ -43,6 +43,11 @@ beforeEach(() => {
   vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, grant: string) => {
     if (org !== "org-lenox" || grant !== "communications") throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   });
+  // The list's page and count go as one batch: here, the same specs read one by one.
+  vi.stubGlobal("readItemsBatch", async (specs: any) => {
+    h.reads.push("batch");
+    return (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs);
+  });
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {
       h.reads.push(`${op.op}:${op.collection}`);
@@ -77,5 +82,21 @@ describe("GET /api/email/list", () => {
     h.query = { organizationId: "org-other" };
     await expect(list({} as H3Event)).rejects.toMatchObject({ statusCode: 403 });
     expect(h.reads).toEqual([]);
+  });
+
+  it("reads the page and its count in one batch", async () => {
+    h.query = { organizationId: "org-lenox", status: "sent", page: "2", limit: "5" };
+    const res = await list({} as H3Event);
+    expect(h.reads).toEqual(["batch", "readItems:hoa_emails", "aggregate:hoa_emails"]);
+    expect(res.pagination).toEqual({ page: 2, limit: 5, total: 1, totalPages: 1 });
+  });
+
+  it("answers the same, one read at a time, when the batch fails", async () => {
+    h.query = { organizationId: "org-lenox" };
+    const ok = await list({} as H3Event);
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("graphql down");
+    });
+    expect(await list({} as H3Event)).toEqual(ok);
   });
 });
