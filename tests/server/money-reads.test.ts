@@ -2,9 +2,8 @@
  * The community's books are read through the server only (plan decision 16):
  * GET /api/org/money/charges, /api/org/money/schedules and /api/org/expenses
  * admit admins and every board seat (money:read) — never a plain member, a
- * manager or a non-member — and read only the org asked for. Schedules check
- * first and read nothing for a refused caller; charges and expenses read in
- * one batch (readItemsBatch) and answer money:read from the memberships they
+ * manager or a non-member — and read only the org asked for. Each reads in
+ * one batch (readItemsBatch) and answers money:read from the memberships it
  * read, so a refused caller gets a 403 and no rows, never the data.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -132,9 +131,8 @@ beforeEach(async () => {
   });
 });
 
-/** The org filter of the route's first read, whichever way it read. */
-const firstOrgFilter = () => reads[0]?.query.filter.organization ?? (batches[0]?.expenses ?? batches[0]?.charges)?.filter.organization;
-const BATCHED = new Set(["charges", "expenses"]);
+/** The org filter of the route's own read in its batch (keyed by the route's name). */
+const orgFilterOf = (route: string) => batches[0]?.[route]?.filter.organization;
 
 const ROUTES = {
   charges: "#core/server/api/org/money/charges.get",
@@ -161,7 +159,8 @@ describe("money reads", () => {
         const rows = Object.values(res)[0] as any[];
         expect(rows.length).toBeGreaterThan(0);
         expect(rows.every((r) => r.organization === LENOX)).toBe(true);
-        expect(firstOrgFilter()).toEqual({ _eq: LENOX });
+        expect(orgFilterOf(route)).toEqual({ _eq: LENOX });
+        expect(batches[0].members.filter.organization).toEqual({ _eq: LENOX });
       });
 
       it("admits an admin", async () => {
@@ -170,7 +169,7 @@ describe("money reads", () => {
         expect((Object.values(res)[0] as any[]).length).toBeGreaterThan(0);
       });
 
-      it(BATCHED.has(route) ? "refuses a member, a manager or a non-member, and returns nothing" : "refuses a member, a manager or a non-member, and reads nothing", async () => {
+      it("refuses a member, a manager or a non-member, and returns nothing", async () => {
         caps = ["documents:read", "projects:read", "governing:read"];
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
         caps = ["documents:read"];
@@ -179,7 +178,6 @@ describe("money reads", () => {
         manager = null;
         caps = new Error("not a member");
         await expect(call(route, { orgId: LENOX })).rejects.toMatchObject({ statusCode: 403 });
-        if (!BATCHED.has(route)) expect(reads).toHaveLength(0);
       });
     });
   }
@@ -195,7 +193,7 @@ describe("money reads", () => {
     await call("charges", { orgId: LENOX, limit: "999999" });
     await call("schedules", { orgId: LENOX, limit: "nonsense" });
     expect(batches[0].charges.limit).toBe(1000);
-    expect(reads[0].query.limit).toBe(200);
+    expect(batches[1].schedules.limit).toBe(200);
   });
 });
 

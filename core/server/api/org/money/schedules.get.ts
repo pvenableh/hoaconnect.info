@@ -1,9 +1,10 @@
 /**
  * GET /api/org/money/schedules?orgId=&limit= — the community's recurring
  * charges, read-only, for admins and board seats (requireMoneyRead).
+ *
+ * One Directus request (readItemsBatch): the schedules and the memberships
+ * that answer money:read (moneyAccessFrom). Nothing is returned until it passes.
  */
-import { readItems } from "@directus/sdk";
-
 const FIELDS = [
   "id", "title", "status", "amount", "frequency", "start_date",
   "next_payment_date", "total_payments_generated",
@@ -11,14 +12,19 @@ const FIELDS = [
 ];
 
 export default defineEventHandler(async (event) => {
-  const orgId = await requireMoneyRead(event);
-  const rows = await getTypedDirectus().request(
-    readItems("payment_schedules", {
-      fields: FIELDS as any,
-      filter: { organization: { _eq: orgId } } as any,
-      sort: ["-date_created"] as any,
+  const orgId = String(getQuery(event).orgId ?? "");
+  if (!orgId) await requireMoneyRead(event); // 401, then 400
+  await requireUserSession(event);
+  const read = await readItemsBatch({
+    schedules: {
+      collection: "payment_schedules",
+      fields: FIELDS,
+      filter: { organization: { _eq: orgId } },
+      sort: ["-date_created"],
       limit: moneyLimit(event, 200),
-    })
-  );
-  return { schedules: numericMoney(rows, ["amount"]) };
+    },
+    members: orgMembersSpec(orgId),
+  });
+  await requireMoneyReadFrom(event, read.members, seatsOfMembers(read.members, orgId));
+  return { schedules: numericMoney(read.schedules, ["amount"]) };
 });
