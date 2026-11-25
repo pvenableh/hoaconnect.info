@@ -15,6 +15,7 @@ import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import type { Actor } from "#core/shared/permissions";
 import { boardTitleToActor } from "#core/shared/permissions";
+import { accessSnapshot, boardPositionFrom, boardSeatActorFrom, isTeamLeadFrom } from "./access-snapshot";
 
 export type BoardTitle =
   | "president"
@@ -57,6 +58,9 @@ export async function getBoardPosition(
   const userId = session?.user?.id;
   if (!userId) return null;
 
+  const snapshot = await accessSnapshot(event, organizationId, "base");
+  if (snapshot) return boardPositionFrom(snapshot) as BoardTitle | null;
+
   try {
     // The same active-membership read getMemberId makes, once per request.
     const memberId = (await checkMembership(event, organizationId)).memberId ?? null;
@@ -94,6 +98,8 @@ export async function getBoardSeatActor(event: H3Event, orgId: string): Promise<
     const session = await getUserSession(event);
     const userId = session?.user?.id;
     if (!userId) return null;
+    const snapshot = await accessSnapshot(event, orgId, "base");
+    if (snapshot) return boardSeatActorFrom(snapshot);
     const today = new Date().toISOString().split("T")[0];
     // Same term rule getBoardPosition applies, with the membership as a join: one round trip where
     // getBoardPosition needs two (the membership, then the seat).
@@ -130,6 +136,9 @@ export async function resolveActors(
   grantsRead?: Promise<Record<string, boolean> | null>
 ): Promise<Actor[]> {
   const actors = new Set<Actor>();
+  // The team-lead check needs the full snapshot; read it first, so the
+  // membership questions share its one request (access-snapshot.ts).
+  await accessSnapshot(event, organizationId);
 
   // None of these reads needs another's result: one round trip, not five.
   const [admin, membership, office, grants, isTeamLead] = await Promise.all([
@@ -143,6 +152,8 @@ export async function resolveActors(
         const session = await getUserSession(event);
         const userId = session?.user?.id;
         if (!userId) return false;
+        const snapshot = await accessSnapshot(event, organizationId);
+        if (snapshot) return isTeamLeadFrom(snapshot);
         const rows = await getTypedDirectus().request(
           readItems("hoa_team_members", {
             filter: {

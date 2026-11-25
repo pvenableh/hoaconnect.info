@@ -11,6 +11,7 @@ import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
 import { helperAreasFor, refId, type AreaGrantRow, type HelperAreaKey } from "#core/shared/roles/area-grants";
 import { restrictedNow } from "./admin-scope";
+import { accessRoles, accessSnapshot, helperAreasFrom, managerGrantsFrom } from "./access-snapshot";
 import { MANAGER_GRANT_KEYS, type ManagerGrantKey as GrantKey } from "#core/shared/transition/grants";
 
 // The canonical list lives in the shared transition module, because revocation
@@ -39,6 +40,9 @@ export async function getManagerGrants(
   const config = useRuntimeConfig();
   const pmRole = config.public.directusRolePropertyManager;
   if (!pmRole) return null;
+
+  const snapshot = await accessSnapshot(event, organizationId, "base");
+  if (snapshot) return managerGrantsFrom(snapshot, accessRoles());
 
   try {
     const directus = getTypedDirectus();
@@ -112,6 +116,8 @@ async function readHelperAreas(event: H3Event, organizationId: string): Promise<
     const session = await getUserSession(event);
     const userId = session?.user?.id;
     if (!userId || !organizationId) return [];
+    const snapshot = await accessSnapshot(event, organizationId);
+    if (snapshot) return helperAreasFrom(snapshot);
     const membership = await checkMembership(event, organizationId);
     if (!membership?.isMember || !membership.memberId) return [];
     const memberId = String(membership.memberId);
@@ -170,6 +176,8 @@ export async function getAreaGrants(
   event: H3Event,
   organizationId: string
 ): Promise<{ areas: Record<GrantKey, boolean>; manager: Record<string, boolean> | null; helps: HelperAreaKey[] }> {
+  // Helper areas need the full snapshot; read first, the grants share its request.
+  await accessSnapshot(event, organizationId);
   const [manager, helps] = await Promise.all([
     getManagerGrants(event, organizationId),
     getHelperAreas(event, organizationId),

@@ -8,6 +8,7 @@
  * resolves identically.
  */
 import type { H3Event } from "h3";
+import { accessSnapshot } from "./access-snapshot";
 import { readItem, readItems } from "@directus/sdk";
 import { capabilitiesFor, type Actor, type Capability } from "#core/shared/permissions";
 import { roleIdOf } from "#core/shared/ops/permissions";
@@ -134,6 +135,9 @@ export async function resolveCapabilities(
   /** `helpers: false` leaves out the helper-area read, for a caller that only asks about capabilities no helper area adds (money:read). */
   opts: { helpers?: boolean } = {}
 ): Promise<{ actors: Actor[]; capabilities: Capability[] }> {
+  // Every question below answers from one read of the caller's standing
+  // (access-snapshot.ts): read all of it first, so it is one request.
+  await accessSnapshot(event, orgId);
   // Actors, manager grants and helper areas are independent reads: one round trip.
   // The grants are read once and shared with resolveActors.
   const grantsRead = getManagerGrants(event, orgId);

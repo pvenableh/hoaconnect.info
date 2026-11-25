@@ -7,6 +7,7 @@
 
 import type { H3Event } from "h3";
 import { readItems } from "@directus/sdk";
+import { accessRoles, accessSnapshot, adminFrom, membershipFrom } from "./access-snapshot";
 import {
   OPS_PERMISSIONS,
   opsCan,
@@ -88,6 +89,10 @@ async function readAdminAccess(
       userId,
     };
   }
+
+  // One read of the caller's standing serves this and the other access helpers.
+  const snapshot = await accessSnapshot(event, organizationId, "base");
+  if (snapshot) return adminFrom(snapshot, accessRoles());
 
   // Check if user is HOA Admin of the specific organization
   try {
@@ -249,6 +254,9 @@ async function readMembership(
   if (!session?.user?.id) {
     return { isMember: false };
   }
+
+  const snapshot = await accessSnapshot(event, organizationId, "base");
+  if (snapshot) return membershipFrom(snapshot);
 
   try {
     const directus = getTypedDirectus();
