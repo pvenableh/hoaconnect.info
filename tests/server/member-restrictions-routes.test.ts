@@ -233,6 +233,65 @@ describe("pausing", () => {
   });
 });
 
+describe("the admin views in one batch", () => {
+  // The fixtures read a batch as its specs one by one; here we also record each batch.
+  let batches: { keys: string[]; need: string }[];
+  let failBatch: boolean;
+  beforeEach(() => {
+    batches = [];
+    failBatch = false;
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _orgId: string, specs: any, need: string) => {
+      batches.push({ keys: Object.keys(specs), need });
+      if (failBatch) throw new Error("graphql down");
+      return (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs);
+    });
+  });
+  afterEach(() => {
+    vi.stubGlobal("batchWithAccessSnapshot", async (_e: any, _orgId: string, specs: any) =>
+      (await import("#core/server/utils/directus-graphql")).readItemsBatchRest(specs)
+    );
+  });
+  const reads = () => fake.calls.filter((c) => c.op === "readItems").map((c) => c.collection);
+
+  it("the list: the pauses in force with the caller's memberships, and nothing else", async () => {
+    openRow({ id: "in-force" });
+    const res = await get(ev({ query: { orgId: ORG } }));
+    expect(batches).toEqual([{ keys: ["rs_open"], need: "base" }]);
+    // The batch's one read; no ledger-actor name lookup for a read-only view.
+    expect(reads()).toEqual(["hoa_member_restrictions"]);
+    expect(res.open).toEqual([{ id: "in-force", member: ID.memberBob, endsAt: null }]);
+  });
+
+  it("one member: their row, pauses, the community's clock and terms in one batch, then the names", async () => {
+    openRow({ ends_at: "2099-01-01T00:00:00.000Z" });
+    await get(ev({ query: { orgId: ORG, member: ID.memberBob } }));
+    expect(batches).toEqual([{ keys: ["rs_holder", "rs_rows", "rs_org", "rs_terms"], need: "base" }]);
+    expect(reads().slice(0, 4)).toEqual(["hoa_members", "hoa_member_restrictions", "hoa_organizations", "hoa_board_members"]);
+  });
+
+  it("answers the same when the batch fails", async () => {
+    openRow({ id: "in-force", ends_at: "2099-01-01T00:00:00.000Z" });
+    openRow({ id: "lifted", lifted_at: "2026-02-01T00:00:00.000Z", lifted_by: ID.userAdmin });
+    const cases = [{ orgId: ORG }, { orgId: ORG, member: ID.memberBob }, { orgId: ORG, member: ID.memberAnn }, { orgId: ORG, member: ID2.memberPm }];
+    const batched = await Promise.all(cases.map((q) => get(ev({ query: q }))));
+    failBatch = true;
+    for (const [i, q] of cases.entries()) expect(await get(ev({ query: q })), JSON.stringify(q)).toEqual(batched[i]);
+    await expect(get(ev({ query: { orgId: ORG, member: ID.memberOther } }))).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("a refusal carries no rows", async () => {
+    openRow({ member_note: "Bob's note.", internal_note: "Third warning." });
+    for (const who of [PERSONAS.owner, PERSONAS.board, PERSONAS.manager]) {
+      as(who);
+      for (const q of [{ orgId: ORG }, { orgId: ORG, member: ID.memberBob }]) {
+        const err = await get(ev({ query: q })).catch((e: any) => e);
+        expect(err).toMatchObject({ statusCode: 403 });
+        expect(JSON.stringify(err)).not.toMatch(/Bob's note|Third warning|in-force/);
+      }
+    }
+  });
+});
+
 describe("lifting", () => {
   it("ends it now, by the admin, without deleting it; the history keeps both", async () => {
     const row = openRow();

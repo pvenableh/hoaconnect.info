@@ -84,14 +84,19 @@ export async function requireCanPost(event: H3Event, orgId: string | null | unde
 
 // ── The admin routes ─────────────────────────────────────────────────────────
 
-/** 401 without a session, 403 unless an admin of `orgId`. Returns the ledger actor. */
-export async function requireRestrictionAdmin(event: H3Event, orgId: string): Promise<LedgerActor> {
+/** 401 without a session, 403 unless an admin of `orgId`. Returns the session's user. */
+export async function requireRestrictionGate(event: H3Event, orgId: string): Promise<Record<string, any>> {
   const session = await requireUserSession(event);
   const user: any = session?.user ?? {};
   if (!user.id) throw createError({ statusCode: 401, message: "Authentication required" });
   const admin = await checkAdminAccess(event, orgId);
   if (!admin.isAdmin) throw createError({ statusCode: 403, message: "Only an administrator can pause a member's posting." });
-  return await ledgerActorFor(orgId, user);
+  return user;
+}
+
+/** requireRestrictionGate, then the ledger actor for a write. */
+export async function requireRestrictionAdmin(event: H3Event, orgId: string): Promise<LedgerActor> {
+  return await ledgerActorFor(orgId, await requireRestrictionGate(event, orgId));
 }
 
 export interface RestrictionRecord extends RestrictionRow {
@@ -106,17 +111,29 @@ export interface RestrictionRecord extends RestrictionRow {
 
 const PERSON = (f: string) => [`${f}.id`, `${f}.first_name`, `${f}.last_name`, `${f}.email`];
 
+/** The read behind readRestrictionRows. */
+export function restrictionRowsSpec(orgId: string, memberId: string): ReadSpec {
+  return {
+    collection: "hoa_member_restrictions",
+    filter: { organization: { _eq: orgId }, member: { _eq: memberId } },
+    fields: [
+      "id", "organization", "member", "starts_at", "ends_at", "lifted_at", "member_note", "internal_note", "holder_name",
+      ...PERSON("imposed_by"), ...PERSON("lifted_by"),
+    ],
+    sort: ["-starts_at"],
+    limit: -1,
+  };
+}
+
 /** Every row (open and ended) for one membership in `orgId`, newest first. */
 export async function readRestrictionRows(orgId: string, memberId: string): Promise<RestrictionRecord[]> {
+  const spec = restrictionRowsSpec(orgId, memberId);
   return ((await getTypedDirectus().request(
     readItems("hoa_member_restrictions" as any, {
-      filter: { organization: { _eq: orgId }, member: { _eq: memberId } } as any,
-      fields: [
-        "id", "organization", "member", "starts_at", "ends_at", "lifted_at", "member_note", "internal_note", "holder_name",
-        ...PERSON("imposed_by"), ...PERSON("lifted_by"),
-      ] as any,
-      sort: ["-starts_at"] as any,
-      limit: -1,
+      filter: spec.filter as any,
+      fields: [...spec.fields] as any,
+      sort: [...spec.sort!] as any,
+      limit: spec.limit,
     })
   )) ?? []) as RestrictionRecord[];
 }
@@ -135,29 +152,70 @@ export async function loadRestriction(orgId: string, id: string): Promise<Restri
   return row;
 }
 
+/** The read behind holdsCurrentBoardTerm: the membership's published terms that have started. */
+export function boardTermSpec(memberId: string, now = new Date()): ReadSpec {
+  const iso = now.toISOString();
+  return {
+    collection: "hoa_board_members",
+    filter: {
+      status: { _eq: "published" },
+      hoa_member: { _eq: memberId },
+      _or: [{ term_start: { _null: true } }, { term_start: { _lte: iso } }],
+    },
+    fields: ["id", "term_end"],
+    limit: -1,
+  };
+}
+
+/** holdsCurrentBoardTerm's answer from boardTermSpec's rows: one has not ended. */
+export function holdsTermFrom(terms: readonly { term_end?: string | null }[], now = new Date()): boolean {
+  const iso = now.toISOString();
+  return terms.some((t) => !t.term_end || t.term_end >= iso);
+}
+
 /** Does this membership hold a board term now? A director's speech is a governance question, not moderation. */
 export async function holdsCurrentBoardTerm(memberId: string, now = new Date()): Promise<boolean> {
-  const iso = now.toISOString();
+  const spec = boardTermSpec(memberId, now);
   const terms = ((await getTypedDirectus().request(
-    readItems("hoa_board_members", {
-      filter: {
-        status: { _eq: "published" },
-        hoa_member: { _eq: memberId },
-        _or: [{ term_start: { _null: true } }, { term_start: { _lte: iso } }],
-      },
-      fields: ["id", "term_end"],
-      limit: -1,
-    })
+    readItems("hoa_board_members", { filter: spec.filter as any, fields: [...spec.fields] as any, limit: spec.limit })
   )) ?? []) as { term_end?: string | null }[];
-  return terms.some((t) => !t.term_end || t.term_end >= iso);
+  return holdsTermFrom(terms, now);
+}
+
+/** The read behind orgCopyContext. */
+export function orgCopySpec(orgId: string): ReadSpec {
+  return { collection: "hoa_organizations", filter: { id: { _eq: orgId } }, fields: ["name", "timezone"], limit: 1 };
+}
+
+/** orgCopyContext's answer from orgCopySpec's rows. */
+export function orgCopyFrom(rows: readonly { name?: string | null; timezone?: string | null }[]): { name: string; timeZone: string } {
+  return { name: rows[0]?.name || "this community", timeZone: orgTimeZone(rows[0] ?? null) };
 }
 
 /** The community's name and time zone (for the copy and the end date). */
 export async function orgCopyContext(orgId: string): Promise<{ name: string; timeZone: string }> {
+  const spec = orgCopySpec(orgId);
   const rows = ((await getTypedDirectus().request(
-    readItems("hoa_organizations", { filter: { id: { _eq: orgId } }, fields: ["name", "timezone"] as any, limit: 1 })
+    readItems("hoa_organizations", { filter: spec.filter as any, fields: [...spec.fields] as any, limit: spec.limit })
   )) ?? []) as { name?: string | null; timezone?: string | null }[];
-  return { name: rows[0]?.name || "this community", timeZone: orgTimeZone(rows[0] ?? null) };
+  return orgCopyFrom(rows);
+}
+
+/** The pauses in force in `orgId` now, for the Members list (open on both ends). */
+export function openRestrictionsSpec(orgId: string, now = new Date()): ReadSpec {
+  const iso = now.toISOString();
+  return {
+    collection: "hoa_member_restrictions",
+    filter: {
+      _and: [
+        { organization: { _eq: orgId } },
+        { _or: [{ lifted_at: { _null: true } }, { lifted_at: { _gt: iso } }] },
+        { _or: [{ ends_at: { _null: true } }, { ends_at: { _gt: iso } }] },
+      ],
+    },
+    fields: ["id", "organization", "member", "starts_at", "ends_at", "lifted_at"],
+    limit: -1,
+  };
 }
 
 /** A login's own name from an expanded M2O, or null. */
