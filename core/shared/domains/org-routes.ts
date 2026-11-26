@@ -162,3 +162,27 @@ export function customDomainRootDeepLink(
   if (!slug) return null;
   return DASHBOARD_DEEP_LINK_PARAMS.some((k) => k in query) ? `/${slug}` : null;
 }
+
+/**
+ * Where should an admin go who opened `/{viewingSlug}/admin/...` for a
+ * community they are NOT a member of? (An App Administrator passes the admin
+ * guard everywhere, but the selected community only follows the URL for a
+ * member, so the admin pages would show their own community's data under
+ * another's URL.) The same page in their selected community; with no selected
+ * community, or the same one, the viewed community's public page; and off a
+ * slug path (a custom domain's clean paths), its landing at `/`.
+ */
+export function nonMemberAdminRedirect(
+  fullPath: string,
+  viewingSlug?: string | null,
+  selectedSlug?: string | null
+): string {
+  const viewing = (viewingSlug || "").trim();
+  const selected = (selectedSlug || "").trim();
+  const prefix = `/${viewing}`;
+  const rest = fullPath.slice(prefix.length);
+  const onSlugPath = !!viewing && fullPath.startsWith(prefix) && (rest === "" || /^[/?#]/.test(rest));
+  if (!onSlugPath) return "/";
+  if (selected && selected !== viewing) return `/${selected}${rest}`;
+  return prefix;
+}

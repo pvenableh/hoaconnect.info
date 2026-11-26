@@ -9,6 +9,9 @@
  * being viewed, not just the user's selected organization. This prevents users
  * who are admins of Org A from accessing admin routes on Org B's domain.
  */
+import { toast } from "vue-sonner";
+import { nonMemberAdminRedirect } from "#core/shared/domains/org-routes";
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
   const { user } = useDirectusAuth();
@@ -26,7 +29,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Get user's role in current organization
   if (user.value) {
     // Ensure useSelectedOrg is called to populate memberships state
-    const { isAdmin, currentOrg } = await useSelectedOrg();
+    const { isAdmin, currentOrg, memberships, isLoading } = await useSelectedOrg();
     // Then the server's RoleContext, which useCurrentDomainAccess prefers.
     await useRoleContext().load();
 
@@ -56,6 +59,26 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
         // Fallback to home if no slug available
         return navigateTo("/");
+      }
+
+      // An admin here without a membership here is an App Administrator. The
+      // selected community follows the URL only for a member (useSelectedOrg
+      // STEP 3.5, org-slug-sync), and the admin pages read the selected one, so
+      // they would show (and save) the admin's own community under this one's
+      // URL. Send them to the same page in their own community instead; look at
+      // other communities through the operator console.
+      const slug = to.params.slug as string;
+      const list = memberships.value as any[];
+      if (!isLoading.value && !list.some((m: any) => m?.organization?.slug === slug)) {
+        const own = currentOrg.value?.organization;
+        if (import.meta.client) {
+          toast.info(
+            own?.name && own.slug !== slug
+              ? `You aren't a member of that community, so this is ${own.name}'s admin page.`
+              : "You aren't a member of that community."
+          );
+        }
+        return navigateTo(nonMemberAdminRedirect(to.fullPath, slug, own?.slug));
       }
     } else {
       // On main domain (e.g., /dashboard route without org context)

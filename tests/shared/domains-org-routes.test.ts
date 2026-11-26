@@ -5,6 +5,7 @@ import {
   orgScopedRedirect,
   sessionOrgRedirect,
   customDomainRootDeepLink,
+  nonMemberAdminRedirect,
   UNREDIRECTED_TWINS,
 } from "#core/shared/domains/org-routes";
 
@@ -263,5 +264,27 @@ describe("customDomainRootDeepLink", () => {
   });
   it("does nothing without a host slug", () => {
     expect(customDomainRootDeepLink({ sign: "f1" }, null)).toBeNull();
+  });
+});
+
+describe("nonMemberAdminRedirect — an admin on a community they don't belong to", () => {
+  it("goes to the same admin page in their own community, query kept", () => {
+    expect(nonMemberAdminRedirect("/transition-test/admin/settings/organization?tab=subscription", "transition-test", "1033-lenox")).toBe(
+      "/1033-lenox/admin/settings/organization?tab=subscription"
+    );
+    expect(nonMemberAdminRedirect("/transition-test", "transition-test", "1033-lenox")).toBe("/1033-lenox");
+    expect(nonMemberAdminRedirect("/transition-test#units", "transition-test", "1033-lenox")).toBe("/1033-lenox#units");
+  });
+
+  it("with no community of their own, or the same one, goes to the viewed community's public page", () => {
+    expect(nonMemberAdminRedirect("/transition-test/admin/members", "transition-test", null)).toBe("/transition-test");
+    expect(nonMemberAdminRedirect("/transition-test/admin/members", "transition-test", "  ")).toBe("/transition-test");
+    expect(nonMemberAdminRedirect("/transition-test/admin/members", "transition-test", "transition-test")).toBe("/transition-test");
+  });
+
+  it("off a slug path (a custom domain's clean paths, or a longer slug sharing a prefix) goes to the landing", () => {
+    expect(nonMemberAdminRedirect("/admin/members", "transition-test", "1033-lenox")).toBe("/");
+    expect(nonMemberAdminRedirect("/transition-testing/admin", "transition-test", "1033-lenox")).toBe("/");
+    expect(nonMemberAdminRedirect("/anything", null, "1033-lenox")).toBe("/");
   });
 });
