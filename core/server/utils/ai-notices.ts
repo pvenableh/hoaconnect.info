@@ -34,6 +34,7 @@
  * sent, at any autonomy tier, even if a future caller auto-approves everything.
  */
 
+import { vendorEndsOn } from "#core/shared/vendors/contract-end";
 import { readItems } from "@directus/sdk";
 import type { BatchSpec, ReadSpec } from "./directus-graphql";
 import { actionByKey } from "#core/shared/ai/actions";
@@ -573,7 +574,7 @@ export function channelNoticesOf(channel: any, newest: any | null, channelId: st
 
 // ── Vendors ──────────────────────────────────────────────────────────────────
 
-const VENDOR_FIELDS = ["id", "name", "company", "status", "active_until", "category"] as const;
+const VENDOR_FIELDS = ["id", "name", "company", "status", "contract_end", "active_until", "category"] as const;
 
 export async function generateVendorNotices(
   directus: any,
@@ -589,10 +590,11 @@ export async function generateVendorNotices(
 export function vendorNoticesOf(vendor: any, vendorId: string, now: Date): AINotice[] {
   const notices: AINotice[] = [];
   if (vendor.status !== "active") return notices;
-  if (!vendor.active_until) return notices;
+  const endsOn = vendorEndsOn(vendor);
+  if (!endsOn) return notices;
 
   const label = vendor.company || vendor.name || "A vendor";
-  const left = daysUntil(vendor.active_until, now);
+  const left = daysUntil(endsOn, now);
   if (left === null) return notices;
 
   if (left < 0) {
@@ -604,14 +606,14 @@ export function vendorNoticesOf(vendor: any, vendorId: string, now: Date): AINot
           type: "warning",
           icon: "lucide:shield-x",
           title: `Cover lapsed ${lapsedBy} ${plural(lapsedBy, "day")} ago: ${label}`,
-          description: `${label} is still marked active but their contract/insurance ran out on ${String(vendor.active_until).slice(0, 10)}. Work done by an uninsured vendor is the association's exposure, not theirs.`,
+          description: `${label} is still marked active but their contract/insurance ran out on ${endsOn}. Work done by an uninsured vendor is the association's exposure, not theirs.`,
           actionLabel: "View vendors",
           actionRoute: "/admin/vendors",
           entityType: "vendor",
           entityId: vendorId,
           proposedAction: propose("create_task", `Renew or retire ${label}`, {
             title: `Renew or retire ${label}`,
-            description: `Contract/insurance expired ${String(vendor.active_until).slice(0, 10)}. Obtain a current certificate or set the vendor inactive.`,
+            description: `Contract/insurance expired ${endsOn}. Obtain a current certificate or set the vendor inactive.`,
             priority: "urgent",
           }),
         },
@@ -626,7 +628,7 @@ export function vendorNoticesOf(vendor: any, vendorId: string, now: Date): AINot
           type: "insight",
           icon: "lucide:shield-alert",
           title: `Cover expires in ${left} ${plural(left, "day")}: ${label}`,
-          description: `${label}'s contract/insurance runs out on ${String(vendor.active_until).slice(0, 10)}. Renewals are quick a month out and slow the week of.`,
+          description: `${label}'s contract/insurance runs out on ${endsOn}. Renewals are quick a month out and slow the week of.`,
           actionLabel: "View vendors",
           actionRoute: "/admin/vendors",
           entityType: "vendor",
@@ -884,7 +886,7 @@ export async function collectOrgNotices(
     projects: list("hoa_projects", PROJECT_FIELDS, { _and: [org, { status: { _in: ["planning", "active", "on_hold"] } }] }),
     channels: list("hoa_channels", CHANNEL_FIELDS, { _and: [org, { status: { _eq: "published" } }] }),
     vendors: list("hoa_vendors", VENDOR_FIELDS, {
-      _and: [org, { status: { _eq: "active" } }, { active_until: { _nnull: true } }],
+      _and: [org, { status: { _eq: "active" } }, { _or: [{ contract_end: { _nnull: true } }, { active_until: { _nnull: true } }] }],
     }),
     meetings: list("hoa_meetings", MEETING_FIELDS, { _and: [org, { status: { _neq: "canceled" } }] }),
     invoices: list("payment_requests", INVOICE_FIELDS, { _and: [org, { status: { _in: UNPAID_INVOICE_STATUSES } }] }),

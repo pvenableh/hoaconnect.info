@@ -26,6 +26,7 @@
  * send, no stamp. It lists what would go out, and what rules that are off
  * would send.
  */
+import { VENDOR_END_FIELDS, vendorEndsOn } from "#core/shared/vendors/contract-end";
 import * as sdk from "@directus/sdk";
 import { fromAbsolute, toCalendarDate } from "@internationalized/date";
 import { residencyFor } from "#core/shared/members/residency";
@@ -769,14 +770,18 @@ export function directusReminderStore(directus: DirectusLike, opts: { provisione
               filter: {
                 organization: { _eq: org.id },
                 status: { _eq: "active" },
-                active_until: { _gte: isoDay(asOf, tz, -7), _lte: isoDay(asOf, tz, settings.rules.coverage.days + 1) },
+                // The contract date when set, else the older active_until (vendorEndsOn).
+                _or: [
+                  { contract_end: { _gte: isoDay(asOf, tz, -7), _lte: isoDay(asOf, tz, settings.rules.coverage.days + 1) } },
+                  { contract_end: { _null: true }, active_until: { _gte: isoDay(asOf, tz, -7), _lte: isoDay(asOf, tz, settings.rules.coverage.days + 1) } },
+                ],
               },
-              fields: ["id", "name", "company", "active_until"],
+              fields: ["id", "name", "company", ...VENDOR_END_FIELDS],
             });
             snap.vendors = rows.map((v) => ({
               id: String(v.id),
               name: String(v.company || v.name || "A vendor"),
-              activeUntil: v.active_until ?? null,
+              activeUntil: vendorEndsOn(v),
             } satisfies VendorInput));
             snap.adminUserIds = rows.length ? await adminUserIds(org.id).catch(() => []) : [];
           })()

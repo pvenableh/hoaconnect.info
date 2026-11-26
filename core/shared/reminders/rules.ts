@@ -156,7 +156,7 @@ export interface PollInput {
 export interface VendorInput {
   id: string;
   name: string;
-  /** `hoa_vendors.active_until` — a calendar day. */
+  /** When the contract or cover ends (`vendorEndsOn`: `contract_end`, else `active_until`) — a calendar day. */
   activeUntil: string | null;
 }
 

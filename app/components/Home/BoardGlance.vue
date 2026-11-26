@@ -17,7 +17,7 @@ const { data: vendors } = useAsyncData(
   () => `board-home-vendors-${orgId.value}`,
   async () =>
     orgId.value
-      ? await vendorsApi.list({ fields: ["id", "status", "active_until"], filter: { organization: { _eq: orgId.value } }, limit: 200 }).catch(() => [])
+      ? await vendorsApi.list({ fields: ["id", "status", "contract_end", "active_until"], filter: { organization: { _eq: orgId.value } }, limit: 200 }).catch(() => [])
       : [],
   { watch: [orgId], server: false, default: () => [] as any[] },
 );

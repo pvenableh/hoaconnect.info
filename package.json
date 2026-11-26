@@ -111,6 +111,7 @@
     "create:governance": "dotenv -- tsx scripts/create-governance-collection.ts",
     "add:org-modules": "dotenv -- tsx scripts/add-org-modules-field.ts",
     "add:declared-units": "dotenv -- tsx scripts/add-declared-units-field.ts",
+    "add:vendor-contract-end": "dotenv -- tsx scripts/add-vendor-contract-end.ts",
     "add:user-app-prefs": "dotenv -- tsx scripts/add-user-app-prefs-field.ts",
     "add:email-compliance": "dotenv -- tsx scripts/add-email-compliance-fields.ts",
     "add:email-send-queue": "dotenv -- tsx scripts/add-email-send-queue.ts",

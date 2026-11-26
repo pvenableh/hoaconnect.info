@@ -141,6 +141,7 @@ const blankVendor = () => ({
   status: "active" as "active" | "inactive" | "archived",
   active_since: "",
   active_until: "",
+  contract_end: "",
   notes: "",
   management_role: "general" as "rental_sales" | "violations" | "general",
   notify_email: true,
@@ -170,6 +171,7 @@ const openEdit = (v: HoaVendor) => {
     status: (v.status as any) || "active",
     active_since: (v.active_since || "").slice(0, 10),
     active_until: (v.active_until || "").slice(0, 10),
+    contract_end: (v.contract_end || "").slice(0, 10),
     notes: v.notes || "",
     management_role: (v.management_role as any) || "general",
     notify_email: v.notify_email !== false,
@@ -219,6 +221,7 @@ const saveVendor = async () => {
     status: e.status,
     active_since: e.active_since || null,
     active_until: e.active_until || null,
+    contract_end: e.contract_end || null,
     notes: e.notes.trim() || null,
     // Management-only fields (null them out for other categories)
     management_role: isManagement.value ? e.management_role : null,
@@ -682,6 +685,11 @@ watch(orgId, () => {
               <Label>Active until</Label>
               <DateInput v-model="editing.active_until" />
             </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Contract or cover ends</Label>
+            <DateInput v-model="editing.contract_end" />
+            <p class="text-xs t-text-muted">Feeds the board's contract dates and the coverage reminder. Leave blank if there is none.</p>
           </div>
 
           <div class="space-y-1.5">

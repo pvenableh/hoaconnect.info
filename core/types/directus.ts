@@ -2271,6 +2271,8 @@ export interface HoaVendor {
 	date_created?: string | null;
 	user_updated?: DirectusUser | string | null;
 	date_updated?: string | null;
+	/** @description When the current contract or insurance cover runs out (leave blank if none) */
+	contract_end?: string | null;
 }
 
 export interface MoneyApprovalDecision {

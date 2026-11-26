@@ -1,3 +1,4 @@
+import { vendorEndsOn, type VendorDates } from "../vendors/contract-end";
 // What the board and team homes draw (docs/plan-unified-experience.md §5):
 // pure shaping of tasks, vendors and approvals the app already reads.
 
@@ -50,20 +51,19 @@ export function weekStrip(tasks: readonly HomeTask[], asOf: Date): WeekDay[] {
   });
 }
 
-export interface HomeVendor {
-  active_until?: string | null;
+export interface HomeVendor extends VendorDates {
   status?: string | null;
 }
 
 /**
- * The `Heatstrip` values for a year: one count per day a vendor relationship is
- * due to end. Vendors carry no contract field, so `active_until` is the date.
+ * The `Heatstrip` values for a year: one count per day a vendor's contract or
+ * cover ends (`contract_end`, else the older `active_until`).
  */
 export function vendorEndDays(vendors: readonly HomeVendor[], year: number): Record<string, number> {
   const out: Record<string, number> = {};
   for (const v of vendors) {
-    if (v.status === "archived" || !v.active_until) continue;
-    const day = v.active_until.slice(0, 10);
+    const day = vendorEndsOn(v);
+    if (v.status === "archived" || !day) continue;
     if (Number(day.slice(0, 4)) === year) out[day] = (out[day] ?? 0) + 1;
   }
   return out;

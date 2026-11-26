@@ -291,9 +291,16 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
 
   // ── Vendors with end dates across the year ──
   // Vendors are named by `name`, not `title`.
+  // The end date is the contract's (`contract_end`); `active_until` is left empty,
+  // since these vendors are still on the job. Older runs wrote it there, so it is moved.
   const vendor = async (name: string, category: string, until: string) => {
-    if (await findOne("hoa_vendors", { organization: { _eq: t.orgId }, name: { _eq: name } })) return;
-    await mut(`hoa_vendors: ${name}`, "POST", "/items/hoa_vendors", { ...org, name, category, status: "active", active_until: until, active_since: "2024-01-01" });
+    const have = await findOne("hoa_vendors", { organization: { _eq: t.orgId }, name: { _eq: name } }, "id,contract_end,active_until");
+    if (have) {
+      if (!have.contract_end && !dry)
+        await dx(`/items/hoa_vendors/${have.id}`, { method: "PATCH", body: JSON.stringify({ contract_end: until, active_until: null }) });
+      return;
+    }
+    await mut(`hoa_vendors: ${name}`, "POST", "/items/hoa_vendors", { ...org, name, category, status: "active", contract_end: until, active_since: "2024-01-01" });
   };
   const year = now.getUTCFullYear();
   await vendor("Harbor Landscaping", "landscaping", `${year}-12-31`);

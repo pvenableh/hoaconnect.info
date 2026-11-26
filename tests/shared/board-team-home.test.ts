@@ -24,6 +24,9 @@ describe("board and team home", () => {
   it("counts vendor end dates in the year, skipping archived and other years", () => {
     expect(vendorEndDays([{ active_until: "2026-12-31" }, { active_until: "2026-12-31" }, { active_until: "2027-01-02" }, { active_until: "2026-03-01", status: "archived" }, {}], 2026)).toEqual({ "2026-12-31": 2 });
   });
+  it("counts a vendor on its contract end, before the older active_until", () => {
+    expect(vendorEndDays([{ contract_end: "2026-06-30", active_until: "2026-12-31" }, { contract_end: "2026-06-30" }], 2026)).toEqual({ "2026-06-30": 2 });
+  });
 });
 
 import { teamQueueRows } from "#core/shared/home/team-queue";
