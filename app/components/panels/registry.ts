@@ -41,6 +41,7 @@ export interface PanelEntry {
 export const PANELS: Record<string, PanelEntry> = {
   request: { load: () => import("./RequestPanel.vue") },
   task: { load: () => import("./TaskPanel.vue") },
+  approval: { load: () => import("./ApprovalPanel.vue") },
   charge: {
     load: () => import("./ChargePanel.vue"),
     resource: "charges",

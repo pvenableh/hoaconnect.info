@@ -23,13 +23,14 @@ const orgId = useState<string | null>("selectedOrgId", () => null);
 const { buildOrgPath } = useOrgNavigation();
 const { prompt } = useConfirm();
 const chargePanel = useAppSlideOver("charge");
+const approvalPanel = useAppSlideOver("approval");
 const busy = ref<string | null>(null);
-// A charge opens over the home; an expense has no panel, so it goes to Approvals.
+// The record opens over the home: a charge in its own panel, anything else
+// (an expense) in the approval panel. The link to Approvals stays for a new tab.
 const openRecord = (a: Item, e: Event) => {
-  if (a.subject?.type === "charge") {
-    e.preventDefault();
-    chargePanel.open(a.subject.id);
-  }
+  e.preventDefault();
+  if (a.subject?.type === "charge") chargePanel.open(a.subject.id);
+  else approvalPanel.open(a.id);
 };
 
 const { data, status, refresh } = useAsyncData(
@@ -44,6 +45,14 @@ const { data, status, refresh } = useAsyncData(
 // server's empty state and the client's first-render spinner disagree at hydration.
 const pending = computed(() => status.value === "idle" || status.value === "pending");
 const items = computed(() => (data.value?.approvals ?? []).slice(0, 5));
+// A decision made in the approval panel shows here once the panel closes.
+const route = useRoute();
+watch(
+  () => String(route.query.slide ?? ""),
+  (now, before) => {
+    if (before.startsWith("approval:") && !now.startsWith("approval:")) void refresh();
+  },
+);
 const total = computed(() => data.value?.approvals.length ?? 0);
 
 const decide = async (a: Item, decision: "approve" | "reject") => {
