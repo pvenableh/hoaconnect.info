@@ -680,3 +680,99 @@ export function findFilterPills(src: string) {
   });
   return { hits, allowed };
 }
+
+/**
+ * hydration-pending — a `server: false` data call whose loading flag the
+ * template reads. On the server the call never runs: its `status` is "idle"
+ * and `pending` is false, so the server renders the empty/loaded branch. The
+ * client's first render has `pending` true and renders the skeleton. Hydration
+ * mismatches, Vue keeps a detached node, and the data, once it arrives, is
+ * patched into it: the page stays blank (found 2026-11-26 on
+ * /manage/inquiries, 12f80ce4). Read `status` and count "idle" as loading:
+ *   const pending = computed(() => status.value === "idle" || status.value === "pending");
+ *
+ * Flags, per `server: false` call of useAsyncData / useFetch (and their Lazy
+ * forms) destructured as `const { … } = …`:
+ *   • its `pending` (or `pending: alias`) used in the template, directly or
+ *     through a `computed` that reads it without mentioning "idle";
+ *   • its `status` compared to "pending" in the template on a line without "idle".
+ * Guarded (not flagged): an expression that also reads "idle", or the call's
+ * `!data` — "no data yet" is true on the server and the first client render alike.
+ */
+export const HYDRATION_PENDING_MARKER = "allow-hydration-pending";
+const DATA_CALL = /\b(?:useAsyncData|useFetch|useLazyAsyncData|useLazyFetch)\s*(?:<[^()]*?>)?\s*\(/g;
+
+function closingParen(src: string, open: number): number {
+  let depth = 0;
+  for (let i = open; i < src.length; i += 1) {
+    const c = src[i];
+    if (c === "(") depth += 1;
+    else if (c === ")" && --depth === 0) return i;
+  }
+  return src.length;
+}
+
+/** `{ data: rows, pending, status: st }` → { pending: "pending", status: "st" }. */
+function destructured(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of body.split(",")) {
+    const m = part.trim().match(/^(\w+)\s*(?::\s*(\w+))?/);
+    if (m) out[m[1]!] = m[2] ?? m[1]!;
+  }
+  return out;
+}
+
+const word = (name: string) => new RegExp(`(?<![\\w$.])${name}(?![\\w$])`);
+
+export function findHydrationPending(src: string) {
+  const clean = blankComments(src, "vue");
+  const script = [...clean.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]!).join("\n");
+  const tpl = templateOnly(clean);
+  const raw = src.split("\n");
+  const tplLines = tpl.split("\n");
+  const hits: Hit[] = [];
+  let allowed = 0;
+
+  const flag = (line: number) => {
+    if (hasMarker(raw, line - 1, HYDRATION_PENDING_MARKER, 2)) allowed += 1;
+    else hits.push({ line, text: trim(raw[line - 1] ?? "") });
+  };
+
+  for (const m of script.matchAll(DATA_CALL)) {
+    const open = m.index! + m[0].length - 1;
+    const call = script.slice(m.index!, closingParen(script, open) + 1);
+    if (!/\bserver\s*:\s*false\b/.test(call)) continue;
+    const before = script.slice(Math.max(0, m.index! - 400), m.index!);
+    const d = before.match(/const\s*\{([^}]*)\}\s*=\s*(?:await\s*)?$/);
+    if (!d) continue;
+    const names = destructured(d[1]!);
+    const guard = names.data
+      ? new RegExp(`idle|!\\s*${names.data}(?![\\w$])`)
+      : /idle/;
+
+    const loadingNames = new Set<string>();
+    if (names.pending) {
+      loadingNames.add(names.pending);
+      // One level of derivation: `const loading = computed(() => pending.value || …)`.
+      const reads = new RegExp(`(?<![\\w$.])${names.pending}\\.value`);
+      for (const c of script.matchAll(/const\s+(\w+)\s*=\s*computed\(([\s\S]*?)\);?\n/g)) {
+        if (reads.test(c[2]!) && !guard.test(c[2]!)) loadingNames.add(c[1]!);
+      }
+    }
+    let flagged = false;
+    for (const name of loadingNames) {
+      const re = word(name);
+      const i = tplLines.findIndex((l) => re.test(l) && !guard.test(l));
+      if (i !== -1) {
+        flag(i + 1);
+        flagged = true;
+        break;
+      }
+    }
+    if (flagged || !names.status) continue;
+    const statusPending = new RegExp(`(?<![\\w$.])${names.status}\\s*[!=]==?\\s*["']pending["']`);
+    const i = tplLines.findIndex((l) => statusPending.test(l) && !guard.test(l));
+    if (i !== -1) flag(i + 1);
+  }
+  return { hits, allowed };
+}

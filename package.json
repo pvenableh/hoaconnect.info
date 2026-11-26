@@ -33,6 +33,7 @@
     "audit:empty-states": "tsx scripts/audit-empty-states.ts",
     "audit:vue-global": "tsx scripts/audit-vue-global.ts",
     "audit:detached-promises": "tsx scripts/audit-detached-promises.ts",
+    "audit:hydration-pending": "tsx scripts/audit-hydration-pending.ts",
     "audit:page-h1": "tsx scripts/audit-page-h1.ts",
     "audit:form-dialogs": "tsx scripts/audit-form-dialogs.ts",
     "audit:filter-pills": "tsx scripts/audit-filter-pills.ts",

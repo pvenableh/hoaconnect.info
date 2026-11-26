@@ -34,6 +34,7 @@ export const AUDITS = [
   "empty-states",
   "vue-global",
   "detached-promises",
+  "hydration-pending",
   // The resource grammar (plan §2.3, docs/spec-resource-scaffold.md).
   "page-h1",
   "form-dialogs",

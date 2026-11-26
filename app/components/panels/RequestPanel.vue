@@ -62,6 +62,7 @@ const workflow = computed(() => (request.value ? getWorkflow(request.value.type)
       </div>
     </template>
 
+    <!-- allow-hydration-pending: the slide-over stack is not server-rendered (checked with ?slide=request:<id>), so this panel always mounts on the client. -->
     <div v-if="pending" class="py-16 flex justify-center">
       <div class="spinner-ios" />
     </div>

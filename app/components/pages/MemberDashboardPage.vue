@@ -800,6 +800,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
               </div>
             </CardHeader>
             <CardContent>
+              <!-- allow-hydration-pending: annLoading is true on the server and the first client render (no data yet), so the whole condition agrees. -->
               <WidgetRowSkeleton v-if="annLoading || newsPending" :rows="4" avatar-shape="square" :trailing="false" />
               <div v-else-if="newsItems.length > 0" class="space-y-3">
                 <!-- A row opens the Building tab, which is on this same page —

@@ -139,6 +139,7 @@ watch([lanes, pending], async () => {
 
 <template>
   <div>
+    <!-- allow-hydration-pending: mounted only after someone picks the Timeline view (admin/projects starts on Board), so it never hydrates. -->
     <div v-if="pending" class="py-16 flex justify-center"><div class="spinner-ios" /></div>
 
     <div v-else-if="!positioned.length" class="ios-card p-12 text-center">

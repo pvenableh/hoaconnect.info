@@ -11,6 +11,7 @@ import {
   findFilterPills,
   findFormDialogs,
   findHeadingLabels,
+  findHydrationPending,
   findPageH1s,
   findNativeDialogs,
   findRawButtons,
@@ -459,5 +460,33 @@ describe("contrast maths", () => {
     expect(unresolved.ok).toBe(false);
     expect(unresolved.ratio).toBeNull();
     expect(gradePair({ fg: "--missing", bg: "--bg", min: 4.5 }, decls, "light").reason).toMatch(/not declared/);
+  });
+});
+
+describe("findHydrationPending", () => {
+  const page = (script: string, tpl: string) => `<script setup lang="ts">\n${script}\n</script>\n<template>\n${tpl}\n</template>\n`;
+  const call = (destructure: string, opts = "{ server: false }") =>
+    `const { ${destructure} } = await useAsyncData("k", () => load(), ${opts});`;
+  const FIX = `const pending = computed(() => status.value === "idle" || status.value === "pending");`;
+
+  it.each([
+    ["pending read by the template", call("data, pending"), `<div v-if="pending">Loading</div>`, 1],
+    ["an aliased pending", call("data: rows, pending: busy"), `<Spinner v-if="busy" />`, 1],
+    ["pending passed as a prop", call("data, pending"), `<List :loading="pending" />`, 1],
+    ["status compared to pending", call("data, status: st"), `<Sk v-if="st === 'pending'" />`, 1],
+    ["a computed that only wraps pending", `${call("data, pending")}\nconst loading = computed(() => pending.value);\n`, `<p v-if="loading" />`, 1],
+    ["the fix: status with idle counted", `${call("data, status")}\n${FIX}`, `<div v-if="pending" />`, 0],
+    ["status compared with idle too", call("data, status: st"), `<Sk v-if="st === 'idle' || st === 'pending'" />`, 0],
+    ["guarded by !data (true on both sides)", `${call("data, pending")}\nconst loading = computed(() => pending.value || !data.value);\n`, `<p v-if="loading" />`, 0],
+    ["a server-rendered call", call("data, pending", "{}"), `<div v-if="pending" />`, 0],
+    ["pending not used in the template", call("data, pending"), `<p>{{ data }}</p>`, 0],
+  ])("%s", (_label, script, tpl, count) => {
+    expect(findHydrationPending(page(script, tpl)).hits).toHaveLength(count);
+  });
+
+  it("honours allow-hydration-pending", () => {
+    const r = findHydrationPending(page(call("data, pending"), `<!-- allow-hydration-pending: client-only -->\n<div v-if="pending" />`));
+    expect(r.hits).toHaveLength(0);
+    expect(r.allowed).toBe(1);
   });
 });
