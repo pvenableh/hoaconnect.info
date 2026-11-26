@@ -186,3 +186,18 @@ export function nonMemberAdminRedirect(
   if (selected && selected !== viewing) return `/${selected}${rest}`;
   return prefix;
 }
+
+/**
+ * The notice shown with nonMemberAdminRedirect: whose page the admin landed
+ * on, or just that they aren't a member when they have no community of their
+ * own (or their own is the one they asked for).
+ */
+export function nonMemberAdminNotice(
+  viewingSlug: string,
+  own: { slug?: string | null; name?: string | null } | null | undefined,
+  pageLabel = "admin page"
+): string {
+  return own?.name && own.slug !== viewingSlug
+    ? `You aren't a member of that community, so this is ${own.name}'s ${pageLabel}.`
+    : "You aren't a member of that community.";
+}

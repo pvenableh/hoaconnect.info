@@ -5,6 +5,7 @@ import {
   orgScopedRedirect,
   sessionOrgRedirect,
   customDomainRootDeepLink,
+  nonMemberAdminNotice,
   nonMemberAdminRedirect,
   UNREDIRECTED_TWINS,
 } from "#core/shared/domains/org-routes";
@@ -286,5 +287,23 @@ describe("nonMemberAdminRedirect — an admin on a community they don't belong t
     expect(nonMemberAdminRedirect("/admin/members", "transition-test", "1033-lenox")).toBe("/");
     expect(nonMemberAdminRedirect("/transition-testing/admin", "transition-test", "1033-lenox")).toBe("/");
     expect(nonMemberAdminRedirect("/anything", null, "1033-lenox")).toBe("/");
+  });
+});
+
+describe("nonMemberAdminNotice", () => {
+  const lenox = { slug: "1033-lenox", name: "1033 Lenox" };
+  it("names whose admin page the admin landed on", () => {
+    expect(nonMemberAdminNotice("transition-test", lenox)).toBe(
+      "You aren't a member of that community, so this is 1033 Lenox's admin page."
+    );
+  });
+  it("takes the page label from the guard", () => {
+    expect(nonMemberAdminNotice("transition-test", lenox, "page")).toBe(
+      "You aren't a member of that community, so this is 1033 Lenox's page."
+    );
+  });
+  it("only says they aren't a member with no community of their own, or their own is the one viewed", () => {
+    expect(nonMemberAdminNotice("transition-test", null)).toBe("You aren't a member of that community.");
+    expect(nonMemberAdminNotice("1033-lenox", lenox)).toBe("You aren't a member of that community.");
   });
 });

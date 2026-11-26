@@ -8,6 +8,7 @@
  * server-side; this only gates page access.
  */
 import { AREA_KEYS, type AreaKey } from "#core/shared/transition/grants";
+import { nonMemberAdminNavigation } from "#core/app/composables/nonMemberAdminNavigation";
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
@@ -23,14 +24,16 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Populate memberships state (consumed by useCurrentDomainAccess), then the
   // server's RoleContext, which it prefers.
-  await useSelectedOrg();
+  const selected = await useSelectedOrg();
   await useRoleContext().load();
 
   const { isAdminOfCurrentDomain, isMemberOfCurrentDomain, canWorkArea } = useCurrentDomainAccess();
 
   const capability = (to.meta.managerCapability as AreaKey | undefined) || null;
 
-  if (isAdminOfCurrentDomain.value) return;
+  // An admin who isn't a member here is an App Administrator: the portal reads
+  // the selected community, so send them to the same page in their own.
+  if (isAdminOfCurrentDomain.value) return nonMemberAdminNavigation(to, selected, "page");
   if (capability ? canWorkArea(capability) : AREA_KEYS.some((k) => canWorkArea(k))) return;
 
   const slug = (to.params.slug as string) || activeHoa.value?.slug || null;

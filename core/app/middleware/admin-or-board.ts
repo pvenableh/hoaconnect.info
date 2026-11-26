@@ -7,6 +7,8 @@
  * Data on these pages is still authorized server-side (see
  * server/api/hoa/units/records) — this only gates page access.
  */
+import { nonMemberAdminNavigation } from "#core/app/composables/nonMemberAdminNavigation";
+
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn } = useUserSession();
   const { user } = useDirectusAuth();
@@ -21,7 +23,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!user.value) return;
 
   // Populate memberships state (consumed by useCurrentDomainAccess).
-  const { isAdmin, currentOrg, isBoardMember } = await useSelectedOrg();
+  const selected = await useSelectedOrg();
+  const { isAdmin, currentOrg, isBoardMember } = selected;
   // Then the server's RoleContext, which useCurrentDomainAccess prefers.
   await useRoleContext().load();
 
@@ -31,7 +34,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const { isAdminOfCurrentDomain, isBoardMemberOfCurrentDomain, isMemberOfCurrentDomain } =
       useCurrentDomainAccess();
 
-    if (isAdminOfCurrentDomain.value || isBoardMemberOfCurrentDomain.value) return;
+    // A board member is always a member here; an admin who isn't one is an
+    // App Administrator, sent to the same page in their own community.
+    if (isAdminOfCurrentDomain.value || isBoardMemberOfCurrentDomain.value) {
+      return nonMemberAdminNavigation(to, selected, "page");
+    }
 
     const slug = (to.params.slug as string) || activeHoa.value?.slug || null;
     if (isMemberOfCurrentDomain.value && slug) return navigateTo(`/${slug}/documents`);
