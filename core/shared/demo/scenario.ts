@@ -244,8 +244,8 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   const mtg = (title: string, status: string, startDays: number, extra: Record<string, any> = {}) =>
     ensure("hoa_meetings", title, { type: "board", status, meeting_date: at(startDays, 18), end_date: at(startDays, 20), location: "Lobby lounge", is_published: true, target_audience: "all", ...extra });
   await mtg("November board meeting", "completed", -18, { minutes: "Approved the lobby lighting contract. Reviewed reserve study." });
-  await mtg("December board meeting", "scheduled", 12, { agenda: "Budget draft, gutter repair approval, holiday party." });
-  await mtg("Annual owners meeting", "scheduled", 55, { type: "annual", agenda: "Board elections and budget vote." });
+  await mtg("December board meeting", "scheduled", 12, { agenda: "Budget draft\nGutter repair approval\nHoliday party" });
+  await mtg("Annual owners meeting", "scheduled", 55, { type: "annual", agenda: "Board elections\nBudget vote" });
 
   // ── A form for owners to sign (owner "Forms to sign"), with its PDF ──
   const formTitle = "Pet registration 2027";

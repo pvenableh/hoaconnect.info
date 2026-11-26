@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast } from "vue-sonner";
+import { agendaItems, agendaText, type AgendaItem } from "#core/shared/meetings/agenda-order";
 
 const { confirm } = useConfirm();
 
@@ -343,6 +344,15 @@ const handleDelete = async (id: string) => {
     toast.error(e?.message || "Failed to delete meeting");
   }
 };
+
+// Agenda order (§6 Meetings): each line is an item; dragging, Alt+arrows or the
+// up/down buttons rewrite the text, and Save sends it through the form's route.
+const agendaList = computed<AgendaItem[]>({
+  get: () => agendaItems(form.agenda),
+  set: (items) => {
+    form.agenda = agendaText(items);
+  },
+});
 </script>
 
 <template>
@@ -541,6 +551,23 @@ const handleDelete = async (id: string) => {
         <div>
           <label class="text-sm font-medium t-text">Agenda</label>
           <textarea v-model="form.agenda" rows="3" class="glass-field mt-1 w-full rounded-lg px-3 py-2 text-sm t-text" />
+          <div v-if="agendaList.length > 1" class="mt-2" data-testid="agenda-order">
+            <p class="mb-1 text-xs t-text-muted">One item per line. Drag to reorder, or use the arrows. Save to keep the order.</p>
+            <AppSortable v-model="agendaList" item-key="key" label="agenda" handle=".agenda-grip" orientation="vertical" class="space-y-1">
+              <template #item="{ element, index, count, moveTo }">
+                <div class="flex items-center gap-2 rounded-lg border px-2 py-1 text-sm t-text">
+                  <span class="agenda-grip cursor-grab t-text-muted" aria-hidden="true"><Icon name="lucide:grip-vertical" class="h-4 w-4" /></span>
+                  <span class="min-w-0 flex-1 truncate">{{ element.text }}</span>
+                  <AppButton size="icon" variant="ghost" class="h-7 w-7" :disabled="index === 0" :aria-label="`Move ${element.text} up`" @click="moveTo(index - 1)">
+                    <Icon name="lucide:chevron-up" class="h-4 w-4" />
+                  </AppButton>
+                  <AppButton size="icon" variant="ghost" class="h-7 w-7" :disabled="index === count - 1" :aria-label="`Move ${element.text} down`" @click="moveTo(index + 1)">
+                    <Icon name="lucide:chevron-down" class="h-4 w-4" />
+                  </AppButton>
+                </div>
+              </template>
+            </AppSortable>
+          </div>
         </div>
 
         <div>
