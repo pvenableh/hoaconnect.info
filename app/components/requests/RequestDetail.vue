@@ -44,10 +44,15 @@ const channelsAllowed = computed(
   () => !area.value || access.isAdminOfCurrentDomain.value || access.isBoardMemberOfCurrentDomain.value
 );
 const canPromote = computed(() => !area.value || access.canWorkArea("projects"));
-// The thread's staff view (internal notes, moderation): a helper reads it as
-// the member they are; admins, board seats and managers as staff.
+// The thread's staff view (moderation, and internal notes from Directus): a
+// helper reads it as the member they are; admins, board seats and managers as staff.
 const threadAsBoard = computed(
   () => props.isBoard && (!area.value || channelsAllowed.value || access.isPropertyManagerOfCurrentDomain.value)
+);
+// That helper still keeps the ticket's internal notes: read and posted through
+// /api/org/inquiries/:id/notes, behind the request's own gate.
+const internalNotesUrl = computed(() =>
+  props.isBoard && area.value && !threadAsBoard.value ? `/api/org/inquiries/${props.request.id}/notes` : null
 );
 
 const local = ref<RequestRow>({ ...props.request });
@@ -501,6 +506,7 @@ const doPromote = async () => {
         :is-board="threadAsBoard"
         :is-member="true"
         :is-participant="isSubmitter || isAssignee || isBoard"
+        :internal-notes-url="internalNotesUrl"
         title="Activity"
       />
     </div>

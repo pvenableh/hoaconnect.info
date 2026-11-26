@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { INTERNAL_NOTES_KEY } from "#core/app/composables/useComments";
+
 const props = withDefaults(
   defineProps<{
     targetCollection: string;
@@ -20,6 +22,9 @@ const props = withDefaults(
 const emit = defineEmits<{ (e: "posted"): void }>();
 
 const { createComment } = useComments(props.targetCollection, () => props.targetId);
+// Set by a CommentThread whose viewer reads and posts internal notes through a
+// route (internalNotesUrl): an internal note goes there, not to Directus.
+const internalNotes = inject(INTERNAL_NOTES_KEY, null);
 const { paused: postingPaused, composerLine: postingPausedLine } = usePostingPause();
 
 const body = ref("");
@@ -44,13 +49,22 @@ const submit = async () => {
   if (isEmpty.value || isSubmitting.value) return;
   isSubmitting.value = true;
   try {
-    await createComment({
-      body: body.value,
-      parentComment: props.parentComment,
-      attachments: attachments.value,
-      isInternal: isInternal.value,
-      mentionedUsers: mentionedUsers.value,
-    });
+    if (isInternal.value && internalNotes) {
+      await internalNotes.post({
+        body: body.value,
+        parentComment: props.parentComment,
+        attachments: attachments.value,
+        mentionedUsers: mentionedUsers.value,
+      });
+    } else {
+      await createComment({
+        body: body.value,
+        parentComment: props.parentComment,
+        attachments: attachments.value,
+        isInternal: isInternal.value,
+        mentionedUsers: mentionedUsers.value,
+      });
+    }
     body.value = "";
     attachments.value = [];
     mentionedUsers.value = [];

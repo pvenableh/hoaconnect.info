@@ -58,14 +58,49 @@ export async function readAreaRequests(event: H3Event, orgId: string) {
   return { requests: rows[scope] ?? [], scope };
 }
 
-/** One request of `orgId` in the caller's scope: 401, 403, then 404. */
-export async function readAreaRequest(event: H3Event, orgId: string, id: string) {
-  const read = await readBeforeGate(event, orgId, { request: requestSpec(orgId, id) });
+/**
+ * One request of `orgId` in the caller's scope: 401, 403, then 404. `extra`
+ * specs ride in the same batch and come back in `rows` only once the request
+ * has passed the gate.
+ */
+export async function readAreaRequest<K extends string = never>(
+  event: H3Event,
+  orgId: string,
+  id: string,
+  extra?: Record<K, ReadSpec>
+): Promise<{ request: any; scope: RequestScope; rows: Record<K, any[]> }> {
+  const read = await readBeforeGate(event, orgId, { ...(extra ?? ({} as Record<K, ReadSpec>)), request: requestSpec(orgId, id) });
   const scope = await requestScope(event, orgId);
-  const request = (await read.rows()).request?.[0];
+  const { request: found, ...rows } = await read.rows();
+  const request = found?.[0];
   if (!request || idOf(request.organization) !== orgId) throw createError({ statusCode: 404, message: "Request not found" });
   if (scope === "violations" && request.type !== "violation") throw createError({ statusCode: 404, message: "Request not found" });
-  return { request, scope };
+  return { request, scope, rows: rows as Record<K, any[]> };
+}
+
+/** The fields the comment thread reads, as useComments reads them. */
+export const NOTE_FIELDS = [
+  "id", "status", "target_collection", "target_id", "parent_comment", "body", "attachments",
+  "mentioned_users", "is_edited", "is_internal", "is_hidden", "hidden_reason", "report_count",
+  "organization", "date_created", "date_updated",
+  "user_created.id", "user_created.first_name", "user_created.last_name", "user_created.email", "user_created.avatar",
+] as const;
+
+/** A request's internal notes (board-only comments), oldest first. */
+export function internalNotesSpec(orgId: string, requestId: string): ReadSpec {
+  return {
+    collection: "hoa_comments",
+    filter: {
+      organization: { _eq: orgId },
+      target_collection: { _eq: "hoa_requests" },
+      target_id: { _eq: requestId },
+      is_internal: { _eq: true },
+      status: { _neq: "deleted" },
+    },
+    fields: [...NOTE_FIELDS],
+    sort: ["date_created"],
+    limit: 200,
+  };
 }
 
 /** The channel a ticket's discussion lives in, or null (no channels module, or the field before its migration). */

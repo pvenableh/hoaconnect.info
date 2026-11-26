@@ -9,6 +9,8 @@
  * Backed by the hoa_comments collection (scripts/create-comments-collections.ts).
  */
 
+import type { InjectionKey } from "vue";
+
 export interface CommentUserRef {
   id: string;
   first_name?: string | null;
@@ -66,6 +68,44 @@ const COMMENT_FIELDS = [
   "user_created.avatar",
 ];
 
+/**
+ * A threaded tree from a flat list, in the list's order. A reply whose parent
+ * is not in the list sits at the top level.
+ */
+export function buildCommentTree(flat: Comment[]): CommentNode[] {
+  const byId = new Map<string, CommentNode>();
+  flat.forEach((c) => byId.set(c.id, { ...c, replies: [] }));
+  const roots: CommentNode[] = [];
+  byId.forEach((node) => {
+    const parentId = typeof node.parent_comment === "string" ? node.parent_comment : null;
+    if (parentId && byId.has(parentId)) {
+      byId.get(parentId)!.replies.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
+
+/**
+ * Internal notes read and written through a route instead of Directus, for a
+ * viewer whose Directus role leaves them out (a helper on /manage/inquiries;
+ * docs/spec-delegation.md). CommentThread provides it; its composers post
+ * internal notes through `post`.
+ */
+export interface InternalNotesSource {
+  post: (input: {
+    body: string;
+    parentComment?: string | null;
+    attachments?: string[];
+    mentionedUsers?: string[];
+  }) => Promise<Comment>;
+  /** Re-read the notes, after an edit or delete made through Directus. */
+  refresh: () => Promise<void>;
+}
+
+export const INTERNAL_NOTES_KEY: InjectionKey<InternalNotesSource> = Symbol("internal-notes");
+
 export const useComments = (
   targetCollection: string,
   targetId: MaybeRefOrGetter<string | null | undefined>
@@ -105,24 +145,10 @@ export const useComments = (
     );
 
   // Build a threaded tree from the flat list.
-  const buildTree = (includeInternal = true): CommentNode[] => {
-    const flat = ((comments.value || []) as Comment[]).filter(
-      (c) => includeInternal || !c.is_internal
+  const buildTree = (includeInternal = true): CommentNode[] =>
+    buildCommentTree(
+      ((comments.value || []) as Comment[]).filter((c) => includeInternal || !c.is_internal)
     );
-    const byId = new Map<string, CommentNode>();
-    flat.forEach((c) => byId.set(c.id, { ...c, replies: [] }));
-    const roots: CommentNode[] = [];
-    byId.forEach((node) => {
-      const parentId =
-        typeof node.parent_comment === "string" ? node.parent_comment : null;
-      if (parentId && byId.has(parentId)) {
-        byId.get(parentId)!.replies.push(node);
-      } else {
-        roots.push(node);
-      }
-    });
-    return roots;
-  };
 
   const threaded = computed(() => buildTree(true));
 

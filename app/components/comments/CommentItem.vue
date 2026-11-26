@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommentNode } from "#core/app/composables/useComments";
+import { INTERNAL_NOTES_KEY, type CommentNode } from "#core/app/composables/useComments";
 
 const { confirm } = useConfirm();
 
@@ -104,14 +104,21 @@ const startEdit = () => {
   isEditing.value = true;
 };
 
+// Internal notes read through a route (CommentThread's internalNotesUrl) are
+// not on the Directus subscription: re-read them after the author's own change.
+const internalNotes = inject(INTERNAL_NOTES_KEY, null);
+const afterChange = () => (props.comment.is_internal ? internalNotes?.refresh() : undefined);
+
 const saveEdit = async () => {
   await editComment(props.comment.id, { body: editBody.value });
   isEditing.value = false;
+  await afterChange();
 };
 
 const onDelete = async () => {
   if (await confirm({ title: "Delete this comment?", confirmLabel: "Delete", destructive: true })) {
     await deleteComment(props.comment.id);
+    await afterChange();
   }
 };
 </script>

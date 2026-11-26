@@ -111,6 +111,8 @@ describe("inquiries routes", () => {
   let patch: (e: any) => Promise<any>;
   let transition: (e: any) => Promise<any>;
   let create: (e: any) => Promise<any>;
+  let notes: (e: any) => Promise<any>;
+  let postNote: (e: any) => Promise<any>;
   const notify = vi.fn(async () => null);
 
   beforeAll(async () => {
@@ -124,6 +126,8 @@ describe("inquiries routes", () => {
     patch = (await import("#core/server/api/org/inquiries/[id].patch")).default as any;
     transition = (await import("#core/server/api/org/inquiries/[id]/transition.post")).default as any;
     create = (await import("#core/server/api/hoa/requests/manager-create.post")).default as any;
+    notes = (await import("#core/server/api/org/inquiries/[id]/notes.get")).default as any;
+    postNote = (await import("#core/server/api/org/inquiries/[id]/notes.post")).default as any;
   });
 
   beforeEach(() => {
@@ -191,6 +195,44 @@ describe("inquiries routes", () => {
     expect(state.db.hoa_comments).toHaveLength(0);
   });
 
+  describe("internal notes", () => {
+    const seedNotes = () => {
+      state.db.hoa_comments = [
+        { id: "n-1", organization: ORG, target_collection: "hoa_requests", target_id: REQ, is_internal: true, status: "published", body: "<p>Quote is $240</p>", date_created: "2026-11-20T00:00:00Z" },
+        { id: "c-1", organization: ORG, target_collection: "hoa_requests", target_id: REQ, is_internal: false, status: "published", body: "<p>Logged</p>", date_created: "2026-11-20T00:01:00Z" },
+        { id: "n-gone", organization: ORG, target_collection: "hoa_requests", target_id: REQ, is_internal: true, status: "deleted", body: "<p>Gone</p>" },
+        { id: "n-other", organization: OTHER, target_collection: "hoa_requests", target_id: REQ_OTHER, is_internal: true, status: "published", body: "<p>Elsewhere</p>" },
+      ];
+    };
+
+    it("refuse without a session, an orgId or the inquiries area, and write nothing", async () => {
+      seedNotes();
+      await refusals((o) => notes(ev(o)), { query: { orgId: ORG }, params: { id: REQ } }, "inquiries");
+      await refusals((o) => postNote(ev(o)), { body: { orgId: ORG, body: "<p>x</p>" }, params: { id: REQ } }, "inquiries");
+      expect(state.db.hoa_comments).toHaveLength(4);
+    });
+
+    it("a helper holding inquiries reads the request's internal notes only", async () => {
+      seedNotes();
+      state.who = helper("inquiries");
+      const res = await notes(ev({ query: { orgId: ORG }, params: { id: REQ } }));
+      expect(res.notes.map((n: any) => n.id)).toEqual(["n-1"]);
+      await expect(notes(ev({ query: { orgId: ORG }, params: { id: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    });
+
+    it("a helper posts an internal note as themself; a reply names a comment on the same request", async () => {
+      seedNotes();
+      state.who = helper("inquiries");
+      await postNote(ev({ body: { orgId: ORG, body: "<p>Vendor Tuesday</p>", parentComment: "c-1", is_internal: false, user_created: ID.userAdmin }, params: { id: REQ } }));
+      const row = state.db.hoa_comments!.at(-1)!;
+      expect(row).toMatchObject({ target_collection: "hoa_requests", target_id: REQ, organization: ORG, is_internal: true, parent_comment: "c-1", user_created: state.who.userId, body: "<p>Vendor Tuesday</p>" });
+      await expect(postNote(ev({ body: { orgId: ORG, body: "<p>x</p>", parentComment: "n-other" }, params: { id: REQ } }))).rejects.toMatchObject({ statusCode: 400 });
+      await expect(postNote(ev({ body: { orgId: ORG, body: "<p> </p>" }, params: { id: REQ } }))).rejects.toMatchObject({ statusCode: 400 });
+      await expect(postNote(ev({ body: { orgId: ORG, body: "<p>x</p>" }, params: { id: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+      expect(state.db.hoa_comments).toHaveLength(5);
+    });
+  });
+
   it("a follow-up task: a helper holding inquiries creates it under this community's ticket, never another's", async () => {
     state.who = helper("inquiries");
     const body = { organization: ORG, type: "task", title: "Follow-up: Leak", status: "open", parent_request: REQ };
@@ -255,6 +297,18 @@ describe("violations", () => {
     await expect(one(ev({ query: { orgId: ORG }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
     await expect(transition(ev({ body: { orgId: ORG, to: "assigned" }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
     expect(state.db.hoa_requests![1].status).toBe("open");
+  });
+
+  it("violations alone reads and posts notes on a violation, and another request's are a 404", async () => {
+    const notes = (await import("#core/server/api/org/inquiries/[id]/notes.get")).default as any;
+    const postNote = (await import("#core/server/api/org/inquiries/[id]/notes.post")).default as any;
+    state.who = helper("violations");
+    expect((await notes(ev({ query: { orgId: ORG }, params: { id: VIO } }))).notes).toEqual([]);
+    await postNote(ev({ body: { orgId: ORG, body: "<p>Photo on file</p>" }, params: { id: VIO } }));
+    expect(state.db.hoa_comments).toHaveLength(1);
+    await expect(notes(ev({ query: { orgId: ORG }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(postNote(ev({ body: { orgId: ORG, body: "<p>x</p>" }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
+    expect(state.db.hoa_comments).toHaveLength(1);
   });
 
   it("inquiries reads every request", async () => {
