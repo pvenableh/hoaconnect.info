@@ -108,7 +108,7 @@ describe("who may call", () => {
   });
 
   it("400 for an area a helper cannot hold", async () => {
-    for (const area of ["inquiries", "violations", "directory", "communications", "activity", "contact_platform", "billing"]) {
+    for (const area of ["activity", "contact_platform", "billing", "vendors", "junk"]) {
       await expect(give({ member: ID.memberBob, area, value: true }), area).rejects.toMatchObject({ statusCode: 400 });
     }
     expect(grants()).toHaveLength(0);

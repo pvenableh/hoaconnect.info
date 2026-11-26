@@ -64,6 +64,7 @@ export function planTransition(request: ManagedRequest, to: string, actorUserId:
   const t = availableTransitions(request.type, from, actor).find((x) => x.to === to);
   if (!t) return { ok: false, reason: `This request cannot move to "${to}" from "${from}".` };
   const meta = getStateMeta(request.type, to);
+  if (!meta) return { ok: false, reason: `"${to}" is not a state of this request.` };
   const statusChanged = meta.status !== request.status;
   return {
     ok: true,

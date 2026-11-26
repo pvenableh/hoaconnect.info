@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   const { request } = await readAreaRequest(event, orgId, id);
   const session = await requireUserSession(event);
   const plan = planTransition(request, parsed.data.to, String(session.user?.id ?? "") || null, new Date());
-  if (!plan.ok) throw createError({ statusCode: 409, message: plan.reason });
+  if (plan.ok === false) throw createError({ statusCode: 409, message: plan.reason });
 
   const updated = await writeAreaRequest(orgId, id, plan.patch);
 
