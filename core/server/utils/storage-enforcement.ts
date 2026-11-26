@@ -48,35 +48,40 @@ export interface OrgStorageQuota {
   plan: string | null;
 }
 
-interface OrgStorageRow {
-  storage_used_bytes?: number | null;
-  storage_extra_bytes?: number | null;
+export interface OrgStorageRow {
+  storage_used_bytes?: number | string | null;
+  storage_extra_bytes?: number | string | null;
   active_addons?: Record<string, unknown> | null;
   is_free_account?: boolean | null;
   subscription_plan?: {
     slug?: string | null;
-    max_storage_gb?: number | null;
+    max_storage_gb?: number | string | null;
     is_contact_only?: boolean | null;
   } | string | null;
 }
+
+/** The org fields the quota is computed from (dotted, so a batch can carry them). */
+export const ORG_STORAGE_QUOTA_FIELDS = [
+  "storage_used_bytes",
+  "storage_extra_bytes",
+  "active_addons",
+  "is_free_account",
+  "subscription_plan.slug",
+  "subscription_plan.max_storage_gb",
+  "subscription_plan.is_contact_only",
+] as const;
 
 /** Read an org's current usage + effective limit (uses the cached counter). */
 export async function getOrgStorage(orgId: string): Promise<OrgStorageQuota> {
   const directus = getTypedDirectus();
   const org = (await directus.request(
-    readItem("hoa_organizations", orgId, {
-      fields: [
-        "storage_used_bytes",
-        "storage_extra_bytes",
-        "active_addons",
-        "is_free_account",
-        {
-          subscription_plan: ["slug", "max_storage_gb", "is_contact_only"],
-        },
-      ],
-    })
+    readItem("hoa_organizations", orgId, { fields: [...ORG_STORAGE_QUOTA_FIELDS] } as any)
   )) as OrgStorageRow;
+  return orgStorageQuotaFrom(org);
+}
 
+/** An org's usage + effective limit from its row (ORG_STORAGE_QUOTA_FIELDS). */
+export function orgStorageQuotaFrom(org: OrgStorageRow | null | undefined): OrgStorageQuota {
   const plan =
     org?.subscription_plan && typeof org.subscription_plan === "object"
       ? org.subscription_plan

@@ -25,11 +25,23 @@ vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
 
 const { resolveStorageContext, storageAccessFrom, storageContextSpecs } = await import("#core/server/utils/org-storage");
 const settings = (await import("#core/server/api/org/storage/settings.post")).default as unknown as (e: H3Event) => Promise<any>;
+const meter = (await import("#core/server/api/org/storage/meter.post")).default as unknown as (e: H3Event) => Promise<any>;
+const { orgStorageQuotaFrom, ORG_STORAGE_QUOTA_FIELDS } = await import("#core/server/utils/storage-enforcement");
 
 const ORG = "org-lenox";
 const HOA_ADMIN = "role-hoa-admin";
 const HOA_MEMBER = "role-hoa-member";
-const LENOX = { id: ORG, name: "Lenox", folder: "root-lenox", modules: { storage_browse_access: "all_members" } };
+const LENOX = {
+  id: ORG,
+  name: "Lenox",
+  folder: "root-lenox",
+  modules: { storage_browse_access: "all_members" },
+  storage_used_bytes: "1024",
+  storage_extra_bytes: "0",
+  active_addons: null,
+  is_free_account: false,
+  subscription_plan: "plan-pro",
+};
 const ada = { id: "m-ada", user: "u-ada", organization: ORG, status: "active", role: HOA_ADMIN };
 const rex = { id: "m-rex", user: "u-rex", organization: ORG, status: "inactive", role: HOA_ADMIN };
 const cal = { id: "m-cal", user: "u-cal", organization: ORG, status: "active", role: HOA_MEMBER };
@@ -61,13 +73,17 @@ const client = {
 const reads = (collection: string) => db.ops.filter((o) => o.op === "readItems" && o.collection === collection);
 
 function stubBatch() {
-  const batch = memoryBatch(db, { o2m: { "hoa_members.board_member_terms": ["hoa_board_members", "hoa_member"] } });
+  const batch = memoryBatch(db, {
+    m2o: { "hoa_organizations.subscription_plan": "subscription_plans" },
+    o2m: { "hoa_members.board_member_terms": ["hoa_board_members", "hoa_member"] },
+  });
   vi.stubGlobal("readItemsBatch", (specs: Record<string, any>) => (batches.push(Object.keys(specs)), batch(specs)));
 }
 
 beforeEach(() => {
   db = new MemoryDirectus();
   db.seed("hoa_organizations", [LENOX]);
+  db.seed("subscription_plans", [{ id: "plan-pro", slug: "pro", max_storage_gb: 50, is_contact_only: false }]);
   db.seed("directus_folders", [{ id: "root-lenox", name: "Lenox", parent: null }]);
   db.seed("hoa_members", [ada, rex, cal]);
   db.seed("hoa_board_members", [{ id: "t-cal", status: "published", hoa_member: "m-cal", term_start: null, term_end: null }]);
@@ -130,6 +146,54 @@ describe("storage context — one batch", () => {
     const specs = storageContextSpecs("u", "o", ["modules", "storage_used_bytes"]);
     expect(specs.sc_org.fields).toEqual(["modules", "storage_used_bytes"]);
     expect(specs.sc_member.limit).toBe(1);
+  });
+});
+
+describe("POST /api/org/storage/meter — the quota rides in the context's batch", () => {
+  const PRO = { usedBytes: 1024, limitBytes: 50 * 1024 ** 3, remainingBytes: 50 * 1024 ** 3 - 1024, plan: "pro" };
+
+  it("reads the membership, the org and its plan in one batch, and nothing else of Directus", async () => {
+    expect(await meter(event)).toEqual(PRO);
+    expect(batches).toEqual([["sc_member", "sc_org"]]);
+    expect(reads("hoa_organizations")[0].query.fields).toEqual(["modules", ...ORG_STORAGE_QUOTA_FIELDS]);
+    expect(db.ops.filter((o) => o.op === "readItem")).toEqual([]);
+  });
+
+  it("refuses a removed member with no quota in the answer", async () => {
+    sessionUser = "u-rex";
+    const refused = await meter(event).catch((e: any) => e);
+    expect(refused).toMatchObject({ statusCode: 403 });
+    expect(refused.data).toBeUndefined();
+    expect(refused.usedBytes).toBeUndefined();
+  });
+
+  it("with no org row, reads the quota by id as before", async () => {
+    const getOrg = vi.fn(async () => ({ ...LENOX, subscription_plan: { slug: "pro", max_storage_gb: 50, is_contact_only: false } }));
+    const real = client.request;
+    client.request = async (op: any) => (op.op === "readItem" ? getOrg() : real(op));
+    try {
+      vi.stubGlobal("readItemsBatch", async () => ({ sc_member: [{ ...cal, board_member_terms: [] }], sc_org: [] }));
+      expect(await meter(event)).toEqual(PRO);
+      expect(getOrg).toHaveBeenCalledTimes(1);
+    } finally {
+      client.request = real;
+    }
+  });
+});
+
+describe("orgStorageQuotaFrom", () => {
+  it("plan bytes plus extra; unlimited when contact-only; the free floor without a plan", () => {
+    expect(
+      orgStorageQuotaFrom({ storage_used_bytes: "10", storage_extra_bytes: "5", subscription_plan: { slug: "pro", max_storage_gb: "2.00", is_contact_only: false } })
+    ).toEqual({ usedBytes: 10, limitBytes: 2 * 1024 ** 3 + 5, remainingBytes: 2 * 1024 ** 3 - 5, plan: "pro" });
+    expect(orgStorageQuotaFrom({ storage_used_bytes: 7, subscription_plan: { slug: "ent", is_contact_only: true } })).toEqual({
+      usedBytes: 7,
+      limitBytes: null,
+      remainingBytes: null,
+      plan: "ent",
+    });
+    expect(orgStorageQuotaFrom({ subscription_plan: { slug: "mid", max_storage_gb: null } }).limitBytes).toBe(50 * 1024 ** 3);
+    expect(orgStorageQuotaFrom(null)).toEqual({ usedBytes: 0, limitBytes: 5 * 1024 ** 3, remainingBytes: 5 * 1024 ** 3, plan: null });
   });
 });
 
