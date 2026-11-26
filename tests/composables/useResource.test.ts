@@ -16,7 +16,7 @@ vi.mock("vue-sonner", () => ({
   toast: { success: (m: string) => toasts.push(`ok:${m}`), error: (m: string) => toasts.push(`err:${m}`) },
 }));
 
-import { applyResourceView, foldText, groupRows, useResource, type ResourceDefinition } from "#core/app/composables/useResource";
+import { applyResourceView, countByStatus, foldText, groupRows, useResource, type ResourceDefinition } from "#core/app/composables/useResource";
 import { useAppSlideOverStackUrlSync } from "#core/app/composables/useAppSlideOverStack";
 
 interface Charge {
@@ -79,6 +79,16 @@ beforeEach(() => {
     },
     back: () => {},
   }));
+});
+
+describe("countByStatus", () => {
+  it("counts each status's rows, and every row for a status without match", () => {
+    const counts = countByStatus(ROWS, def().statuses!);
+    const statuses = def().statuses!;
+    for (const st of statuses) expect(counts[st.value]).toBe(st.match ? ROWS.filter(st.match).length : ROWS.length);
+    expect(Object.keys(counts)).toEqual(statuses.map((st) => st.value));
+  });
+  it("is zero for an empty list", () => expect(Object.values(countByStatus([], def().statuses!)).every((n) => n === 0)).toBe(true));
 });
 
 describe("applyResourceView", () => {
@@ -234,12 +244,12 @@ describe("filters", () => {
     expect(r.isFiltered).toBe(false);
   });
 
-  it("statusItems carry value and label for AppSegmentedControl", () => {
+  it("statusItems carry value and label for AppSegmentedControl, and a count for the summary strip", () => {
     const r = useResource(def(), { orgId: ref(null) });
     expect(r.statusItems).toEqual([
-      { value: "outstanding", label: "Outstanding" },
-      { value: "paid", label: "Paid" },
-      { value: "all", label: "All" },
+      { value: "outstanding", label: "Outstanding", count: 0 },
+      { value: "paid", label: "Paid", count: 0 },
+      { value: "all", label: "All", count: 0 },
     ]);
   });
 });

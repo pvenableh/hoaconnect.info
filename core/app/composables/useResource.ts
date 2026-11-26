@@ -87,6 +87,13 @@ export function applyResourceView<Row>(rows: Row[], def: ResourceDefinition<Row>
   });
 }
 
+/** How many rows each status shows (a status with no `match` shows them all). Pure, for the summary strip. */
+export function countByStatus<Row>(rows: readonly Row[], statuses: readonly ResourceStatus<Row>[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const s of statuses) out[s.value] = s.match ? rows.filter((r) => s.match!(r)).length : rows.length;
+  return out;
+}
+
 export interface RowGroup<Row> {
   key: string;
   label: string;
@@ -151,7 +158,7 @@ export interface ResourceHandle<Row> {
   query: string;
   status: string;
   filters: Record<string, string>;
-  readonly statusItems: { value: string; label: string }[];
+  readonly statusItems: { value: string; label: string; count: number }[];
   readonly isFiltered: boolean;
   reset: () => void;
   // Selection
@@ -244,7 +251,10 @@ export function useResource<Row>(
   const visible = computed(() =>
     applyResourceView(rows.value, def, { query: query.value, status: status.value, filters }),
   );
-  const statusItems = computed(() => (def.statuses ?? []).map((s) => ({ value: s.value, label: s.label })));
+  const statusItems = computed(() => {
+    const counts = countByStatus(rows.value, def.statuses ?? []);
+    return (def.statuses ?? []).map((s) => ({ value: s.value, label: s.label, count: counts[s.value] ?? 0 }));
+  });
   const isFiltered = computed(
     () =>
       !!query.value.trim() ||

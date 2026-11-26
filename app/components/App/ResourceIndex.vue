@@ -63,8 +63,14 @@ const props = withDefaults(
      * rows carry something long: a list of holders, a sentence.
      */
     stack?: DataTableStack;
+    /**
+     * With no `#summary` slot, the strip shows one count per status (counting
+     * up), and a tap filters the table as the segmented control does; a second
+     * tap clears. `false` leaves the strip out.
+     */
+    summary?: boolean;
   }>(),
-  { canCreate: false, emptyIcon: "lucide:inbox" },
+  { canCreate: false, emptyIcon: "lucide:inbox", summary: true },
 );
 
 const emit = defineEmits<{ create: []; open: [row: Row] }>();
@@ -116,6 +122,15 @@ function setSummaryStatus(v: string | null) {
 function clearSummaryStatus() {
   props.resource.reset();
   if (defaultStatus.value) view.value.status = defaultStatus.value;
+}
+
+// The default summary: one tile per status once the rows are in.
+const showCountStrip = computed(
+  () => props.summary && props.resource.statusItems.length > 1 && !(props.resource.pending && !props.resource.total),
+);
+function tapCount(value: string) {
+  if (view.value.status === value && value !== defaultStatus.value) clearSummaryStatus();
+  else setSummaryStatus(value);
 }
 
 const countLabel = computed(() => {
@@ -181,6 +196,29 @@ function rowClasses(row: Row) {
     <!-- Summary strip: a page may draw a chart here whose taps filter the table
          (`select` gives the page the tapped row; `setStatus` writes the same field
          the segmented filter uses). Clear returns the view to its default. -->
+    <div
+      v-if="!$slots.summary && showCountStrip"
+      class="resource-index__summary"
+      role="group"
+      :aria-label="`${noun.other} by status`"
+      data-testid="resource-summary-counts"
+    >
+      <AppButton
+        v-for="s in resource.statusItems"
+        :key="s.value"
+        variant="ghost"
+        class="resource-index__count ios-card h-auto"
+        :class="{ 'is-active': view.status === s.value }"
+        :aria-pressed="view.status === s.value"
+        @click="tapCount(s.value)"
+      >
+        <span class="text-xl font-semibold leading-tight tabular-nums"><AppCountUp :value="s.count" /></span>
+        <span class="text-xs t-text-muted">{{ s.label }}</span>
+      </AppButton>
+      <AppButton v-if="statusNotDefault" variant="outline" size="sm" class="rounded-full" @click="clearSummaryStatus()">
+        Clear filter
+      </AppButton>
+    </div>
     <div v-if="$slots.summary" class="resource-index__summary">
       <slot
         name="summary"
@@ -310,6 +348,21 @@ function rowClasses(row: Row) {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
+}
+.resource-index__count {
+  display: flex;
+  min-width: 6.5rem;
+  min-height: 44px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+  padding: 0.5rem 0.875rem;
+  text-align: left;
+  border-radius: var(--radius-lg, 0.75rem);
+}
+.resource-index__count.is-active {
+  outline: 2px solid var(--color-ring, currentColor);
+  outline-offset: 1px;
 }
 .resource-index__toolbar {
   display: flex;
