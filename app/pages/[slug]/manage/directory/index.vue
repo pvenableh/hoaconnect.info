@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * Manager directory — read-only member list (Property Manager policy grants read
- * on hoa_members; page access requires the "directory" grant).
+ * Manager directory — read-only member list. Page access requires the
+ * "directory" area; the list comes from /api/org/directory, which checks it
+ * again and reads with the app's token, so a helper holding the area sees what
+ * a manager sees (docs/spec-delegation.md).
  */
 definePageMeta({
   middleware: ["manager", "subscription"],
@@ -10,17 +12,11 @@ definePageMeta({
 });
 
 const { selectedOrgId } = await useSelectedOrg();
-const membersApi = useDirectusItems("hoa_members");
 
 const { data: members, pending } = await useAsyncData(
   `manage-directory-${selectedOrgId.value}`,
   () =>
-    membersApi.list({
-      filter: { organization: { _eq: selectedOrgId.value }, status: { _eq: "active" } },
-      fields: ["id", "first_name", "last_name", "email", "phone", "member_type"],
-      sort: ["first_name"],
-      limit: -1,
-    }),
+    $fetch<{ members: any[] }>("/api/org/directory", { query: { orgId: selectedOrgId.value } }).then((r) => r.members),
   { watch: [selectedOrgId], server: false }
 );
 </script>

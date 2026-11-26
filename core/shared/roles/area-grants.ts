@@ -20,12 +20,12 @@ import { MANAGER_GRANT_KEYS, type ManagerGrantKey } from "../transition/grants";
  * The areas a helper or committee can hold, in grant order. Each must be a
  * grant key with a server gate (a test checks both). Not here, and why:
  * inquiries and violations (their pages read requests and members with the
- * user's token), directory (reads email and phone with the token),
- * communications (recipients and email activity read with the token),
+ * user's token), communications (recipients and email activity read with the token),
  * activity (shows a neighbour every resident's actions), contact_platform
  * (speaking to HOA Connect for the community stays with admins and managers).
  */
 export const HELPER_AREA_KEYS = [
+  "directory",
   "documents",
   "feedback",
   "projects",

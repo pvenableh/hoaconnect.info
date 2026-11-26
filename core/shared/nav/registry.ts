@@ -161,7 +161,7 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   // ── Manager areas: one entry per area that has a page ─────────────────────
   { id: "inquiries", label: "Inquiries", shortName: "Inquiries", icon: "inbox", path: "/manage/inquiries", needs: [area("inquiries")] },
   { id: "directory", label: "Directory", shortName: "Directory", icon: "users", path: "/manage/directory", needs: [area("directory")] },
-  // The server (isChangeReviewer) lets a manager with Directory review changes.
+  // The server (isChangeReviewer) lets a manager or helper with Directory review changes.
   { id: "approvals", label: "Approvals", shortName: "Approvals", icon: "clipboard-check", path: "/admin/approvals", needs: [area("directory")] },
   { id: "communications", label: "Communications", shortName: "Comms", icon: "mail", path: "/manage/communications", needs: [area("communications")] },
   { id: "documents-mgr", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", needs: [area("documents"), mod("documents")] },
@@ -197,7 +197,7 @@ export type NavLayoutId = keyof typeof NAV_LAYOUTS;
  * pages show their manage controls from the server's `viewer`. Kept out of
  * NAV_LAYOUTS.member so page transitions and MEMBER_APPS are unchanged.
  */
-export const MEMBER_HELPER_ENTRIES = ["projects-mgr", "responsibilities-mgr"] as const;
+export const MEMBER_HELPER_ENTRIES = ["directory", "approvals", "projects-mgr", "responsibilities-mgr"] as const;
 
 
 /** Hubs that keep a landing page of their own instead of opening on a pill. */

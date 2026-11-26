@@ -366,6 +366,10 @@ describe("helpers and committees (docs/spec-delegation.md)", () => {
     expect(seat.filter((id) => id === "responsibilities-register" || id === "responsibilities-mgr")).toEqual(["responsibilities-register"]);
   });
 
+  it("directory: the directory and its change approvals are added", () => {
+    expect(helperDock(ctx({ areas: ["directory"] }), ["directory"])).toEqual([...owner, "directory", "approvals"]);
+  });
+
   it("documents and feedback add nothing: those pages are already in the dock", () => {
     expect(helperDock(ctx({ areas: ["documents", "feedback"] }), ["documents", "feedback"])).toEqual(owner);
   });
