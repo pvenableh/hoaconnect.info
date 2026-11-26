@@ -7,6 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { H3Event } from "h3";
 import { MemoryDirectus } from "./support/memory-directus";
+import { governingBatch } from "./support/governing-batch";
 
 const h = vi.hoisted(() => ({ session: null as any, query: {} as any }));
 
@@ -20,9 +21,11 @@ vi.stubGlobal("checkAdminAccess", adminAuth.checkAdminAccess);
 vi.stubGlobal("checkMembership", adminAuth.checkMembership);
 vi.stubGlobal("getManagerGrants", managerAccess.getManagerGrants);
 
+// The real access snapshot, batching through MemoryDirectus (readItemsBatch is stubbed per test).
+vi.stubGlobal("batchWithAccessSnapshot", (await import("#core/server/utils/access-snapshot")).batchWithAccessSnapshot);
+
 const route = (await import("#core/server/api/governing/audit.get")).default as (event: H3Event) => Promise<any>;
 
-const event = {} as H3Event;
 const ROLE = { appAdmin: "role-app-admin", hoaAdmin: "role-hoa-admin", pm: "role-pm", member: "role-member" };
 const ORG = "org-lenox";
 const OTHER_ORG = "org-other";
@@ -30,10 +33,12 @@ const TEXT_BEFORE = "Poxies shall be in writing,  filed. \n";
 
 let db: MemoryDirectus;
 let writes: any[];
+let batches: string[][];
 
 beforeEach(() => {
   db = new MemoryDirectus();
   writes = [];
+  batches = [];
   db.seed("hoa_organizations", [{ id: ORG }]);
   db.seed("hoa_governing_audit_log", [
     { id: "a1", organization: ORG, occurred_at: "2026-11-01T10:00:00Z", action: "publish", document: "doc-1", summary: "Published By-Laws", actor_name: "Pat Admin", actor_email: "pat@example.test", before: { status: "draft" }, after: { status: "published" } },
@@ -59,6 +64,10 @@ beforeEach(() => {
       return db.request(op);
     },
   }));
+  vi.stubGlobal("readItemsBatch", async (specs: Record<string, any>) => {
+    batches.push(Object.keys(specs));
+    return governingBatch(() => db)(specs);
+  });
   vi.stubGlobal("useRuntimeConfig", () => ({
     public: {
       directusRoleAppAdmin: ROLE.appAdmin,
@@ -74,8 +83,9 @@ const as = (userId: string | null, role = ROLE.member) => {
 };
 const call = (query: Record<string, string> = {}) => {
   h.query = { orgId: ORG, ...query };
-  return route(event);
+  return route({} as H3Event);
 };
+const auditReads = () => db.ops.filter((op: any) => op.collection === "hoa_governing_audit_log");
 
 describe("who may read the change history", () => {
   it("refuses a signed-out caller, a member, a manager without the documents grant and another community's admin", async () => {
@@ -122,5 +132,36 @@ describe("what it returns", () => {
   it("writes nothing", async () => {
     await call();
     expect(writes).toEqual([]);
+  });
+});
+
+describe("one Directus request", () => {
+  it("reads the page with the caller's standing in one batch", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    const res = await call({ action: "publish" });
+    expect(batches).toEqual([["audit", "access_mine", "access_teams", "access_restrictions", "access_areaGrants"]]);
+    expect(res.entries.map((e: any) => e.id)).toEqual(["a1"]);
+  });
+
+  it("answers the same when the batch fails", async () => {
+    as("u-admin", ROLE.hoaAdmin);
+    const batched = await call({ before: "2026-11-03T10:00:00Z" });
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("GraphQL down");
+    });
+    expect(await call({ before: "2026-11-03T10:00:00Z" })).toEqual(batched);
+    as("u-member");
+    await expect(call()).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it("a refusal carries no rows; signed out reads nothing", async () => {
+    as("u-member");
+    const err = await call().catch((e: any) => e);
+    expect(err).toMatchObject({ statusCode: 403 });
+    expect(JSON.stringify(err)).not.toMatch(/Published|Poxies|a1/);
+    as(null);
+    db.ops.length = 0;
+    await expect(call()).rejects.toMatchObject({ statusCode: 401 });
+    expect(auditReads()).toEqual([]);
   });
 });

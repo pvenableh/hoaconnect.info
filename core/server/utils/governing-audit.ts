@@ -4,6 +4,7 @@
 
 import { createItem, readItems } from "@directus/sdk";
 import type { H3Event } from "h3";
+import type { ReadSpec } from "./directus-graphql";
 
 const AUDIT = "hoa_governing_audit_log";
 
@@ -67,28 +68,31 @@ export type GoverningAuditEntry = {
 
 const refId = (v: unknown): string | null => (typeof v === "string" ? v : ((v as { id?: string } | null)?.id ?? null));
 
-/**
- * The trail of one organization, newest first, for the people who manage its
- * governing documents. Read-only: nothing here writes. `before` is the
- * `occurred_at` of the last row of the page already shown.
- */
-export async function listGoverningAudit(
-  organizationId: string,
-  options: { document?: string | null; action?: string | null; before?: string | null; limit?: number } = {}
-): Promise<{ entries: GoverningAuditEntry[]; next_before: string | null }> {
-  const limit = Math.min(Math.max(options.limit ?? AUDIT_PAGE_SIZE, 1), 200);
+export type GoverningAuditOptions = { document?: string | null; action?: string | null; before?: string | null; limit?: number };
+
+const auditLimit = (options: GoverningAuditOptions) => Math.min(Math.max(options.limit ?? AUDIT_PAGE_SIZE, 1), 200);
+
+/** The page's read, as a batch spec: one row past the page, to know whether another follows. */
+export function governingAuditSpec(organizationId: string, options: GoverningAuditOptions = {}): ReadSpec {
   const filter: Record<string, unknown> = { organization: { _eq: organizationId } };
   if (options.document) filter.document = { _eq: options.document };
   if (options.action) filter.action = { _eq: options.action };
   if (options.before) filter.occurred_at = { _lt: options.before };
-  const found = ((await getTypedDirectus().request(
-    readItems(AUDIT as never, {
-      filter,
-      fields: ["id", "occurred_at", "action", "actor_name", "actor_email", "document", "provision", "flag", "summary", "reason", "before", "after"],
-      sort: ["-occurred_at"],
-      limit: limit + 1,
-    } as never)
-  )) ?? []) as any[];
+  return {
+    collection: AUDIT,
+    filter,
+    fields: ["id", "occurred_at", "action", "actor_name", "actor_email", "document", "provision", "flag", "summary", "reason", "before", "after"],
+    sort: ["-occurred_at"],
+    limit: auditLimit(options) + 1,
+  };
+}
+
+/** The page from the rows governingAuditSpec read. */
+export function governingAuditFrom(
+  found: readonly any[],
+  options: GoverningAuditOptions = {}
+): { entries: GoverningAuditEntry[]; next_before: string | null } {
+  const limit = auditLimit(options);
   const sorted = [...found].sort((a, b) => String(b.occurred_at ?? "").localeCompare(String(a.occurred_at ?? "")));
   const page = sorted.slice(0, limit);
   return {
@@ -108,4 +112,19 @@ export async function listGoverningAudit(
     })),
     next_before: sorted.length > limit ? (page[page.length - 1]?.occurred_at ?? null) : null,
   };
+}
+
+/**
+ * The trail of one organization, newest first, for the people who manage its
+ * governing documents. Read-only: nothing here writes. `before` is the
+ * `occurred_at` of the last row of the page already shown.
+ */
+export async function listGoverningAudit(
+  organizationId: string,
+  options: GoverningAuditOptions = {}
+): Promise<{ entries: GoverningAuditEntry[]; next_before: string | null }> {
+  const spec = governingAuditSpec(organizationId, options);
+  const { collection, ...query } = spec;
+  const found = ((await getTypedDirectus().request(readItems(collection as never, query as never))) ?? []) as any[];
+  return governingAuditFrom(found, options);
 }
