@@ -15,7 +15,7 @@ import {
   readFiles,
 } from "@directus/sdk";
 import {
-  resolveStorageContext,
+  resolveStorageContextWithOrg,
   assertFolderInOrg,
   getDescendantFolderIds,
   isWithinOrgRoot,
@@ -36,8 +36,39 @@ const FILE_FIELDS = [
   "folder",
 ] as const;
 
+/** The org's root folder name, when the org row's folder is the root the storage layout knows. */
+function rootNameFrom(org: Record<string, any> | null, rootId: string): string | undefined {
+  const folder = org?.folder;
+  return folder && typeof folder === "object" && folder.id === rootId && typeof folder.name === "string" ? folder.name : undefined;
+}
+
+/**
+ * Breadcrumb from the root to `folderId`, reading each folder up the chain.
+ * The root's own name comes from the storage context's org read when known,
+ * so a library at its root reads no folder here.
+ */
+async function breadcrumbFor(folderId: string, rootId: string, rootName: string | undefined) {
+  const admin = getTypedDirectus();
+  const breadcrumb: { id: string; name: string }[] = [];
+  let cursor: string | null = folderId;
+  for (let i = 0; i < 64 && cursor; i++) {
+    if (cursor === rootId && rootName !== undefined) {
+      breadcrumb.unshift({ id: rootId, name: rootName });
+      break;
+    }
+    const f = (await admin.request(
+      readFolder(cursor, { fields: ["id", "name", "parent"] })
+    )) as any;
+    breadcrumb.unshift({ id: f.id, name: f.name });
+    if (f.id === rootId) break;
+    cursor = f?.parent == null ? null : typeof f.parent === "string" ? f.parent : f.parent.id;
+  }
+  return breadcrumb;
+}
+
 export default defineEventHandler(async (event) => {
-  const ctx = await resolveStorageContext(event);
+  // The root folder's name rides on the context's one request (the breadcrumb's first crumb).
+  const { ctx, org } = await resolveStorageContextWithOrg(event, ["folder.id", "folder.name"]);
   const body = await readBody(event);
   const scope: "library" | "mine" = body?.scope === "mine" ? "mine" : "library";
   const search: string | undefined = body?.search?.trim() || undefined;
@@ -81,38 +112,34 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: "Records are for the community's admins" });
   }
 
-  const [folders, files] = await Promise.all([
-    admin.request(
-      readFolders({
-        filter: { parent: { _eq: folderId } },
-        fields: ["id", "name", "parent"],
-        sort: ["name"],
-        limit: -1,
-      })
-    ),
-    admin.request(
-      readFiles({
-        // Governing originals and page images live on the governing pages.
-        filter: { _and: [{ folder: { _eq: folderId } }, NOT_GOVERNING_FILE] },
-        fields: FILE_FIELDS,
-        sort: ["-uploaded_on"],
-        limit,
-        ...(search ? { search } : {}),
-      })
-    ),
+  // The breadcrumb walks up alongside the listing; the listing's error, if any, is still the one thrown.
+  const [listing, crumbs] = await Promise.allSettled([
+    Promise.all([
+      admin.request(
+        readFolders({
+          filter: { parent: { _eq: folderId } },
+          fields: ["id", "name", "parent"],
+          sort: ["name"],
+          limit: -1,
+        })
+      ),
+      admin.request(
+        readFiles({
+          // Governing originals and page images live on the governing pages.
+          filter: { _and: [{ folder: { _eq: folderId } }, NOT_GOVERNING_FILE] },
+          fields: FILE_FIELDS,
+          sort: ["-uploaded_on"],
+          limit,
+          ...(search ? { search } : {}),
+        })
+      ),
+    ]),
+    breadcrumbFor(folderId, root, rootNameFrom(org, root)),
   ]);
-
-  // Breadcrumb: from root → current folder.
-  const breadcrumb: { id: string; name: string }[] = [];
-  let cursor: string | null = folderId;
-  for (let i = 0; i < 64 && cursor; i++) {
-    const f = (await admin.request(
-      readFolder(cursor, { fields: ["id", "name", "parent"] })
-    )) as any;
-    breadcrumb.unshift({ id: f.id, name: f.name });
-    if (f.id === root) break;
-    cursor = f?.parent == null ? null : typeof f.parent === "string" ? f.parent : f.parent.id;
-  }
+  if (listing.status === "rejected") throw listing.reason;
+  if (crumbs.status === "rejected") throw crumbs.reason;
+  const [folders, files] = listing.value;
+  const breadcrumb = crumbs.value;
 
   return {
     mode: "folder",

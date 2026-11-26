@@ -18,6 +18,7 @@ vi.mock("@directus/sdk", async () => ({
   ...(await import("./support/email-queue-memory")).sdkDescriptors,
   readFolder: (id: string, query?: any) => ({ op: "readFolder", collection: "directus_folders", id, query }),
   readFolders: (query?: any) => ({ op: "readFolders", collection: "directus_folders", query }),
+  readFiles: (query?: any) => ({ op: "readFiles", collection: "directus_files", query }),
   createFolder: (data: any) => ({ op: "createFolder", collection: "directus_folders", data }),
 }));
 
@@ -25,6 +26,7 @@ vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
 
 const { resolveStorageContext, storageAccessFrom, storageContextSpecs } = await import("#core/server/utils/org-storage");
 const settings = (await import("#core/server/api/org/storage/settings.post")).default as unknown as (e: H3Event) => Promise<any>;
+const list = (await import("#core/server/api/org/storage/list.post")).default as unknown as (e: H3Event) => Promise<any>;
 const meter = (await import("#core/server/api/org/storage/meter.post")).default as unknown as (e: H3Event) => Promise<any>;
 const { orgStorageQuotaFrom, ORG_STORAGE_QUOTA_FIELDS } = await import("#core/server/utils/storage-enforcement");
 
@@ -56,12 +58,17 @@ const client = {
   request: async (op: any) => {
     switch (op.op) {
       case "readFolder": {
+        db.ops.push(op);
         const folder = db.one("directus_folders", op.id);
         if (!folder) throw new Error(`no folder ${op.id}`);
         return { ...folder };
       }
       case "readFolders":
+        db.ops.push(op);
         return db.all("directus_folders", op.query?.filter).map((f) => ({ ...f }));
+      case "readFiles":
+        db.ops.push(op);
+        return db.all("directus_files").filter((f) => f.folder === op.query?.filter?._and?.[0]?.folder?._eq).map((f) => ({ ...f }));
       case "createFolder":
         return db.request({ op: "createItem", collection: "directus_folders", data: op.data });
       default:
@@ -74,7 +81,7 @@ const reads = (collection: string) => db.ops.filter((o) => o.op === "readItems" 
 
 function stubBatch() {
   const batch = memoryBatch(db, {
-    m2o: { "hoa_organizations.subscription_plan": "subscription_plans" },
+    m2o: { "hoa_organizations.subscription_plan": "subscription_plans", "hoa_organizations.folder": "directus_folders" },
     o2m: { "hoa_members.board_member_terms": ["hoa_board_members", "hoa_member"] },
   });
   vi.stubGlobal("readItemsBatch", (specs: Record<string, any>) => (batches.push(Object.keys(specs)), batch(specs)));
@@ -178,6 +185,57 @@ describe("POST /api/org/storage/meter — the quota rides in the context's batch
     } finally {
       client.request = real;
     }
+  });
+});
+
+describe("POST /api/org/storage/list — the root's crumb rides in the context's batch", () => {
+  const folderOps = () => db.ops.filter((o) => ["readFolder", "readFolders", "readFiles"].includes(o.op)).map((o) => (o.op === "readFolder" ? `readFolder ${o.id}` : o.op));
+
+  let docsId: string;
+
+  beforeEach(async () => {
+    // ensureOrgStorage caches the layout per process: make sure this db has its Documents folder.
+    docsId = (await resolveStorageContext(event)).storage.map.documents!;
+    if (!db.one("directus_folders", docsId)) db.seed("directus_folders", [{ id: docsId, name: "Documents", parent: "root-lenox" }]);
+    db.seed("directus_files", [{ id: "file-1", title: "Rules", folder: "root-lenox", description: null }]);
+    db.ops.length = 0;
+    batches.length = 0;
+  });
+
+  it("lists the root with one batch and the two listing reads: no folder read for the breadcrumb", async () => {
+    const res = await list(event);
+    expect(batches).toEqual([["sc_member", "sc_org"]]);
+    expect(reads("hoa_organizations")[0].query.fields).toEqual(["modules", "folder.id", "folder.name"]);
+    expect(folderOps().sort()).toEqual(["readFiles", "readFolders"]);
+    expect(res).toMatchObject({ mode: "folder", folderId: "root-lenox", isRoot: true, breadcrumb: [{ id: "root-lenox", name: "Lenox" }] });
+    expect(res.files.map((f: any) => f.id)).toEqual(["file-1"]);
+  });
+
+  it("a subfolder reads only itself up the breadcrumb, and the same answer comes when the batch fails", async () => {
+    const docs = { id: docsId };
+    body = { orgId: ORG, folderId: docs.id };
+    const batched = await list(event);
+    expect(folderOps().filter((o) => o.startsWith("readFolder "))).toEqual([`readFolder ${docs.id}`]);
+    expect(batched.breadcrumb).toEqual([
+      { id: "root-lenox", name: "Lenox" },
+      { id: docs.id, name: "Documents" },
+    ]);
+    // Without the batch the root's name is read, as before.
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("GraphQL down");
+    });
+    db.ops.length = 0;
+    expect(await list(event)).toEqual(batched);
+    expect(folderOps().filter((o) => o.startsWith("readFolder "))).toEqual([`readFolder ${docs.id}`, "readFolder root-lenox"]);
+  });
+
+  it("a member the tier keeps out is refused with no folders or files read", async () => {
+    await db.request({ op: "updateItem", collection: "hoa_organizations", id: ORG, data: { modules: { storage_browse_access: "admins_only" } } });
+    db.ops.length = 0;
+    const refused = await list(event).catch((e: any) => e);
+    expect(refused).toMatchObject({ statusCode: 403 });
+    expect(refused.folders).toBeUndefined();
+    expect(folderOps()).toEqual([]);
   });
 });
 

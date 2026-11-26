@@ -25,15 +25,20 @@ vi.mock("@directus/sdk", () => {
     ["readFile", "readFiles", "readFolder", "readFolders", "updateFile", "deleteFile", "deleteFiles", "deleteFolder", "deleteFolders", "createFolder", "updateFolder", "uploadFiles", "importFile"].map((n) => [n, op(n)])
   );
 });
-vi.mock("#core/server/utils/org-storage", () => ({
-  resolveStorageContext: async () => ({ orgId: "org", userId: "u-admin", isAdmin: true, canBrowseLibrary: true, storage: { rootId: "root", map: {} } }),
+vi.mock("#core/server/utils/org-storage", () => {
+  const ctx = { orgId: "org", userId: "u-admin", isAdmin: true, canBrowseLibrary: true, storage: { rootId: "root", map: {} } };
+  return {
+  resolveStorageContext: async () => ctx,
+  // The library route reads the org row with the context; no row here, so its root crumb is read as a folder.
+  resolveStorageContextWithOrg: async () => ({ ctx, org: null }),
   assertFileInOrg: async () => {},
   assertFolderInOrg: async () => {},
   assertAdmin: () => {},
   getDescendantFolderIds: async () => ["root", "docs"],
   isWithinOrgRoot: async () => true,
   invalidateOrgStorage: () => {},
-}));
+  };
+});
 vi.mock("#core/server/utils/storage-enforcement", () => ({ addOrgStorageUsage: async () => {} }));
 vi.mock("#core/server/utils/image-optimize", () => ({
   isOptimizableImage: (type: string | null) => (type ?? "").startsWith("image/"),

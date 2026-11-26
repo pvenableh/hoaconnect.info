@@ -48,6 +48,8 @@ vi.mock("#core/server/utils/org-storage", () => {
   };
   return {
     resolveStorageContext: async () => h.ctx,
+    // The library route reads the org row with the context; no row here, so its root crumb is read as a folder.
+    resolveStorageContextWithOrg: async () => ({ ctx: h.ctx, org: null }),
     assertFolderInOrg: async () => {},
     assertFileInOrg: async () => {},
     isWithinOrgRoot: within,
