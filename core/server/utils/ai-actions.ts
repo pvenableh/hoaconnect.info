@@ -19,6 +19,7 @@
 //
 // getTypedDirectus is auto-imported from server/utils/directus.ts.
 
+import { createAs } from "./create-as";
 import { createItem, readItem, readItems, readUsers, updateItem, deleteItem } from "@directus/sdk";
 import {
   actionByKey,
@@ -133,39 +134,35 @@ const ACTIVE_MEMBER = { status: { _eq: "active" } };
 
 // ── executors — the only code that writes; keyed by action_type ────────────────
 const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
-  async create_task({ payload, orgId }) {
+  async create_task({ payload, orgId, userId }) {
     const project = await optionalOrgRowId("hoa_projects", payload.project_id, orgId);
     const request = await optionalOrgRowId("hoa_requests", payload.request_id, orgId);
     const category = request ? "request" : project ? "project" : "quick";
-    const created = (await directus().request(
-      createItem("hoa_tasks", {
-        organization: orgId,
-        title: payload.title,
-        description: payload.description ?? null,
-        priority: payload.priority ?? null,
-        due_date: payload.due_date ?? null,
-        status: "new",
-        category,
-        project,
-        request,
-      } as any)
-    )) as { id: string };
+    const created = (await createAs("hoa_tasks", {
+      organization: orgId,
+      title: payload.title,
+      description: payload.description ?? null,
+      priority: payload.priority ?? null,
+      due_date: payload.due_date ?? null,
+      status: "new",
+      category,
+      project,
+      request,
+    }, userId)) as { id: string };
     return { result: { taskId: created.id }, undo: { kind: "delete", collection: "hoa_tasks", id: created.id } };
   },
 
   async add_comment({ payload, orgId, userId }) {
     if (!COMMENT_TARGETS.has(payload.target_collection)) throw new Error(NOT_AVAILABLE);
     const target = await requireOrgRow(payload.target_collection, payload.target_id, orgId);
-    const created = (await directus().request(
-      createItem("hoa_comments", {
-        organization: orgId,
-        target_collection: payload.target_collection,
-        target_id: String(target.id),
-        body: payload.body,
-        is_internal: payload.is_internal !== false,
-        status: "published",
-      } as any)
-    )) as { id: string };
+    const created = (await createAs("hoa_comments", {
+      organization: orgId,
+      target_collection: payload.target_collection,
+      target_id: String(target.id),
+      body: payload.body,
+      is_internal: payload.is_internal !== false,
+      status: "published",
+    }, userId)) as { id: string };
     // An approved action writes a real, published comment — the same event a
     // person typing in the box produces, so it reaches the same people. The
     // browser path pings /api/org/notify-event; here we are already on the
@@ -181,19 +178,17 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
     return { result: { commentId: created.id }, undo: { kind: "delete", collection: "hoa_comments", id: created.id } };
   },
 
-  async create_request({ payload, orgId }) {
+  async create_request({ payload, orgId, userId }) {
     const member = await optionalOrgRowId("hoa_members", payload.member_id, orgId, ACTIVE_MEMBER);
-    const created = (await directus().request(
-      createItem("hoa_requests", {
-        organization: orgId,
-        title: payload.title,
-        type: payload.type,
-        description: payload.description ?? null,
-        priority: payload.priority ?? null,
-        member,
-        status: "open",
-      } as any)
-    )) as { id: string };
+    const created = (await createAs("hoa_requests", {
+      organization: orgId,
+      title: payload.title,
+      type: payload.type,
+      description: payload.description ?? null,
+      priority: payload.priority ?? null,
+      member,
+      status: "open",
+    }, userId)) as { id: string };
     return { result: { requestId: created.id }, undo: { kind: "delete", collection: "hoa_requests", id: created.id } };
   },
 
@@ -247,19 +242,17 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
     };
   },
 
-  async log_violation({ payload, orgId }) {
+  async log_violation({ payload, orgId, userId }) {
     const member = await optionalOrgRowId("hoa_members", payload.member_id, orgId, ACTIVE_MEMBER);
-    const created = (await directus().request(
-      createItem("hoa_requests", {
-        organization: orgId,
-        type: "violation",
-        title: payload.title,
-        description: payload.description ?? null,
-        member,
-        priority: payload.priority ?? null,
-        status: "open",
-      } as any)
-    )) as { id: string };
+    const created = (await createAs("hoa_requests", {
+      organization: orgId,
+      type: "violation",
+      title: payload.title,
+      description: payload.description ?? null,
+      member,
+      priority: payload.priority ?? null,
+      status: "open",
+    }, userId)) as { id: string };
     return { result: { requestId: created.id }, undo: { kind: "delete", collection: "hoa_requests", id: created.id } };
   },
 
@@ -276,20 +269,18 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
     return { result: { linkId: created.id }, undo: { kind: "delete", collection: "hoa_projects_vendors", id: String(created.id) } };
   },
 
-  async schedule_meeting({ payload, orgId }) {
+  async schedule_meeting({ payload, orgId, userId }) {
     const type = ["board", "annual", "special", "committee"].includes(payload.type) ? payload.type : null;
-    const created = (await directus().request(
-      createItem("hoa_meetings", {
-        organization: orgId,
-        title: payload.title,
-        meeting_date: payload.meeting_date ?? null,
-        type,
-        location: payload.location ?? null,
-        agenda: payload.agenda ?? null,
-        status: "scheduled",
-        is_published: false,
-      } as any)
-    )) as { id: string };
+    const created = (await createAs("hoa_meetings", {
+      organization: orgId,
+      title: payload.title,
+      meeting_date: payload.meeting_date ?? null,
+      type,
+      location: payload.location ?? null,
+      agenda: payload.agenda ?? null,
+      status: "scheduled",
+      is_published: false,
+    }, userId)) as { id: string };
     return { result: { meetingId: created.id }, undo: { kind: "delete", collection: "hoa_meetings", id: created.id } };
   },
 
@@ -305,45 +296,39 @@ const EXECUTORS: Record<string, (ctx: ExecContext) => Promise<ExecResult>> = {
   },
 
   // ── outbound → always create a DRAFT a human finalizes (never auto-sent) ──────
-  async send_email({ payload, orgId }) {
-    const created = (await directus().request(
-      createItem("hoa_emails", {
-        organization: orgId,
-        subject: payload.subject,
-        content: payload.body_html,
-        email_type: "basic",
-        content_mode: "visual",
-        status: "draft",
-        recipient_filter: ["all", "owners", "tenants"].includes(payload.audience) ? payload.audience : "all",
-      } as any)
-    )) as { id: string };
+  async send_email({ payload, orgId, userId }) {
+    const created = (await createAs("hoa_emails", {
+      organization: orgId,
+      subject: payload.subject,
+      content: payload.body_html,
+      email_type: "basic",
+      content_mode: "visual",
+      status: "draft",
+      recipient_filter: ["all", "owners", "tenants"].includes(payload.audience) ? payload.audience : "all",
+    }, userId)) as { id: string };
     return { result: { emailId: created.id }, undo: { kind: "delete", collection: "hoa_emails", id: created.id } };
   },
 
-  async post_announcement({ payload, orgId }) {
-    const created = (await directus().request(
-      createItem("hoa_announcements", {
-        organization: orgId,
-        title: payload.title,
-        content: payload.content,
-        announcement_type: payload.announcement_type ?? "general",
-        status: "draft",
-      } as any)
-    )) as { id: string };
+  async post_announcement({ payload, orgId, userId }) {
+    const created = (await createAs("hoa_announcements", {
+      organization: orgId,
+      title: payload.title,
+      content: payload.content,
+      announcement_type: payload.announcement_type ?? "general",
+      status: "draft",
+    }, userId)) as { id: string };
     return { result: { announcementId: created.id }, undo: { kind: "delete", collection: "hoa_announcements", id: created.id } };
   },
 
-  async notify_board({ payload, orgId }) {
-    const created = (await directus().request(
-      createItem("hoa_announcements", {
-        organization: orgId,
-        title: payload.subject,
-        content: payload.body,
-        announcement_type: "general",
-        target_audience: "board members",
-        status: "draft",
-      } as any)
-    )) as { id: string };
+  async notify_board({ payload, orgId, userId }) {
+    const created = (await createAs("hoa_announcements", {
+      organization: orgId,
+      title: payload.subject,
+      content: payload.body,
+      announcement_type: "general",
+      target_audience: "board members",
+      status: "draft",
+    }, userId)) as { id: string };
     return { result: { announcementId: created.id }, undo: { kind: "delete", collection: "hoa_announcements", id: created.id } };
   },
 };

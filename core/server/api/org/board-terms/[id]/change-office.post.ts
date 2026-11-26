@@ -5,13 +5,14 @@
  * `effective`, keeping the planned end when it is later. Admin only. If the
  * new term cannot be opened, the end is undone.
  */
-import { createItem, updateItem } from "@directus/sdk";
+import { updateItem } from "@directus/sdk";
 import { requireResponsibilitiesAdmin } from "#core/server/utils/responsibility-access";
 import { idParam, loadBoardTerm, logRegisterActivity, readBodyWith } from "#core/server/utils/responsibilities";
 import { changeOfficeBody } from "#core/shared/responsibilities/schemas";
 import { planTermChange } from "#core/shared/responsibilities/plan";
 import { termPerson } from "#core/shared/responsibilities/views";
 import { sentences } from "#core/shared/responsibilities/activity";
+import { createAs } from "#core/server/utils/create-as";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -29,9 +30,7 @@ export default defineEventHandler(async (event) => {
 
   let opened: string;
   try {
-    const created = (await d.request(
-      createItem("hoa_board_members", { hoa_member: term.hoa_member, ...r.plan.open!, user_created: access.userId } as any)
-    )) as unknown as { id: string };
+    const created = await createAs<{ id: string }>("hoa_board_members", { hoa_member: term.hoa_member, ...r.plan.open! }, access.userId);
     opened = created.id;
   } catch (e) {
     console.error("[board-terms] change-office open failed; undoing the end:", e);

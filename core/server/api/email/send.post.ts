@@ -40,6 +40,7 @@ import {
 } from "../../utils/email-send-render";
 import { readSendProgress, runInlineTick } from "../../utils/email-send-tick";
 import { assertEmailFilesInOrg } from "#core/server/utils/org-files";
+import { createAsCaller } from "#core/server/utils/create-as";
 
 interface SendEmailBody {
   organizationId: string;
@@ -212,7 +213,7 @@ export default defineEventHandler(async (event) => {
     };
     const email = (emailId
       ? await directus.request(updateItem("hoa_emails", emailId, emailData as any))
-      : await directus.request(createItem("hoa_emails", { organization: organizationId, status: "draft", ...emailData } as any))) as { id: string };
+      : await createAsCaller(event, "hoa_emails", { organization: organizationId, status: "draft", ...emailData })) as { id: string };
 
     // CC/BCC: group tokens (@board / @property_manager) and free-form
     // addresses, resolved once — the board at the moment of Send is copied.

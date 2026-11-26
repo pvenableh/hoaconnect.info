@@ -20,7 +20,7 @@ import { createResendDraft } from "../../../utils/email-resend-draft";
 const FINISHED = new Set(["sent", "failed", "scheduled"]);
 
 export default defineEventHandler(async (event) => {
-  await requireUserSession(event);
+  const session = await requireUserSession(event);
   const id = getRouterParam(event, "id");
   if (!id) throw createError({ statusCode: 400, message: "Email ID is required" });
 
@@ -80,7 +80,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const draft = await createResendDraft(directus, email, organizationId, plan.memberIds, { emailClass: schema.emailClass });
+  const draft = await createResendDraft(directus, email, organizationId, plan.memberIds, { emailClass: schema.emailClass, userId: (session.user as { id?: string } | undefined)?.id ?? null });
 
   return {
     draftId: draft.id,

@@ -13,7 +13,6 @@
  * without the internal note, and a bell the member gets even with
  * notifications off. A failed entry, bell or sync is reported, not hidden.
  */
-import { createItem } from "@directus/sdk";
 import { z } from "zod";
 import { buildMemberRestrictionEntry } from "#core/shared/ledger/entries";
 import { INTERNAL_NOTE_MAX, MEMBER_NOTE_MAX, planImpose, restrictionUntil, resumeInstant } from "#core/shared/members/restrictions";
@@ -26,6 +25,7 @@ import {
 } from "#core/server/utils/member-restrictions";
 import { syncAdminScope } from "#core/server/utils/admin-scope";
 import { notifyUsers } from "#core/server/utils/notify";
+import { createAs } from "#core/server/utils/create-as";
 
 const body = z.object({
   orgId: idString,
@@ -67,15 +67,16 @@ export default defineEventHandler(async (event) => {
   const plan = planImpose({ rows: await readRestrictionRows(b.orgId, holder.id), now, endsAt, memberNote: b.memberNote, internalNote: b.internalNote });
   if (!("row" in plan)) throw createError({ statusCode: plan.status, message: plan.message });
 
-  const created: any = await getTypedDirectus().request(
-    createItem("hoa_member_restrictions" as any, {
+  const created: any = await createAs(
+    "hoa_member_restrictions",
+    {
       organization: b.orgId,
       member: holder.id,
       ...plan.row,
       imposed_by: actor.userId,
       holder_name: holder.name || null,
-      user_created: actor.userId,
-    } as any)
+    },
+    actor.userId
   );
 
   const scopeSynced = await syncAdminScope([holder.id]).then(

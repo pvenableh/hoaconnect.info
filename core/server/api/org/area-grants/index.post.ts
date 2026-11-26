@@ -7,7 +7,7 @@
  * no-op writes nothing and records nothing. Every change writes one ledger
  * entry; a failed entry is reported, not hidden.
  */
-import { createItem, updateItem } from "@directus/sdk";
+import { updateItem } from "@directus/sdk";
 import { z } from "zod";
 import { buildHelperGrantEntry } from "#core/shared/ledger/entries";
 import { HELPER_AREA_KEYS, openAreasOf, planGrantChange } from "#core/shared/roles/area-grants";
@@ -23,6 +23,7 @@ import {
   type LoadedHolder,
 } from "#core/server/utils/delegation";
 import { orgName } from "#core/server/utils/org-name";
+import { createAs } from "#core/server/utils/create-as";
 
 const body = z
   .object({
@@ -80,7 +81,7 @@ export default defineEventHandler(async (event) => {
 
   const d = getTypedDirectus();
   if (plan.kind === "open") {
-    await d.request(createItem("hoa_area_grants" as any, { ...plan.row, user_created: actor.userId } as any));
+    await createAs("hoa_area_grants", { ...plan.row }, actor.userId);
   } else {
     await d.request(updateItem("hoa_area_grants" as any, plan.id, plan.patch as any));
   }

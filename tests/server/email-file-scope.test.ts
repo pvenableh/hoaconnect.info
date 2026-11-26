@@ -130,6 +130,7 @@ function stubGlobals() {
   vi.stubGlobal("defineEventHandler", (fn: unknown) => fn);
   vi.stubGlobal("createError", (e: any) => Object.assign(new Error(e.message || e.statusMessage), e));
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u-oscar" } }));
+  vi.stubGlobal("getUserSession", async () => ({ user: { id: "u-oscar" } }));
   vi.stubGlobal("readBody", async () => h.body);
   // Oscar manages Lenox's communications, and nothing at Birch.
   vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, grant: string) => {

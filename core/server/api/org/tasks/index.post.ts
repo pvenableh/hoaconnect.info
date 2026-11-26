@@ -1,4 +1,4 @@
-import { createItem } from "@directus/sdk";
+import { createAs } from "#core/server/utils/create-as";
 
 /**
  * Create a task. Write access required for project/event/team tasks; a
@@ -40,9 +40,9 @@ export default defineEventHandler(async (event) => {
     body.category ||
     (projectEvent ? "event" : body.project ? "project" : body.request ? "request" : body.team ? "team" : "quick");
 
-  const directus = getTypedDirectus();
-  const created = await directus.request(
-    createItem("hoa_tasks", {
+  const created = await createAs(
+    "hoa_tasks",
+    {
       organization: orgId,
       status: body.status || "new",
       title,
@@ -57,11 +57,11 @@ export default defineEventHandler(async (event) => {
       request: body.request || null,
       team: body.team || null,
       sort: body.sort ?? null,
-      user_created: access.userId,
       ...(Array.isArray(body.assigned_to) && body.assigned_to.length
         ? { assigned_to: body.assigned_to.map((u: string) => ({ directus_users_id: u })) }
         : {}),
-    } as any)
+    },
+    access.userId
   );
 
   // Ping the assignees (best-effort, never the creator).

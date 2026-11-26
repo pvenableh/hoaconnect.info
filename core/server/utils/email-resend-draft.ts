@@ -7,11 +7,11 @@
  */
 import * as sdk from "@directus/sdk";
 import { buildUniqueWebSlug } from "./email-branding";
+import { createAs } from "./create-as";
 
 // The client is loosely typed (the routes pass getTypedDirectus(), the tests a
 // stub), so the builders are used untyped, as in email-compliance.ts.
 const readItems = (collection: string, query: Record<string, unknown>) => (sdk as any).readItems(collection, query);
-const createItem = (collection: string, data: Record<string, unknown>) => (sdk as any).createItem(collection, data);
 
 /** The fields of the original the draft copies. */
 export const RESEND_DRAFT_SOURCE_FIELDS = [
@@ -32,7 +32,7 @@ export async function createResendDraft(
   email: Record<string, any>,
   organizationId: string,
   memberIds: string[],
-  opts: { emailClass: boolean }
+  opts: { emailClass: boolean; userId?: string | null }
 ): Promise<{ id: string }> {
   const taken = new Set(
     (
@@ -53,8 +53,10 @@ export async function createResendDraft(
     .filter(Boolean)
     .map((fileId: string) => ({ directus_files_id: fileId }));
 
-  return (await directus.request(
-    createItem("hoa_emails", {
+  // Authored as whoever pressed retry: they are told if this send pauses too.
+  return createAs<{ id: string }>(
+    "hoa_emails",
+    {
       organization: organizationId,
       subject: email.subject,
       content: email.content,
@@ -76,6 +78,8 @@ export async function createResendDraft(
       bcc: null,
       web_slug: buildUniqueWebSlug(email.subject || "email", taken),
       ...(opts.emailClass && email.email_class ? { email_class: email.email_class } : {}),
-    })
-  )) as { id: string };
+    },
+    opts.userId ?? null,
+    { client: directus }
+  );
 }

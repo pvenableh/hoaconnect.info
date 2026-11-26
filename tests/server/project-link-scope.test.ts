@@ -98,6 +98,7 @@ beforeEach(() => {
   vi.stubGlobal("getProjectAccess", async () => ACCESS);
   vi.stubGlobal("requireProjectsWrite", async () => ACCESS);
   vi.stubGlobal("requireAdminOrManagerGrant", async () => ({ userId: "user-a" }));
+  vi.stubGlobal("getUserSession", async () => ({ user: { id: "user-a" } }));
   // promote asks requireAreaWork("projects") since docs/spec-delegation.md.
   vi.stubGlobal("requireAreaWork", async () => ({ via: "admin" }));
   vi.stubGlobal("getProjectMeta", async (id: string) => {
@@ -164,9 +165,11 @@ describe("POST /api/org/projects", () => {
     });
   });
 
-  it("creates with no links and reads nothing to check them", async () => {
+  it("creates with no links and reads nothing to check them, authored as the caller", async () => {
     await call({});
-    expect(writes()).toHaveLength(1);
+    // The create, then the author: Directus stamps the token's user on create (create-as.ts).
+    expect(writes()).toHaveLength(2);
+    expect(writes()[1]).toMatchObject({ op: "update", collection: "hoa_projects", id: "new-hoa_projects", payload: { user_created: "user-a" } });
     expect(ops.filter((o) => o.op === "read")).toEqual([]);
   });
 });
@@ -236,6 +239,8 @@ describe("POST /api/org/projects/:id/events", () => {
     const [w] = writes();
     expect(w).toMatchObject({ op: "create", collection: "hoa_project_events" });
     expect(w!.payload).toMatchObject({ project: "proj-a", organization: ORG, depends_on: "ev-a", assigned_to: "user-a" });
+    expect(w!.payload).not.toHaveProperty("user_created");
+    expect(writes()[1]).toMatchObject({ op: "update", collection: "hoa_project_events", payload: { user_created: "user-a" } });
   });
 });
 

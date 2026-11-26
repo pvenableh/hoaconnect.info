@@ -4,12 +4,12 @@
  * a title the community already has (trimmed, any case, retired included)
  * is skipped, so applying twice adds nothing.
  */
-import { createItems } from "@directus/sdk";
 import { requireResponsibilitiesEdit } from "#core/server/utils/responsibility-access";
 import { loadJobs, logRegisterActivity, readBodyWith } from "#core/server/utils/responsibilities";
 import { applyTemplateBody } from "#core/shared/responsibilities/schemas";
 import { rowsToAdd, templateFor } from "#core/shared/responsibilities/config";
 import { sentences } from "#core/shared/responsibilities/activity";
+import { createManyAs } from "#core/server/utils/create-as";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -22,21 +22,19 @@ export default defineEventHandler(async (event) => {
   const add = rowsToAdd(template, existing.map((j) => j.title));
   const base = existing.reduce((m, j) => Math.max(m, j.sort ?? 0), 0);
   if (add.length) {
-    await getTypedDirectus().request(
-      createItems(
-        "hoa_responsibilities" as any,
-        add.map((r, i) => ({
-          organization: b.orgId,
-          title: r.title,
-          category: r.category,
-          cadence: r.cadence,
-          basis: "unknown",
-          status: "active",
-          member_visible: true,
-          sort: base + i + 1,
-          user_created: access.userId,
-        })) as any
-      )
+    await createManyAs(
+      "hoa_responsibilities",
+      add.map((r, i) => ({
+        organization: b.orgId,
+        title: r.title,
+        category: r.category,
+        cadence: r.cadence,
+        basis: "unknown",
+        status: "active",
+        member_visible: true,
+        sort: base + i + 1,
+      })),
+      access.userId
     );
   }
 

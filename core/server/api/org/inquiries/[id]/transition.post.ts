@@ -11,11 +11,11 @@
  * Returns the request and the note's id, which the page announces as it
  * announces any comment (`announce` false when the submitter hears otherwise).
  */
-import { createItem } from "@directus/sdk";
 import { z } from "zod";
 import { requireOrgId } from "#core/server/utils/area-reads";
 import { readAreaRequest, writeAreaRequest } from "#core/server/utils/area-requests";
 import { planTransition } from "#core/shared/requests/managed";
+import { createAs } from "#core/server/utils/create-as";
 
 const Body = z.object({ orgId: z.string().optional(), to: z.string().trim().min(1, "to is required") });
 
@@ -37,15 +37,17 @@ export default defineEventHandler(async (event) => {
   // The timeline's note. Best-effort, as in the browser: a move never fails on it.
   let commentId: string | null = null;
   try {
-    const note: any = await getTypedDirectus().request(
-      createItem("hoa_comments" as any, {
+    const note: any = await createAs(
+      "hoa_comments",
+      {
         status: "published",
         target_collection: "hoa_requests",
         target_id: id,
         organization: orgId,
         is_internal: false,
         body: plan.comment,
-      } as any)
+      },
+      String(session.user?.id ?? "") || null
     );
     commentId = note?.id ? String(note.id) : null;
   } catch (e) {

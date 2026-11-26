@@ -1,5 +1,5 @@
-import { createItem } from "@directus/sdk";
 import { computeEndDate } from "#core/shared/projects/schedule";
+import { createAsCaller } from "#core/server/utils/create-as";
 
 /** Create an event (milestone/phase) on a project. Write access required. */
 export default defineEventHandler(async (event) => {
@@ -22,14 +22,12 @@ export default defineEventHandler(async (event) => {
   }
   if (body.assigned_to) await requireOrgMembers(orgId, [String(body.assigned_to)]);
 
-  const directus = getTypedDirectus();
   const end_date =
     body.event_date && body.duration_days
       ? computeEndDate(body.event_date, Number(body.duration_days))
       : body.end_date || null;
 
-  const created = await directus.request(
-    createItem("hoa_project_events", {
+  const created = await createAsCaller(event, "hoa_project_events", {
       project: id,
       organization: orgId,
       status: body.status || "scheduled",
@@ -45,7 +43,6 @@ export default defineEventHandler(async (event) => {
       approval: body.approval || "none_needed",
       cost_amount: body.cost_amount ?? null,
       sort: body.sort ?? null,
-    } as any)
-  );
+  });
   return created;
 });

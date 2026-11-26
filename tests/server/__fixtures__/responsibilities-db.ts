@@ -231,6 +231,12 @@ export function fakeDirectus(state: { db: Db; fail?: { failCreate?: string } }) 
         }
         return r;
       }
+      case "updateItems":
+        return op.ids.map((id: any) => {
+          const r = rows.find((x) => x.id === id);
+          if (!r) throw new Error("not found");
+          return Object.assign(r, op.data);
+        });
       case "aggregate": {
         // A CountSpec's REST read (directus-graphql restRead): count only, ungrouped.
         const n = rows.filter((r) => matches(db, op.collection, r, op.query?.query?.filter)).length;
@@ -277,6 +283,7 @@ export function sdkMock() {
     createItem: (collection: string, data: any) => ({ op: "createItem", collection, data }),
     createItems: (collection: string, data: any) => ({ op: "createItems", collection, data }),
     updateItem: (collection: string, id: string, data: any) => ({ op: "updateItem", collection, id, data }),
+    updateItems: (collection: string, ids: string[], data: any) => ({ op: "updateItems", collection, ids, data }),
     deleteItem: (collection: string, id: string) => ({ op: "deleteItem", collection, id }),
   };
 }

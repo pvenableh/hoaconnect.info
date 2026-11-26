@@ -1,4 +1,4 @@
-import { readItems, createItem } from "@directus/sdk";
+import { createAs } from "#core/server/utils/create-as";
 
 /**
  * Spawn a follow-on project from a milestone. The new project carries
@@ -18,7 +18,6 @@ export default defineEventHandler(async (event) => {
   const access = await requireProjectsWrite(event, orgId, meta.projectTeam);
 
   // Inherit member_visibility from the source project.
-  const directus = getTypedDirectus();
   let memberVisible = false;
   if (meta.projectId) {
     try {
@@ -30,8 +29,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const title = String(body?.title || "").trim() || `${meta.title || "Milestone"} — follow-up`;
-  const created = await directus.request(
-    createItem("hoa_projects", {
+  const created = await createAs(
+    "hoa_projects",
+    {
       status: "planning",
       title,
       organization: orgId,
@@ -39,8 +39,8 @@ export default defineEventHandler(async (event) => {
       parent_event: id,
       member_visible: body?.member_visible != null ? !!body.member_visible : memberVisible,
       start_date: body?.start_date || null,
-      user_created: access.userId,
-    } as any)
+    },
+    access.userId
   );
 
   return { ok: true, projectId: (created as any)?.id, project: created };

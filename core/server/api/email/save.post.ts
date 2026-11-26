@@ -1,4 +1,4 @@
-import { createItem, updateItem, readItem, readItems } from "@directus/sdk";
+import { updateItem, readItem, readItems } from "@directus/sdk";
 import type { EmailType } from "../../utils/email-templates-mjml";
 import { resolveEmailClass } from "#core/shared/email/email-class";
 import { checkSendCompliance } from "#core/shared/email/unsubscribe";
@@ -6,6 +6,7 @@ import { emailComplianceSchema } from "../../utils/email-compliance";
 import { emailPhase4Schema } from "../../utils/email-send-health";
 import { isRecurrenceRule, validTimeZone, type RecurrenceRule } from "#core/shared/email/recurrence";
 import { assertEmailFilesInOrg } from "#core/server/utils/org-files";
+import { createAs } from "#core/server/utils/create-as";
 
 interface SaveEmailBody {
   emailId?: string;
@@ -214,7 +215,7 @@ export default defineEventHandler(async (event) => {
 
       email = await directus.request(updateItem("hoa_emails", emailId, emailData));
     } else {
-      email = await directus.request(createItem("hoa_emails", emailData));
+      email = await createAs("hoa_emails", emailData as Record<string, unknown>, (session.user as { id?: string } | undefined)?.id ?? null);
     }
 
     return {

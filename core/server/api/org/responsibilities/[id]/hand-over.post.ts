@@ -7,7 +7,7 @@
  * the job reads unassigned from `effective`. If opening the next row fails,
  * the end is undone, so a hand-over never half happens.
  */
-import { createItem, updateItem } from "@directus/sdk";
+import { updateItem } from "@directus/sdk";
 import { requireResponsibilitiesEdit } from "#core/server/utils/responsibility-access";
 import {
   assertTargetInOrg,
@@ -23,6 +23,7 @@ import { handOverBody } from "#core/shared/responsibilities/schemas";
 import { planHandOver } from "#core/shared/responsibilities/plan";
 import { liveName } from "#core/shared/responsibilities/views";
 import { sentences } from "#core/shared/responsibilities/activity";
+import { createAs } from "#core/server/utils/create-as";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -46,14 +47,11 @@ export default defineEventHandler(async (event) => {
   let opened: string | null = null;
   if (open) {
     try {
-      const created = (await d.request(
-        createItem("hoa_responsibility_assignees" as any, {
-          organization: b.orgId,
-          responsibility: id,
-          ...open,
-          user_created: access.userId,
-        } as any)
-      )) as unknown as { id: string };
+      const created = await createAs<{ id: string }>(
+        "hoa_responsibility_assignees",
+        { organization: b.orgId, responsibility: id, ...open },
+        access.userId
+      );
       opened = created.id;
     } catch (e) {
       console.error("[responsibilities] hand-over open failed; undoing the end:", e);

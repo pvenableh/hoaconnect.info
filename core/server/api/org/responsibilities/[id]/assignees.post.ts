@@ -3,7 +3,6 @@
  * the others (a backup, a second performer, the first holder). Editors only.
  * To replace a holder, hand over instead.
  */
-import { createItem } from "@directus/sdk";
 import { requireResponsibilitiesEdit } from "#core/server/utils/responsibility-access";
 import {
   assertTargetInOrg,
@@ -19,6 +18,7 @@ import { holdsOn, sameTarget, targetColumns, targetOf, validateTarget } from "#c
 import { liveName } from "#core/shared/responsibilities/views";
 import { sentences } from "#core/shared/responsibilities/activity";
 import { todayUtc } from "#core/shared/roles/role-context";
+import { createAs } from "#core/server/utils/create-as";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
@@ -38,17 +38,18 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, message: "They already hold it on that date." });
   }
 
-  const created = (await getTypedDirectus().request(
-    createItem("hoa_responsibility_assignees" as any, {
+  const created = await createAs<{ id: string }>(
+    "hoa_responsibility_assignees",
+    {
       organization: b.orgId,
       responsibility: id,
       ...targetColumns(t.target),
       role: b.role ?? "owner",
       start_date: start,
       notes: b.notes?.trim() || null,
-      user_created: access.userId,
-    } as any)
-  )) as unknown as { id: string };
+    },
+    access.userId
+  );
 
   const name = liveName(t.target.kind, t.target.value, await loadNames(b.orgId, [{ id: created.id, responsibility: id, ...targetColumns(t.target) }]));
   await logRegisterActivity(event, access, {

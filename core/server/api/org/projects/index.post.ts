@@ -1,4 +1,4 @@
-import { createItem } from "@directus/sdk";
+import { createAs } from "#core/server/utils/create-as";
 
 /**
  * Create a project. Admin / PM-projects may create any; a team LEAD may
@@ -34,9 +34,9 @@ export default defineEventHandler(async (event) => {
   }
   if (Array.isArray(body.assigned_to)) await requireOrgMembers(orgId, body.assigned_to);
 
-  const directus = getTypedDirectus();
-  const created = await directus.request(
-    createItem("hoa_projects", {
+  const created = await createAs(
+    "hoa_projects",
+    {
       status: body.status || "planning",
       title,
       description: body.description || null,
@@ -51,11 +51,11 @@ export default defineEventHandler(async (event) => {
       member_visible: !!body.member_visible,
       budget_amount: body.budget_amount ?? null,
       actual_spend: body.actual_spend ?? null,
-      user_created: access.userId,
       ...(Array.isArray(body.assigned_to) && body.assigned_to.length
         ? { assigned_to: body.assigned_to.map((u: string) => ({ directus_users_id: u })) }
         : {}),
-    } as any)
+    },
+    access.userId
   );
 
   return created;

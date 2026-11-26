@@ -1,17 +1,18 @@
 /**
  * POST /api/org/inquiries/:id/notes — { orgId, body, parentComment?,
  * attachments?, mentionedUsers? }: post an internal note on a request
- * (docs/spec-delegation.md). Written with the app's token, then authored as the caller
- * (`user_created`), always `is_internal`, behind the request's gate
+ * (docs/spec-delegation.md). Written with the app's token, authored as the caller
+ * (createAs), always `is_internal`, behind the request's gate
  * (readAreaRequest) and the caller's posting pause. A reply names a comment on
  * the same request. The page announces the note as it announces any comment,
  * which tells staff only.
  */
-import { createItem, readItems, updateItem } from "@directus/sdk";
+import { readItems } from "@directus/sdk";
 import { z } from "zod";
 import { requireOrgId } from "#core/server/utils/area-reads";
 import { NOTE_FIELDS, readAreaRequest } from "#core/server/utils/area-requests";
 import { requireCanPost } from "#core/server/utils/member-restrictions";
+import { createAs } from "#core/server/utils/create-as";
 
 const Body = z.object({
   orgId: z.string().optional(),
@@ -56,27 +57,21 @@ export default defineEventHandler(async (event) => {
     if (!parents?.length) throw createError({ statusCode: 400, message: "That comment is not on this request." });
   }
 
-  // Directus stamps `user_created` with the app token's own user on create
-  // (its user-created special), so the author is set in a second write.
-  const created: any = await directus.request(
-    createItem(
-      "hoa_comments" as any,
-      {
-        status: "published",
-        target_collection: "hoa_requests",
-        target_id: id,
-        organization: orgId,
-        parent_comment: parentComment ?? null,
-        body,
-        attachments: attachments?.length ? attachments : null,
-        mentioned_users: mentionedUsers?.length ? mentionedUsers : null,
-        is_internal: true,
-      } as any,
-      { fields: ["id"] } as any
-    )
-  );
-  const note: any = await directus.request(
-    updateItem("hoa_comments" as any, String(created.id), { user_created: userId } as any, { fields: [...NOTE_FIELDS] } as any)
+  const note: any = await createAs(
+    "hoa_comments",
+    {
+      status: "published",
+      target_collection: "hoa_requests",
+      target_id: id,
+      organization: orgId,
+      parent_comment: parentComment ?? null,
+      body,
+      attachments: attachments?.length ? attachments : null,
+      mentioned_users: mentionedUsers?.length ? mentionedUsers : null,
+      is_internal: true,
+    },
+    userId,
+    { query: { fields: [...NOTE_FIELDS] } }
   );
   return { note };
 });
