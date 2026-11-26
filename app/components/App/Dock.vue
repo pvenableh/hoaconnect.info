@@ -454,12 +454,14 @@ watch(shownApps, reset, { immediate: true });
   box-shadow: 0 0 0 2px var(--theme-card-bg);
 }
 
-.app-dock__row {
+/* The row and its slots are rendered inside AppSortable (vuedraggable's root
+   and its item wrappers), past this component's scope, so they need :deep(). */
+.app-dock__pill :deep(.app-dock__row) {
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
 }
-.app-dock__slot {
+.app-dock__pill :deep(.app-dock__slot) {
   display: flex;
 }
 .app-dock__pill {

@@ -89,7 +89,7 @@ const decide = async (a: Item, decision: "approve" | "reject") => {
     <AppCard class="overflow-hidden py-0">
       <ul class="divide-y">
         <li v-for="a in items" :key="a.id" class="flex items-center gap-3 px-4 py-3" data-testid="home-approval-row">
-          <AppChartRing :value="a.approvals" :max="a.needed || 1" :size="44" :format="() => a.progress" label="Signatures" />
+          <AppChartRing :value="a.approvals" :max="a.needed || 1" :size="44" :format="() => `${a.approvals}/${a.needed}`" label="Signatures" />
           <NuxtLink :to="buildOrgPath('/approvals')" class="min-w-0 flex-1" @click="openRecord(a, $event)">
             <span class="block truncate text-sm font-medium t-text">{{ approvalHeadline(a.kind, a.subject) }}</span>
             <span class="block truncate text-sm t-text-muted">

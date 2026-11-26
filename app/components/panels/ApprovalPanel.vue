@@ -86,7 +86,7 @@ async function decide(decision: "approve" | "reject") {
 
     <div v-else-if="approval" class="space-y-6" data-testid="approval-panel">
       <div class="flex items-center gap-4">
-        <AppChartRing :value="approval.approvals" :max="approval.needed || 1" :size="64" :format="() => approval!.progress" label="Signatures" />
+        <AppChartRing :value="approval.approvals" :max="approval.needed || 1" :size="64" :format="() => `${approval!.approvals}/${approval!.needed}`" label="Signatures" />
         <div class="min-w-0">
           <p class="text-sm font-medium t-text">{{ approval.progress }}</p>
           <p v-if="approval.waiting_on.length" class="text-sm t-text-muted">Waiting on {{ approval.waiting_on.map((p) => p.name).join(", ") }}</p>
