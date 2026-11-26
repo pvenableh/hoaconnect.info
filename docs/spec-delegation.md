@@ -29,13 +29,27 @@ Not stored, because each is derived: whether a person holds an area today (below
 | `responsibilities` | yes | `responsibility-access.ts`; routes only |
 | `projects` | yes, without money | `project-access.ts` and `requests/[id]/promote`. The four expense routes stay admin-or-manager: money is admin's |
 | `documents` | yes, governing and publish | `governing-access.ts`, `governing-sources.ts`, `documents/publish`. Rename, delete and folders on the documents page write with the user's token and stay admin |
-| `inquiries`, `violations` | no | the pages read `hoa_requests` and `hoa_members` with the user's token |
-| `directory` | no | `/manage/directory` reads email and phone with the user's token |
-| `communications` | no | the recipient picker and email activity pages read with the user's token. Announcements are Communications now (Phase 9) |
+| `inquiries` | yes (2026-11-26) | `area-requests.ts`; `/api/org/inquiries` (list, one with its linked channel, save details, transition) and `hoa/requests/manager-create` for a follow-up task |
+| `violations` | yes (2026-11-26) | `area-requests.ts` (alone: the violation requests only), `manager-create`, `/api/org/violations/members` (names only) |
+| `directory` | yes (2026-11-26) | `change-request-access.ts`; `/api/org/directory`, and change-request review |
+| `communications` | yes (2026-11-26) | every `/api/email` route on `requireAreaWork`; `/api/org/communications/{recipients,templates,activity}`; `/manage/communications/*` |
+| `meetings` | yes (2026-11-26; a new area) | `meeting-access.ts`; `/api/org/meetings` and its attendee routes; `/manage/meetings` |
 | `activity` | no | shows a neighbour every resident's actions |
 | `contact_platform` | no | speaking to HOA Connect for the community stays with admins and managers |
 
-A test checks that every helper area is grantable, that its gate is a server file (not a `.vue` page), and that the six "no" areas are absent. Meetings, and routes that make the "no" areas holdable, are later sessions.
+A test checks that every helper area is grantable, that its gate is a server file (not a `.vue` page), and that the two "no" areas are absent.
+
+### The 2026-11-26 routes
+
+Each reads and writes with the app's token behind `requireAreaWork`, and its reads ride in one batch with the caller's access snapshot (`readForArea` / `readBeforeGate` in `core/server/utils/area-reads.ts`), refusing before any row is returned. Route tests: `tests/server/delegated-area-routes.test.ts` (401, 400, 403 for a plain member, a board seat, a helper of another area and a manager without the grant; 404 for another community's row; what each writes).
+
+- **Inquiries.** `GET /api/org/inquiries`, `GET` and `PATCH /api/org/inquiries/:id` (the workflow's detail fields only, `mergeDetails`), `POST /api/org/inquiries/:id/transition` (`{ to }`; the server checks the move and picks the status, `planTransition`; writes the timeline note and tells the submitter through the reminder engine). `RequestDetail` takes `via="area"` on the manage pages. A request of another community, or a non-violation for a violations-only caller, is a 404.
+- **Violations.** The violations area alone opens `/manage/inquiries` with the violation requests: the manager middleware's `managerCapability` and the nav's `area` need accept a list.
+- **Directory.** `GET /api/org/directory`; `isChangeReviewer` admits a helper holding it, so `/admin/approvals` works for them.
+- **Communications.** Compose, detail and activity also live under `/manage/communications`; the shared email pages navigate under the base they were opened from (`useCommsBase`). The attachment browser uses `/api/org/storage/list`.
+- **Meetings.** `GET`/`POST /api/org/meetings`, `PATCH`/`DELETE /api/org/meetings/:id`, `DELETE /api/org/meetings/:id/attendees/:attendeeId`; adding attendees asks the area.
+
+**Gaps, stated not closed.** A helper on a request reads and writes its thread as the member they are: no internal notes. Discussion channels on a ticket stay with admins and board seats; Promote needs the Projects area. In the composer, saving templates, the email builder and AI drafts stay with admins, the board and managers (`requireOrgComposeAccess`), and the visual editor's inline image upload uses the member's own file access. Reminders (`reminder-admin.ts`) stay admin or manager. The manager queue at `/manage` still reads with the user's token; a helper keeps the member dock and does not use it. The Board Room strip and director layer on the meetings page stay admin-only.
 
 ## Who holds what
 
@@ -48,7 +62,7 @@ A test checks that every helper area is grantable, that its gate is a server fil
 Helper and committee rows count only for `HELPER_AREA_KEYS`; any other key on a row is ignored. The pure part is `helperAreasFor({ memberId, teamIds, rows, now })`.
 
 - `requireAreaWork(event, orgId, key)`: admin, a manager grant, or a helper/committee area. Replaces `requireAdminOrManagerGrant` in `documents/publish` and `requests/[id]/promote`, and the grant reads in `project-access`, `responsibility-access`, `poll-access`, `governing-access`, `governing-sources` and `resolveCapabilities` (projects → `projects:write`, `milestone:approve`).
-- `requireAdminOrManagerGrant` keeps today's meaning (admin or manager) for every other caller: email, reminders, expenses, inquiries and violations.
+- `requireAdminOrManagerGrant` keeps today's meaning (admin or manager) for every other caller: reminders and expenses. (Email, inquiries and violations moved to `requireAreaWork` on 2026-11-26.)
 - **A helper is never the `property_manager` actor.** `getManagerGrants` stays PM-only, so `board-access` (the actor), `ledger.get` (`isManager`), `ai/ask`, `support`, and project and change-request notifications are unchanged. Helpers are not notified about areas: notify stays the manager's switch.
 
 **Role context.** `resolveRoleContext` takes the helper areas as an input. `areas[k].canWork` = admin, or (PM role and the grant), or (active and k in the helper areas). New field `helps: AreaKey[]`: the areas held as a helper or committee member, admin and manager aside. The hat is unchanged; holding an area never sets `hats.manager`.

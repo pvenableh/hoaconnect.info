@@ -38,8 +38,9 @@ and waits on Stripe dashboard steps.
 7. **Code gaps** (no operator needed):
    - Tests for the landing builder's UI. (Its Save has no server route: it writes to
      Directus from the client, gated by `/api/hoa/find`'s `admin_view`, which is tested.)
-   - Delegation covers documents, feedback, projects and responsibilities; inquiries,
-     violations, directory, communications and meetings need routes first.
+   - Delegation covers every area but activity and contact_platform: inquiries,
+     violations, directory, communications and meetings got their routes on 2026-11-26
+     ([spec-delegation.md](spec-delegation.md) lists what stays with admins).
    - Directus-side enforcement of comment/reaction rules lives in `scripts/lib/*` and
      `setup-directus-permissions.ts`; `core/app/config/commentCapabilities.ts` only shapes
      the UI. Worth one written map of which rule lives where.
@@ -105,7 +106,7 @@ The first wave after the phases below were written (kept as written then):
   gives a member (a helper) or a committee (a team) some of a property manager's areas:
   documents, feedback, projects (without money) and the responsibilities register, each a dated
   grant that is ended, not erased, and recorded in the ledger. Spec: [spec-delegation.md](spec-delegation.md).
-  Shipped 2026-11-17; inquiries, violations, directory, communications and meetings need routes first.
+  Shipped 2026-11-17; inquiries, violations, directory, communications and meetings (a new area) followed 2026-11-26.
 - **Restricted members** (role-first UX Session 10, [plan](plan-role-first-ux.md) §7) — an admin
   pauses a member's posting in one community, dated and recorded for the board, while dues, requests
   and reading carry on; the same change stops archived and inactive members writing through Directus.
