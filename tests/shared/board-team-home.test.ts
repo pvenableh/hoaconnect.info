@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { myOpenTasks, teamProgress, vendorEndDays, weekStrip } from "#core/shared/home/board-team-home";
+import { overdueProjectCount, teamQueueRows, unassignedJobCount } from "#core/shared/home/team-queue";
 
 const t = (id: string, status: string, due?: string) => ({ id, title: id, status, due_date: due ?? null });
 
@@ -29,8 +30,6 @@ describe("board and team home", () => {
   });
 });
 
-import { teamQueueRows } from "#core/shared/home/team-queue";
-
 describe("team queue", () => {
   it("lists only helper areas that have a queue, with counts and plurals", () => {
     const rows = teamQueueRows(["documents", "feedback", "inquiries"], { documents: 2, feedback: 1 });
@@ -41,8 +40,6 @@ describe("team queue", () => {
     expect(teamQueueRows(["documents"], {})[0].text).toBe("0 draft documents");
   });
 });
-
-import { overdueProjectCount, teamQueueRows, unassignedJobCount } from "#core/shared/home/team-queue";
 
 describe("team queue states", () => {
   it("an open project past its due date is overdue; done, undated and future ones are not", () => {
