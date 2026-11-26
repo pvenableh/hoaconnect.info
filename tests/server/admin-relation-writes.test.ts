@@ -90,6 +90,12 @@ beforeAll(async () => {
   fake = stubGlobals(state);
   // An admin of ORG only.
   vi.stubGlobal("checkAdminAccess", async (_e: unknown, org: string) => ({ isAdmin: !!state.who.admin && org === ORG }));
+  // The attendees route asks requireAreaWork("meetings") since docs/spec-delegation.md.
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, key: string) => {
+    if (state.who.admin && org === ORG) return { via: "admin" };
+    if ((state.who.helps ?? []).includes(key)) return { via: "helper" };
+    throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
+  });
   for (const [k, path] of Object.entries(ROUTES)) handlers[k as Route] = (await import(/* @vite-ignore */ path)).default;
 });
 

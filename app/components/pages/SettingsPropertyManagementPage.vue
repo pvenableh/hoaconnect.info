@@ -92,6 +92,7 @@ const GRANTS = [
   { key: "activity", label: "View activity", desc: "See resident activity (page views, downloads) across the community." },
   { key: "contact_platform", label: "Contact HOA Connect", desc: "Raise billing questions, app problems and ideas with HOA Connect on the community's behalf." },
   { key: "responsibilities", label: "Edit the responsibilities register", desc: "Add jobs, hand them over and export the register. Publishing it to owners stays with admins." },
+  { key: "meetings", label: "Post meetings", desc: "Post meetings with agendas, minutes and recordings, and record attendance." },
 ] as const;
 
 const categoryLabel = (v: HoaVendor) =>

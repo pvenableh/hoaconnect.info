@@ -3,18 +3,13 @@ import { toast } from "vue-sonner";
 
 const { confirm } = useConfirm();
 
-const {
-  list: listMeetings,
-  create: createMeeting,
-  update: updateMeeting,
-  remove: removeMeeting,
-} = useDirectusItems("hoa_meetings");
+// Every read and write goes through /api/org/meetings (docs/spec-delegation.md),
+// behind the `meetings` area with the app's token, so an admin, a manager with
+// the grant and a helper or committee holding it work this page the same way.
 const { announce } = useNotifyEvent();
-const {
-  remove: removeAttendee,
-} = useDirectusItems("hoa_meeting_attendees");
-const { list: listMembers } = useDirectusItems("hoa_members");
-const { list: listBoardTerms } = useDirectusItems("hoa_board_members");
+// The Board Room's decision records are an admin's; a manager or helper does
+// not see the strip (its routes and the minutes pages are admin-only).
+const { isAdminOfCurrentDomain } = useCurrentDomainAccess();
 
 // Board Room decision records live HERE, not only inside the Board Room: an
 // HOA already keeps its record of itself under Meetings, and minutes you had to
@@ -25,7 +20,7 @@ const { buildOrgPath } = useOrgNavigation();
 const boardroomOrgId = useState<string | null>("selectedOrgId", () => null);
 const boardroomMinutes = useBoardroomMinutes(boardroomOrgId);
 const minutesHref = computed(() => buildOrgPath("/admin/meetings/minutes"));
-watch(boardroomOrgId, (id) => id && boardroomMinutes.refresh(6), { immediate: true });
+watch(boardroomOrgId, (id) => id && isAdminOfCurrentDomain.value && boardroomMinutes.refresh(6), { immediate: true });
 
 const { currentOrg, selectedOrgId } = await useSelectedOrg();
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -61,87 +56,27 @@ const typeInfo = (t?: string | null) =>
   TYPE_OPTIONS.find((o) => o.value === t) || TYPE_OPTIONS[0];
 
 // ---- Data ----
-const { data: meetings, refresh: refreshMeetings } = await useAsyncData(
+interface MeetingsPage {
+  meetings: any[];
+  members: any[];
+  boardTerms: any[];
+}
+const { data: page, refresh: refreshMeetings } = await useAsyncData<MeetingsPage>(
   `hoa-meetings-admin-${orgId.value}`,
   async () => {
-    if (!orgId.value) return [];
+    if (!orgId.value) return { meetings: [], members: [], boardTerms: [] };
     try {
-      return (
-        (await listMeetings({
-          fields: [
-            "id",
-            "title",
-            "type",
-            "status",
-            "meeting_date",
-            "end_date",
-            "location",
-            "virtual_url",
-            "agenda",
-            "minutes",
-            "recording_url",
-            "is_published",
-            "target_audience",
-            "date_created",
-            "attendees.id",
-            "attendees.hoa_member.id",
-            "attendees.hoa_member.first_name",
-            "attendees.hoa_member.last_name",
-            "attendees.role_at_meeting",
-            "attendees.is_board_member",
-            "attendees.attendance",
-            "attendees.board_term.id",
-          ],
-          filter: { organization: { _eq: orgId.value } },
-          sort: ["-meeting_date"],
-        })) || []
-      );
+      return await $fetch<MeetingsPage>("/api/org/meetings", { query: { orgId: orgId.value } });
     } catch (e) {
       console.error("Error fetching meetings:", e);
-      return [];
+      return { meetings: [], members: [], boardTerms: [] };
     }
   },
   { watch: [orgId], server: false }
 );
-
-const { data: members } = await useAsyncData(
-  `hoa-meetings-members-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return [];
-    try {
-      return (
-        (await listMembers({
-          fields: ["id", "first_name", "last_name", "member_type"],
-          filter: { organization: { _eq: orgId.value }, status: { _in: ["active", "inactive"] } },
-          sort: ["last_name", "first_name"],
-          limit: -1,
-        })) || []
-      );
-    } catch {
-      return [];
-    }
-  },
-  { watch: [orgId], server: false }
-);
-
-const { data: boardTerms } = await useAsyncData(
-  `hoa-meetings-board-${orgId.value}`,
-  async () => {
-    if (!orgId.value) return [];
-    try {
-      return (
-        (await listBoardTerms({
-          fields: ["id", "title", "term_start", "term_end", "hoa_member.id"],
-          filter: { hoa_member: { organization: { _eq: orgId.value } } },
-          limit: -1,
-        })) || []
-      );
-    } catch {
-      return [];
-    }
-  },
-  { watch: [orgId], server: false }
-);
+const meetings = computed(() => page.value?.meetings ?? []);
+const members = computed(() => page.value?.members ?? []);
+const boardTerms = computed(() => page.value?.boardTerms ?? []);
 
 // ---- Grouping ----
 const now = computed(() => new Date());
@@ -345,19 +280,22 @@ const handleSubmit = async () => {
       target_audience: form.target_audience,
     };
 
+    const orgIdNow = organization.value.id;
     let meetingId = editingId.value;
     if (meetingId) {
-      await updateMeeting(meetingId, data);
+      await $fetch(`/api/org/meetings/${meetingId}`, { method: "PATCH", body: { orgId: orgIdNow, ...data } });
     } else {
-      const created = await createMeeting({ ...data, organization: organization.value.id });
-      meetingId = (created as any)?.id;
+      const created = await $fetch<{ meeting: { id: string } }>("/api/org/meetings", { method: "POST", body: { orgId: orgIdNow, ...data } });
+      meetingId = created.meeting.id;
     }
 
     if (meetingId) {
       // Delete removed attendees
       const keptIds = formAttendees.value.map((a) => a.id).filter(Boolean) as string[];
       const toDelete = originalAttendeeIds.value.filter((id) => !keptIds.includes(id));
-      for (const id of toDelete) await removeAttendee(id);
+      for (const id of toDelete) {
+        await $fetch(`/api/org/meetings/${meetingId}/attendees/${id}`, { method: "DELETE", query: { orgId: orgIdNow } });
+      }
       // Add new attendees through the server, which checks each person and
       // board term is this community's (Directus cannot check the meeting a
       // new attendee row names).
@@ -389,7 +327,7 @@ const handleSubmit = async () => {
     resetForm();
   } catch (e: any) {
     console.error("Save meeting error:", e);
-    toast.error(e?.message || "Failed to save meeting");
+    toast.error(e?.data?.message || e?.message || "Failed to save meeting");
   } finally {
     saving.value = false;
   }
@@ -398,7 +336,7 @@ const handleSubmit = async () => {
 const handleDelete = async (id: string) => {
   if (!(await confirm({ title: "Delete this meeting?", body: "This cannot be undone.", confirmLabel: "Delete", destructive: true }))) return;
   try {
-    await removeMeeting(id);
+    await $fetch(`/api/org/meetings/${id}`, { method: "DELETE", query: { orgId: orgId.value } });
     toast.success("Meeting deleted");
     await refreshMeetings();
   } catch (e: any) {
@@ -430,9 +368,10 @@ const handleDelete = async (id: string) => {
         -->
         <AdminMeetingsGlance :meetings="(meetings as any[]) || []" />
 
-        <DirectorLayer />
+        <DirectorLayer v-if="isAdminOfCurrentDomain" />
 
         <BoardroomMinutesStrip
+          v-if="isAdminOfCurrentDomain"
           :minutes="boardroomMinutes.list.value"
           :loading="boardroomMinutes.loading.value"
           :href-base="minutesHref"

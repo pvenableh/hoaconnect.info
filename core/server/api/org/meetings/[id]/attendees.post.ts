@@ -1,6 +1,7 @@
 /**
  * POST /api/org/meetings/[id]/attendees — add people to a meeting's
- * attendance. Admin of the meeting's community only, as the meetings page is.
+ * attendance. Admin of the meeting's community, a manager with the `meetings`
+ * grant, or a helper or committee holding it (docs/spec-delegation.md).
  *
  * Body: { attendees: [{ hoa_member, board_term?, role_at_meeting?,
  * is_board_member?, attendance? }] }. Each person must be a member of the
@@ -8,7 +9,7 @@
  * attending is skipped. Written with the app's token: the HOA Admin policy has
  * no create on hoa_meeting_attendees, because Directus cannot check the
  * meeting a new row names (core/shared/meetings/attendee-writes.ts).
- * Removing an attendee stays a Directus delete, which checks the row.
+ * Removing an attendee is DELETE /api/org/meetings/[id]/attendees/[attendeeId].
  */
 import { createItems, readItem, readItems } from "@directus/sdk";
 import { addAttendeesBody, planAttendees } from "#core/shared/meetings/attendee-writes";
@@ -35,8 +36,7 @@ export default defineEventHandler(async (event) => {
   const orgId = asId(meeting?.organization);
   if (!meeting || !orgId) throw createError({ statusCode: 404, message: "Meeting not found" });
 
-  const admin = await checkAdminAccess(event, orgId);
-  if (!admin.isAdmin) throw createError({ statusCode: 403, message: "Only an admin of this community can record attendance." });
+  await requireAreaWork(event, orgId, "meetings");
 
   const memberIds = [...new Set(attendees.map((a) => a.hoa_member))];
   const termIds = [...new Set(attendees.map((a) => a.board_term).filter((t): t is string => !!t))];

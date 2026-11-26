@@ -60,6 +60,9 @@ export const AREAS = [
   // Edit the register of who does each standing job (plan §3.4). The board
   // reads it by its seat, not by this grant; publishing it stays with admins.
   { key: "responsibilities", label: "Responsibilities register", gate: "core/server/utils/responsibility-access.ts" },
+  // Post meetings: notices, agendas, minutes, recordings, attendance
+  // (docs/spec-delegation.md). After the old keys, which keep their order.
+  { key: "meetings", label: "Meetings", gate: "core/server/utils/meeting-access.ts" },
   // Notify-only until their pages and routes exist (plan §3.1, §3.2).
   { key: "vendors", label: "Vendors and contracts", gate: null },
   { key: "billing", label: "Invoices and payments", gate: null },
@@ -139,14 +142,14 @@ export const GRANT_PRESETS: readonly GrantPreset[] = [
     key: "standard",
     label: "Day-to-day management",
     description:
-      "Handles inquiries, violations, the resident directory and documents. The board keeps communications, projects and reporting.",
+      "Handles inquiries, violations, the resident directory and documents. The board keeps meetings, communications, projects and reporting.",
     grants: build(["inquiries", "violations", "directory", "documents"]),
   },
   {
     key: "full_service",
     label: "Full service",
     description:
-      "Runs the community day-to-day: everything above plus sending communications, managing projects, seeing portal activity and keeping the responsibilities register. The board still owns the account, the data and the audit trail — full service is a set of permissions, never a handover.",
+      "Runs the community day-to-day: everything above plus posting meetings, sending communications, managing projects, seeing portal activity and keeping the responsibilities register. The board still owns the account, the data and the audit trail — full service is a set of permissions, never a handover.",
     grants: build([...MANAGER_GRANT_KEYS]),
   },
 ];

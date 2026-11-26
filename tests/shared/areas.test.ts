@@ -46,6 +46,7 @@ describe("the area list", () => {
       "activity",
       "contact_platform",
       "responsibilities",
+      "meetings",
     ]);
   });
 

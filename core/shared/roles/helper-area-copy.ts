@@ -24,6 +24,10 @@ export const HELPER_AREA_COPY: Readonly<Record<HelperAreaKey, { label: string; d
     label: "Governing documents",
     desc: "Review, publish and correct the governing documents. Renaming, deleting and folders on the Documents page stay with admins.",
   },
+  meetings: {
+    label: "Meetings",
+    desc: "Post meetings with their agendas, minutes and recordings, and record who attended. The Board Room's decision records stay with admins.",
+  },
   communications: {
     label: "Communications",
     desc: "Write, send and schedule email to the community, and see delivery and activity. Templates, the email builder and the AI drafts stay with admins, the board and managers.",

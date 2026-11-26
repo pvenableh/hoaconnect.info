@@ -36,7 +36,7 @@ const row = (over: Partial<AreaGrantRow> = {}): AreaGrantRow => ({
 
 describe("which areas a helper can hold", () => {
   it("is exactly the server-only areas", () => {
-    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "violations", "directory", "documents", "communications", "feedback", "projects", "responsibilities"]);
+    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "violations", "directory", "documents", "communications", "feedback", "projects", "responsibilities", "meetings"]);
   });
 
   it("every helper area is grantable and gated by a server file, never a page", () => {

@@ -167,6 +167,8 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { id: "communications", label: "Communications", shortName: "Comms", icon: "mail", path: "/manage/communications", needs: [area("communications")] },
   { id: "documents-mgr", label: "Documents", shortName: "Docs", icon: "file-text", path: "/documents", needs: [area("documents"), mod("documents")] },
   { id: "feedback", label: "Feedback", shortName: "Feedback", icon: "vote", path: "/polls", needs: [area("feedback"), mod("polls")] },
+  // The meetings page for whoever works the area; a helper's takes the resident Meetings' place.
+  { id: "meetings-mgr", label: "Meetings", shortName: "Meet", icon: "calendar-days", path: "/manage/meetings", needs: [area("meetings"), mod("meetings")], replaces: "meetings" },
   { id: "projects-mgr", label: "Projects", shortName: "Projects", icon: "kanban-square", path: "/admin/projects", needs: [area("projects"), mod("projects")], replaces: "projects" },
   { id: "responsibilities-mgr", label: "Responsibilities", shortName: "Duties", icon: "list-checks", path: "/admin/responsibilities", needs: [area("responsibilities"), mod("responsibilities")] },
   { id: "activity-mgr", label: "Activity", shortName: "Activity", icon: "activity", path: "/admin/activity", needs: [area("activity")] },
@@ -181,7 +183,7 @@ export const ROUTE_ONLY_GATES: readonly { path: string; module: string }[] = [
 /** The hat picks the layout; `needs` decide what of it shows. */
 export const NAV_LAYOUTS = {
   admin: ["queue", "dashboard", "people", "responsibilities-register", "comms", "records", "payments", "requests", "settings"],
-  manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
+  manager: ["queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "meetings-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr"],
   // A board seat's own register sits beside the one owners read.
   member: ["home", "meetings", "documents", "rules", "governing", "board", "responsibilities-register", "responsibilities", "ledger", "payments", "money-approvals", "pay", "my-requests", "projects", "polls"],
   /** What the phone's Apps card adds beyond the dock (a member's Vendors): once
@@ -198,7 +200,7 @@ export type NavLayoutId = keyof typeof NAV_LAYOUTS;
  * pages show their manage controls from the server's `viewer`. Kept out of
  * NAV_LAYOUTS.member so page transitions and MEMBER_APPS are unchanged.
  */
-export const MEMBER_HELPER_ENTRIES = ["inquiries", "directory", "approvals", "communications", "projects-mgr", "responsibilities-mgr"] as const;
+export const MEMBER_HELPER_ENTRIES = ["inquiries", "directory", "approvals", "communications", "meetings-mgr", "projects-mgr", "responsibilities-mgr"] as const;
 
 
 /** Hubs that keep a landing page of their own instead of opening on a pill. */

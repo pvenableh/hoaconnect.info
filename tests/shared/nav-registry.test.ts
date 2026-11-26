@@ -308,7 +308,7 @@ describe("what each role's dock shows", () => {
     expect(dock(PERSONAS["manager:inquiries"])).toEqual(["queue", "inquiries"]);
     expect(dock(PERSONAS["manager:directory"])).toEqual(["queue", "directory", "approvals"]);
     expect(dock(PERSONAS.fullService)).toEqual([
-      "queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr",
+      "queue", "inquiries", "directory", "approvals", "communications", "documents-mgr", "meetings-mgr", "feedback", "projects-mgr", "responsibilities-mgr", "activity-mgr",
     ]);
   });
 
@@ -372,6 +372,11 @@ describe("helpers and committees (docs/spec-delegation.md)", () => {
     expect(helperDock(ctx({ areas: ["inquiries"] }), ["inquiries"])).toEqual([...owner, "inquiries"]);
     expect(helperDock(ctx({ areas: ["violations"] }), ["violations"])).toEqual([...owner, "inquiries"]);
     expect(helperDock(ctx({ areas: ["inquiries", "violations"] }), ["inquiries", "violations"])).toEqual([...owner, "inquiries"]);
+  });
+
+  it("meetings: the managing page takes the resident one's place, once", () => {
+    const d = helperDock(ctx({ areas: ["meetings"] }), ["meetings"]);
+    expect(d).toEqual(owner.map((id) => (id === "meetings" ? "meetings-mgr" : id)));
   });
 
   it("communications: the email pages are added", () => {

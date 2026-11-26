@@ -31,6 +31,7 @@ export const HELPER_AREA_KEYS = [
   "feedback",
   "projects",
   "responsibilities",
+  "meetings",
 ] as const satisfies readonly ManagerGrantKey[];
 
 export type HelperAreaKey = (typeof HELPER_AREA_KEYS)[number];

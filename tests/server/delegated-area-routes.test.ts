@@ -360,3 +360,99 @@ describe("the email routes admit a helper holding communications", () => {
     }
   });
 });
+
+describe("meetings routes", () => {
+  const MEET = uuid(931);
+  const MEET_OTHER = uuid(932);
+  const ATT = uuid(933);
+  let list: (e: any) => Promise<any>;
+  let create: (e: any) => Promise<any>;
+  let patch: (e: any) => Promise<any>;
+  let remove: (e: any) => Promise<any>;
+  let removeAttendee: (e: any) => Promise<any>;
+  let addAttendees: (e: any) => Promise<any>;
+
+  const body = (over: Record<string, any> = {}) => ({
+    orgId: ORG,
+    title: "Annual meeting",
+    type: "annual",
+    status: "scheduled",
+    meeting_date: "2026-12-10T19:00:00.000-05:00",
+    location: "Lobby",
+    virtual_url: "",
+    agenda: null,
+    minutes: null,
+    recording_url: null,
+    is_published: true,
+    target_audience: "all",
+    ...over,
+  });
+
+  beforeAll(async () => {
+    list = (await import("#core/server/api/org/meetings/index.get")).default as any;
+    create = (await import("#core/server/api/org/meetings/index.post")).default as any;
+    patch = (await import("#core/server/api/org/meetings/[id].patch")).default as any;
+    remove = (await import("#core/server/api/org/meetings/[id].delete")).default as any;
+    removeAttendee = (await import("#core/server/api/org/meetings/[id]/attendees/[attendeeId].delete")).default as any;
+    addAttendees = (await import("#core/server/api/org/meetings/[id]/attendees.post")).default as any;
+  });
+
+  beforeEach(() => {
+    state.db.hoa_meetings = [
+      { id: MEET, organization: ORG, title: "Board", type: "board", status: "scheduled", meeting_date: "2026-12-01T19:00:00Z", is_published: false },
+      { id: MEET_OTHER, organization: OTHER, title: "Theirs", type: "board", status: "scheduled" },
+    ];
+    state.db.hoa_meeting_attendees = [{ id: ATT, meeting: MEET, hoa_member: ID.memberBob, attendance: "present" }];
+  });
+
+  it("each refuses without a session, an orgId or the meetings area, and writes nothing", async () => {
+    await refusals((o) => list(ev(o)), { query: { orgId: ORG } }, "meetings");
+    await refusals((o) => create(ev(o)), { body: body() }, "meetings");
+    await refusals((o) => patch(ev(o)), { body: body(), params: { id: MEET } }, "meetings");
+    await refusals((o) => remove(ev(o)), { query: { orgId: ORG }, params: { id: MEET } }, "meetings");
+    await refusals((o) => removeAttendee(ev(o)), { query: { orgId: ORG }, params: { id: MEET, attendeeId: ATT } }, "meetings");
+    expect(state.db.hoa_meetings).toHaveLength(2);
+    expect(state.db.hoa_meetings![0].title).toBe("Board");
+    expect(state.db.hoa_meeting_attendees).toHaveLength(1);
+  });
+
+  it("a helper holding meetings reads this community's meetings, members and board terms", async () => {
+    state.who = helper("meetings");
+    const res = await list(ev({ query: { orgId: ORG } }));
+    expect(res.meetings.map((m: any) => m.id)).toEqual([MEET]);
+    expect(res.members.map((m: any) => m.id)).not.toContain(ID.memberOther);
+    expect(res.boardTerms.map((t: any) => t.id).sort()).toEqual([ID.termAnn, ID.termOld].sort());
+  });
+
+  it("posts a meeting in the community the route names, whatever the body says", async () => {
+    state.who = helper("meetings");
+    const { meeting } = await create(ev({ body: body({ organization: OTHER }) }));
+    const row = state.db.hoa_meetings!.find((m) => m.id === meeting.id)!;
+    expect(row).toMatchObject({ organization: ORG, title: "Annual meeting", virtual_url: null, is_published: true });
+    await expect(create(ev({ body: body({ title: " " }) }))).rejects.toMatchObject({ statusCode: 400 });
+    await expect(create(ev({ body: body({ type: "party" }) }))).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("edits and deletes a meeting of this community; another's is a 404", async () => {
+    state.who = helper("meetings");
+    await patch(ev({ body: body({ title: "Board (moved)" }), params: { id: MEET } }));
+    expect(state.db.hoa_meetings![0]).toMatchObject({ title: "Board (moved)", organization: ORG });
+    await expect(patch(ev({ body: body(), params: { id: MEET_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(remove(ev({ query: { orgId: ORG }, params: { id: MEET_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    expect(state.db.hoa_meetings!.find((m) => m.id === MEET_OTHER)!.title).toBe("Theirs");
+    await remove(ev({ query: { orgId: ORG }, params: { id: MEET } }));
+    expect(state.db.hoa_meetings!.map((m) => m.id)).toEqual([MEET_OTHER]);
+  });
+
+  it("attendance: a helper adds and removes people; an attendee of another meeting is a 404", async () => {
+    state.who = helper("meetings");
+    const res = await addAttendees(ev({ params: { id: MEET }, body: { attendees: [{ hoa_member: ID.memberAnn, attendance: "present" }] } }));
+    expect(res.created).toHaveLength(1);
+    state.db.hoa_meeting_attendees!.push({ id: uuid(934), meeting: MEET_OTHER, hoa_member: ID.memberOther });
+    await expect(removeAttendee(ev({ query: { orgId: ORG }, params: { id: MEET, attendeeId: uuid(934) } }))).rejects.toMatchObject({ statusCode: 404 });
+    await removeAttendee(ev({ query: { orgId: ORG }, params: { id: MEET, attendeeId: ATT } }));
+    expect(state.db.hoa_meeting_attendees!.map((a) => a.id)).not.toContain(ATT);
+    state.who = helper("projects");
+    await expect(addAttendees(ev({ params: { id: MEET }, body: { attendees: [{ hoa_member: ID.memberBob }] } }))).rejects.toMatchObject({ statusCode: 403 });
+  });
+});
