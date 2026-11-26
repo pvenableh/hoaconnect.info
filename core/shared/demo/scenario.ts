@@ -246,6 +246,12 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   await mtg("November board meeting", "completed", -18, { minutes: "Approved the lobby lighting contract. Reviewed reserve study." });
   await mtg("December board meeting", "scheduled", 12, { agenda: "Budget draft\nGutter repair approval\nHoliday party" });
   await mtg("Annual owners meeting", "scheduled", 55, { type: "annual", agenda: "Board elections\nBudget vote" });
+  // Each run reopens the RSVPs: drop the demo logins' answers.
+  if (!dry) {
+    const members = Object.values(ids).map((x) => x.member);
+    const rsvps = (await dx(`/items/hoa_meeting_rsvps${qs({ filter: { organization: { _eq: t.orgId }, member: { _in: members } }, fields: "id", limit: -1 })}`).catch(() => null))?.data ?? [];
+    if (rsvps.length) await dx("/items/hoa_meeting_rsvps", { method: "DELETE", body: JSON.stringify(rsvps.map((r: { id: string }) => r.id)) });
+  }
 
   // ── A form for owners to sign (owner "Forms to sign"), with its PDF ──
   const formTitle = "Pet registration 2027";

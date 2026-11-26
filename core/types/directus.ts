@@ -1413,6 +1413,25 @@ export interface HoaMeetingAttendee {
 	date_updated?: string | null;
 }
 
+export interface HoaMeetingRsvp {
+	/** @primaryKey */
+	id: string;
+	/** @required */
+	organization: HoaOrganization | string;
+	/** @required */
+	meeting: HoaMeeting | string;
+	/** @required */
+	member: HoaMember | string;
+	/** @required */
+	response: 'going' | 'maybe' | 'not_going';
+	/** @description <meeting>:<member>, one RSVP each */
+	rsvp_key?: string;
+	user_created?: DirectusUser | string | null;
+	date_created?: string | null;
+	user_updated?: DirectusUser | string | null;
+	date_updated?: string | null;
+}
+
 export interface HoaMeeting {
 	/** @primaryKey */
 	id: string;
@@ -3211,6 +3230,7 @@ export interface Schema {
 	hoa_mailing_list_members: HoaMailingListMember[];
 	hoa_mailing_lists: HoaMailingList[];
 	hoa_meeting_attendees: HoaMeetingAttendee[];
+	hoa_meeting_rsvps: HoaMeetingRsvp[];
 	hoa_meetings: HoaMeeting[];
 	hoa_meetings_files: HoaMeetingsFile[];
 	hoa_member_change_requests: HoaMemberChangeRequest[];
@@ -3348,6 +3368,7 @@ export enum CollectionNames {
 	hoa_mailing_list_members = 'hoa_mailing_list_members',
 	hoa_mailing_lists = 'hoa_mailing_lists',
 	hoa_meeting_attendees = 'hoa_meeting_attendees',
+	hoa_meeting_rsvps = 'hoa_meeting_rsvps',
 	hoa_meetings = 'hoa_meetings',
 	hoa_meetings_files = 'hoa_meetings_files',
 	hoa_member_change_requests = 'hoa_member_change_requests',

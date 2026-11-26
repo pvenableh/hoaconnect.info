@@ -411,6 +411,7 @@ const agendaList = computed<AgendaItem[]>({
                   <p v-if="m.attendees?.length" class="text-xs t-text-muted mt-1">
                     {{ m.attendees.length }} attendee{{ m.attendees.length === 1 ? "" : "s" }}
                   </p>
+                  <MeetingsRsvpCount v-if="m.is_published && m.status === 'scheduled'" :meeting-id="m.id" />
                 </div>
                 <div class="flex items-center gap-1 shrink-0">
                   <AppButton variant="ghost" size="sm" @click="handleEdit(m)">

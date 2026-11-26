@@ -83,6 +83,7 @@
     "add:opening-balance": "dotenv -- tsx scripts/add-opening-balance-fields.ts",
     "create:comments": "dotenv -- tsx scripts/create-comments-collections.ts",
     "create:acknowledgments": "dotenv -- tsx scripts/create-acknowledgments.ts",
+    "create:meeting-rsvps": "dotenv -- tsx scripts/create-meeting-rsvps.ts",
     "create:forms": "dotenv -- tsx scripts/create-forms.ts",
     "create:requests": "dotenv -- tsx scripts/create-requests-collections.ts",
     "create:join-requests": "dotenv -- tsx scripts/create-join-requests-collection.ts",

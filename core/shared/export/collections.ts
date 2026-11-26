@@ -279,6 +279,7 @@ export const EXPORT_MAP: readonly ExportEntry[] = [
   direct("hoa_governing_audit_log", "Governing document edit history", FULL_ONLY),
   direct("hoa_meetings", "Meetings", BOTH),
   via("hoa_meeting_attendees", "Meeting attendance", "hoa_meetings", "meeting", BOTH),
+  direct("hoa_meeting_rsvps", "Meeting RSVPs", BOTH),
   via("hoa_meetings_files", "Meeting attachments", "hoa_meetings", "hoa_meetings_id", BOTH),
   direct("hoa_polls", "Polls", BOTH),
   direct("hoa_poll_votes", "Poll votes", BOTH),

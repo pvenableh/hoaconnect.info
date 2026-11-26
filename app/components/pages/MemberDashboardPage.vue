@@ -853,7 +853,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                   <p class="t-eyebrow mb-1">Next meeting</p>
                   <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
                   <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
-                  <AppButton v-if="has.acts('rsvp')" class="mt-3" size="sm" variant="outline" @click="navigateToOrg('/meetings')">RSVP</AppButton>
+                  <HomeRsvp v-if="has.acts('rsvp')" :meeting-id="nextMeeting.key.slice(nextMeeting.key.indexOf(':') + 1)" />
                 </AppCard>
                 <AppCard
                   v-if="has.glance('request-status-track') && homeRequests.length"
