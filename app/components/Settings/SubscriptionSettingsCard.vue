@@ -118,7 +118,7 @@
       <CardHeader>
         <CardTitle>Add-ons</CardTitle>
         <CardDescription>
-          Optional extras billed monthly on top of your plan.
+          Optional extras billed with your plan, monthly or yearly.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -134,7 +134,8 @@
                 <AppBadge variant="secondary">{{ addon.blurb }}</AppBadge>
               </div>
               <p class="text-sm text-muted-foreground mt-0.5">{{ addon.description }}</p>
-              <p class="text-sm font-medium mt-1">${{ addon.monthlyPrice }}/mo</p>
+              <p v-if="billingCycle === 'yearly'" class="text-sm font-medium mt-1">${{ addon.yearlyPrice }}/yr</p>
+              <p v-else class="text-sm font-medium mt-1">${{ addon.monthlyPrice }}/mo</p>
             </div>
             <div class="flex items-center gap-2">
               <Icon

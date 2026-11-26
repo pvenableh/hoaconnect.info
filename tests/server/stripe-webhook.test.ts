@@ -576,6 +576,43 @@ describe("telling HOA Connect when a community subscribes", () => {
 });
 
 // Operator console Phase 3: entries HOA Connect raises in its own support inbox.
+describe("paid add-ons on a subscription event", () => {
+  const sub = (items: Array<[string, string]>) => ({
+    id: "sub_1",
+    object: "subscription",
+    status: "active",
+    customer: "cus_org",
+    metadata: { app: "hoaconnect", organization_id: ORG },
+    items: { data: items.map(([id, interval]) => ({ price: { id, recurring: { interval } } })) },
+  });
+  const written = () =>
+    directusRequest.mock.calls.map(([c]: [any]) => c).find((c: any) => c.cmd === "updateItem" && c.collection === "hoa_organizations")?.data;
+
+  beforeEach(() => {
+    vi.stubGlobal("useRuntimeConfig", () => ({
+      stripeSecretKeyTest: "sk_test_x",
+      stripeSecretKeyLive: "",
+      stripeAddonStoragePriceTest: "price_storage_month",
+      stripeAddonStoragePriceYearlyTest: "price_storage_year",
+      public: {},
+    }));
+    reads.hoa_organizations = [{ id: ORG, name: "Harbor Court", subscription_status: "active", stripe_customer_id: "cus_org" }];
+  });
+
+  it("counts the yearly Extra Storage price on a yearly band as the add-on, billed yearly", async () => {
+    await fire("customer.subscription.updated", sub([["band_year", "year"], ["price_storage_year", "year"]]));
+    expect(written()).toMatchObject({ billing_cycle: "yearly", active_addons: { extra_storage_100: true } });
+  });
+
+  it("counts the monthly price as before, and no add-on price as none", async () => {
+    await fire("customer.subscription.updated", sub([["band_month", "month"], ["price_storage_month", "month"]]));
+    expect(written()).toMatchObject({ billing_cycle: "monthly", active_addons: { extra_storage_100: true } });
+    directusRequest.mockClear();
+    await fire("customer.subscription.updated", sub([["band_month", "month"]]));
+    expect(written()).toMatchObject({ active_addons: {} });
+  });
+});
+
 describe("automatic support entries", () => {
   const org = { id: ORG, name: "Harbor Court", slug: "harbor", subscription_status: "active", stripe_customer_id: "cus_org" };
 

@@ -6,6 +6,8 @@ import { buildPaymentRecordedEntry, buildPaymentRefundedEntry } from '#core/shar
 import { planChargeRefund, requestStatusAfter } from '#core/shared/billing/refund';
 import { orgStatusForStripeSubscription } from '#core/shared/billing/subscription-status';
 import { isHoaConnectObject } from '#core/shared/billing/stripe-app';
+import { activeAddonsFromPrices } from '#core/shared/billing/addons';
+import { addonPriceIds } from '#core/server/utils/addon-prices';
 // Note: getTypedDirectus is auto-imported from server/utils/directus.ts in Nuxt 4
 
 export default defineEventHandler(async (event) => {
@@ -459,23 +461,14 @@ async function handleChargeRefunded(directus: ReturnType<typeof getTypedDirectus
 }
 
 // Build the org's active_addons map from the subscription's line items. Each
-// known add-on has a configured recurring Price (per test/live mode); if that
-// Price is present among the items, the add-on is active. (core/shared/billing/addons.ts)
+// known add-on has a configured recurring Price per interval (monthly, yearly;
+// per test/live mode); if any of them is among the items, the add-on is active.
+// (core/shared/billing/addons.ts)
 function reconcileActiveAddons(subscription: Stripe.Subscription): Record<string, boolean> {
-	const config = useRuntimeConfig();
-	const priceByAddon: Record<string, string | undefined> = {
-		extra_storage_100: (isStripeLiveMode()
-			? config.stripeAddonStoragePriceLive
-			: config.stripeAddonStoragePriceTest) as string | undefined,
-	};
-	const priceIds = new Set(
-		(subscription.items?.data || []).map((it) => it.price?.id).filter(Boolean)
+	return activeAddonsFromPrices(
+		(subscription.items?.data || []).map((it) => it.price?.id),
+		addonPriceIds()
 	);
-	const active: Record<string, boolean> = {};
-	for (const [addon, priceId] of Object.entries(priceByAddon)) {
-		if (priceId && priceIds.has(priceId)) active[addon] = true;
-	}
-	return active;
 }
 
 async function handleSubscriptionEvent(directus: ReturnType<typeof getTypedDirectus>, subscription: Stripe.Subscription, eventType: string) {

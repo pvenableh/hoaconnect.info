@@ -22,9 +22,9 @@ and waits on Stripe dashboard steps.
    §3–§6. Dues can't reach a community's bank (and the platform fee can't be taken) until
    it's done. Read 2026-11-12: 0 live connected accounts, no Connect webhook endpoint,
    0 of 7 communities onboarded.
-2. 👤 **Extra Storage add-on price** — make the $10/month price in each Stripe mode and set
-   `STRIPE_PRICE_ADDON_STORAGE_100_{TEST,LIVE}`; the Settings toggle 503s until then. A
-   paid add-on that is built and switched off.
+2. 👤 **Extra Storage add-on in Vercel** — the $10/month and $100/year prices exist in
+   both Stripe modes (2026-11-26); set the four `STRIPE_PRICE_ADDON_STORAGE_100_*` vars
+   (go-live-checklist §1) and redeploy. The Settings toggle 503s until then.
 3. 🔒👤 **Production env checks in Vercel** — `OUTBOUND_EMAIL_ONLY_TO` absent, VAPID private
    key and subject, the Anthropic and Voyage keys, both Stripe key pairs and `STRIPE_MODE`.
    AI features (credit spend) and push are dark or wrong without them.

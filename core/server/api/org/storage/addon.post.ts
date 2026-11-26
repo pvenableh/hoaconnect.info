@@ -3,7 +3,9 @@
  *
  * Toggle a paid storage add-on (see core/shared/billing/addons.ts) on the org's
  * existing band subscription. Enabling adds a subscription item for the add-on's
- * recurring Stripe Price (prorated); disabling removes it. The org's
+ * recurring Stripe Price at the subscription's own interval (Stripe won't mix
+ * monthly and yearly items: $10/month or $100/year), prorated; disabling
+ * removes whichever of its prices is there. The org's
  * `active_addons` map is updated immediately; the Stripe webhook reconciles it
  * too, so the two never drift.
  *
@@ -17,21 +19,14 @@ import {
   assertAdmin,
   invalidateOrgStorage,
 } from "#core/server/utils/org-storage";
-import { ADDONS, type AddonKey } from "#core/shared/billing/addons";
-import { getStripe, isStripeLiveMode } from "#core/server/utils/stripe";
-
-/** Resolve the recurring Stripe Price id for an add-on in the active mode. */
-function addonPriceId(addon: AddonKey): string | undefined {
-  const config = useRuntimeConfig();
-  if (addon === "extra_storage_100") {
-    return (
-      isStripeLiveMode()
-        ? config.stripeAddonStoragePriceLive
-        : config.stripeAddonStoragePriceTest
-    ) as string | undefined;
-  }
-  return undefined;
-}
+import {
+  ADDONS,
+  addonPriceForInterval,
+  subscriptionInterval,
+  type AddonKey,
+} from "#core/shared/billing/addons";
+import { getStripe } from "#core/server/utils/stripe";
+import { addonPriceIds } from "#core/server/utils/addon-prices";
 
 export default defineEventHandler(async (event) => {
   const ctx = await resolveStorageContext(event);
@@ -61,8 +56,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: "Add-ons are disabled in the demo." });
   }
 
-  const priceId = addonPriceId(addon);
-  if (!priceId) {
+  const allPrices = addonPriceIds();
+  const prices = allPrices[addon];
+  if (!prices.month && !prices.year) {
     throw createError({
       statusCode: 503,
       statusMessage: `No Stripe price configured for the ${ADDONS[addon].name} add-on.`,
@@ -79,9 +75,21 @@ export default defineEventHandler(async (event) => {
 
   const stripe = getStripe();
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const existing = subscription.items.data.find((it) => it.price.id === priceId);
+  const mine = new Set(Object.values(prices).filter(Boolean) as string[]);
+  const existing = subscription.items.data.find((it) => mine.has(it.price.id));
 
   if (enabled && !existing) {
+    const everyAddonPrice = new Set(
+      Object.values(allPrices).flatMap((p) => Object.values(p)).filter(Boolean) as string[]
+    );
+    const interval = subscriptionInterval(subscription.items.data, everyAddonPrice);
+    const priceId = addonPriceForInterval(prices, interval);
+    if (!priceId) {
+      throw createError({
+        statusCode: 503,
+        statusMessage: `No Stripe price configured for the ${ADDONS[addon].name} add-on on a plan billed every ${interval ?? "unknown interval"}.`,
+      });
+    }
     await stripe.subscriptionItems.create({
       subscription: subscriptionId,
       price: priceId,

@@ -24,14 +24,22 @@ Without these the Settings toggle returns a clean `503` (nothing breaks).
 The app picks test vs live from `STRIPE_MODE` (`test`|`live`), falling back to
 `NODE_ENV` — so set **both** price vars and flip `STRIPE_MODE` to test the flow.
 
-### In the Stripe dashboard
-- [ ] **Test mode** → Products → **+ Add product**: name `Extra Storage`, recurring,
-      **$10.00 / month**. Copy the **Price ID** (`price_...`).
-- [ ] **Live mode** → same product, **$10.00 / month**. Copy the live **Price ID**.
+### In Stripe — done 2026-11-26
+Product `Extra Storage` (metadata `app: hoaconnect`, `addon: storage_100`) in each mode,
+with two prices: **$10.00 / month** (lookup key `hoaconnect_addon_storage_100_monthly`)
+and **$100.00 / year** (`hoaconnect_addon_storage_100_yearly`), since Stripe won't mix
+intervals on one subscription and the add-on joins at the band's interval.
+
+| | Monthly | Yearly |
+|---|---|---|
+| Test | `price_1Ug2YsA7IKygGtBCpr2ZQbOu` | `price_1Ug2bhA7IKygGtBCvYkxa5Gk` |
+| Live | `price_1Ug2YzA7IKygGtBCcFNvjvj6` | `price_1Ug2bjA7IKygGtBCU7mQEWtw` |
 
 ### Env (Vercel, server-only)
-- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_TEST=price_...` (test price id)
-- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_LIVE=price_...` (live price id)
+- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_TEST=price_1Ug2YsA7IKygGtBCpr2ZQbOu`
+- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_LIVE=price_1Ug2YzA7IKygGtBCcFNvjvj6`
+- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_TEST=price_1Ug2bhA7IKygGtBCvYkxa5Gk`
+- [ ] `STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_LIVE=price_1Ug2bjA7IKygGtBCU7mQEWtw`
 
 ### Prerequisites already in place (confirm, don't re-create)
 These existed before this round — the add-on rides on them:
@@ -505,6 +513,8 @@ fails silently at send time with a 401 from the push service.
 |---|---|---|---|---|
 | `STRIPE_PRICE_ADDON_STORAGE_100_TEST` | Vercel | ✅ | — | test add-on price id |
 | `STRIPE_PRICE_ADDON_STORAGE_100_LIVE` | Vercel | — | ✅ | live add-on price id |
+| `STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_TEST` | Vercel | ✅ | — | test add-on price id, yearly bands |
+| `STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_LIVE` | Vercel | — | ✅ | live add-on price id, yearly bands |
 | `STRIPE_MODE` | Vercel | `test` | `live`/unset | picks test vs live |
 | `STORAGE_MAX_FILE_MB`, `STORAGE_FREE_GB`, `IMAGE_*` | Vercel | optional | optional | defaults fine |
 | `STORAGE_LOCAL_*` (s3 driver) | droplet (Directus) | n/a | ✅ | Spaces backend |

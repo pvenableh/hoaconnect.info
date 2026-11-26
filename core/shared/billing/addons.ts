@@ -24,6 +24,8 @@ export interface AddonDef {
   description: string;
   /** Recurring price in whole US dollars per month (display only). */
   monthlyPrice: number;
+  /** Recurring price in whole US dollars per year, for a community billed yearly (display only). */
+  yearlyPrice: number;
   /** Extra file storage this add-on grants, in bytes (0 = not a storage add-on). */
   storageBytes: number;
 }
@@ -35,6 +37,7 @@ export const ADDONS = {
     blurb: "+100 GB",
     description: "Adds 100 GB of file storage on top of your plan's allotment.",
     monthlyPrice: 10,
+    yearlyPrice: 100,
     storageBytes: 100 * GB,
   },
 } as const satisfies Record<string, AddonDef>;
@@ -42,6 +45,44 @@ export const ADDONS = {
 export type AddonKey = keyof typeof ADDONS;
 
 export const ADDON_LIST: AddonDef[] = Object.values(ADDONS);
+
+/**
+ * An add-on's Stripe Price ids, one per billing interval. Stripe won't mix
+ * intervals on one subscription, so the add-on joins a band subscription at
+ * the band's own interval.
+ */
+export type AddonPriceIds = Partial<Record<"month" | "year", string>>;
+
+/** The add-on's price for a subscription billed every `interval` (undefined if none is set up). */
+export function addonPriceForInterval(prices: AddonPriceIds, interval: string | null | undefined): string | undefined {
+  return interval === "month" || interval === "year" ? prices[interval] : undefined;
+}
+
+interface PricedItem {
+  price?: { id?: string | null; recurring?: { interval?: string | null } | null } | null;
+}
+
+/**
+ * The interval a subscription bills on: its plan's item, i.e. the first item
+ * that is not an add-on (an add-on always matches the plan anyway).
+ */
+export function subscriptionInterval(items: readonly PricedItem[], addonPriceIds: ReadonlySet<string>): string | null {
+  const plan = items.find((it) => !addonPriceIds.has(it.price?.id ?? "")) ?? items[0];
+  return plan?.price?.recurring?.interval ?? null;
+}
+
+/** The `active_addons` map for a subscription: an add-on is on when any of its prices is an item. */
+export function activeAddonsFromPrices(
+  itemPriceIds: Iterable<string | null | undefined>,
+  priceByAddon: Record<string, AddonPriceIds>
+): Record<string, boolean> {
+  const ids = new Set([...itemPriceIds].filter(Boolean));
+  const active: Record<string, boolean> = {};
+  for (const [addon, prices] of Object.entries(priceByAddon)) {
+    if (Object.values(prices).some((id) => id && ids.has(id))) active[addon] = true;
+  }
+  return active;
+}
 
 /** True if the org's `active_addons` map has this add-on enabled. */
 export function hasAddon(

@@ -267,6 +267,10 @@ export default defineNuxtConfig({
     // subscription item on the org's band subscription.
     stripeAddonStoragePriceTest: process.env.STRIPE_PRICE_ADDON_STORAGE_100_TEST,
     stripeAddonStoragePriceLive: process.env.STRIPE_PRICE_ADDON_STORAGE_100_LIVE,
+    // The same add-on for a community billed yearly (Stripe won't mix intervals
+    // on one subscription): $100/year.
+    stripeAddonStoragePriceYearlyTest: process.env.STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_TEST,
+    stripeAddonStoragePriceYearlyLive: process.env.STRIPE_PRICE_ADDON_STORAGE_100_YEARLY_LIVE,
     // Stripe Connect: platform fee taken on resident dues routed through a
     // connected (Express) account, as a percentage of the charge. Default 2%.
     // Confirm the final rate with the business before going live.
