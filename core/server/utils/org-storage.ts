@@ -26,6 +26,7 @@ import {
   updateItem,
 } from "@directus/sdk";
 import type { H3Event } from "h3";
+import type { BatchSpec } from "./directus-graphql";
 
 // ---------------------------------------------------------------------------
 // Standard subfolder layout (the "Proposed default")
@@ -346,6 +347,67 @@ export async function assertFileInOrg(
 // Context resolution
 // ---------------------------------------------------------------------------
 
+/** The membership fields the context reads: the role and the board terms. */
+const CONTEXT_MEMBER_FIELDS = ["id", "role", "board_member_terms.term_start", "board_member_terms.term_end"] as const;
+
+/**
+ * The context's two reads as one readItemsBatch: the caller's ACTIVE
+ * membership in the org and the org row (its `modules`, plus whatever the
+ * route needs of it, e.g. the storage quota's fields). The same filters and
+ * fields as the reads they replace, the board terms dotted.
+ */
+export function storageContextSpecs(userId: string, orgId: string, orgFields: readonly string[] = []) {
+  return {
+    sc_member: {
+      collection: "hoa_members",
+      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
+      fields: CONTEXT_MEMBER_FIELDS,
+      limit: 1,
+    },
+    sc_org: {
+      collection: "hoa_organizations",
+      filter: { id: { _eq: orgId } },
+      fields: ["modules", ...orgFields.filter((f) => f !== "modules")],
+      limit: 1,
+    },
+  } satisfies Record<string, BatchSpec>;
+}
+
+/** The caller's standing and the org's browse tier from the membership and org rows. */
+export function storageAccessFrom(member: any, org: any) {
+  const isAdmin = adminRoleIds().includes(roleIdOf(member.role) || "");
+  const isBoard = hasActiveBoardTerm(member.board_member_terms);
+  // Per-org browse setting lives in the modules JSON (no schema migration).
+  const modules = (org?.modules ?? {}) as Record<string, any>;
+  const browseAccess: BrowseAccess =
+    modules.storage_browse_access === "all_members" ||
+    modules.storage_browse_access === "admins_only"
+      ? modules.storage_browse_access
+      : "admins_board";
+  const canBrowseLibrary =
+    isAdmin ||
+    browseAccess === "all_members" ||
+    (browseAccess === "admins_board" && isBoard);
+  return { isAdmin, isBoard, browseAccess, canBrowseLibrary };
+}
+
+function notAMember(): never {
+  throw createError({
+    statusCode: 403,
+    statusMessage: "Not a member of this organization",
+  });
+}
+
+/** The context's reads one by one, as before the batch: the membership first, refused before the org is read. */
+async function storageContextRowsOneByOne(userId: string, orgId: string, orgFields: readonly string[]) {
+  const admin = getTypedDirectus();
+  const specs = storageContextSpecs(userId, orgId, orgFields);
+  const members = (await admin.request(readItems("hoa_members", specs.sc_member as any))) as any[];
+  if (!members?.[0]) notAMember();
+  const orgRows = (await admin.request(readItems("hoa_organizations", specs.sc_org as any))) as any[];
+  return { member: members[0], org: orgRows?.[0] ?? null };
+}
+
 /**
  * Resolve the caller's storage context for an org: identity, membership, role,
  * access tier and the (ensured) folder layout. Throws 401/403 as appropriate.
@@ -356,6 +418,26 @@ export async function resolveStorageContext(
   event: H3Event,
   explicitOrgId?: string | null
 ): Promise<StorageContext> {
+  return (await resolveStorageContextWithOrg(event, [], explicitOrgId)).ctx;
+}
+
+/**
+ * resolveStorageContext, also handing back the org row with `orgFields` read
+ * in the same request (null if the org has no row).
+ *
+ * Membership is resolved with the admin client (reliable regardless of the
+ * member's own read grants). No ACTIVE membership in this org → no access: an
+ * inactive/archived row is someone removed from the community, and their role
+ * column still says whatever it said (a former HOA Admin stays "HOA Admin").
+ * The membership and the org row are one request; nothing of the org is
+ * returned to a caller refused here. Should the batch fail, the reads go one
+ * by one as before, so the answer (an error's included) is the same.
+ */
+export async function resolveStorageContextWithOrg(
+  event: H3Event,
+  orgFields: readonly string[],
+  explicitOrgId?: string | null
+): Promise<{ ctx: StorageContext; org: Record<string, any> | null }> {
   const session = await getUserSession(event);
   const userId = (session?.user as any)?.id;
   if (!userId) {
@@ -376,64 +458,23 @@ export async function resolveStorageContext(
     throw createError({ statusCode: 400, statusMessage: "Organization context required" });
   }
 
-  // Resolve membership with the admin client (reliable regardless of the
-  // member's own read grants). No ACTIVE membership in this org → no access:
-  // an inactive/archived row is someone removed from the community, and their
-  // role column still says whatever it said (a former HOA Admin stays "HOA Admin").
-  const admin = getTypedDirectus();
-  const members = (await admin.request(
-    readItems("hoa_members", {
-      filter: { user: { _eq: userId }, organization: { _eq: orgId }, status: { _eq: "active" } },
-      fields: [
-        "id",
-        "role",
-        { board_member_terms: ["term_start", "term_end"] },
-      ],
-      limit: 1,
-    })
-  )) as any[];
-
-  const member = members?.[0];
-  if (!member) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: "Not a member of this organization",
-    });
+  let member: any;
+  let org: any;
+  try {
+    const rows = await readItemsBatch(storageContextSpecs(userId, orgId, orgFields));
+    member = rows.sc_member[0];
+    org = rows.sc_org[0] ?? null;
+  } catch {
+    ({ member, org } = await storageContextRowsOneByOne(userId, orgId, orgFields));
   }
+  if (!member) notAMember();
 
-  const isAdmin = adminRoleIds().includes(roleIdOf(member.role) || "");
-  const isBoard = hasActiveBoardTerm(member.board_member_terms);
-
-  // Per-org browse setting lives in the modules JSON (no schema migration).
-  const orgRows = (await admin.request(
-    readItems("hoa_organizations", {
-      filter: { id: { _eq: orgId } },
-      fields: ["modules"],
-      limit: 1,
-    })
-  )) as any[];
-  const modules = (orgRows?.[0]?.modules ?? {}) as Record<string, any>;
-  const browseAccess: BrowseAccess =
-    modules.storage_browse_access === "all_members" ||
-    modules.storage_browse_access === "admins_only"
-      ? modules.storage_browse_access
-      : "admins_board";
-
-  const canBrowseLibrary =
-    isAdmin ||
-    browseAccess === "all_members" ||
-    (browseAccess === "admins_board" && isBoard);
-
+  const access = storageAccessFrom(member, org);
   const storage = await ensureOrgStorage(orgId);
 
   return {
-    userId,
-    orgId,
-    isAdmin,
-    isBoard,
-    browseAccess,
-    canBrowseLibrary,
-    storage,
+    ctx: { userId, orgId, ...access, storage },
+    org,
   };
 }
 
