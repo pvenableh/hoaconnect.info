@@ -5,27 +5,24 @@
 
 import { readItems } from "@directus/sdk";
 import type { HoaNewsletterBlock } from "#core/types/directus";
+import { blockLibrarySpec } from "#core/server/utils/email-block-reads";
 
 export default defineEventHandler(async (event) => {
   await requireUserSession(event);
   const orgId = String(getQuery(event).orgId || "").trim();
   if (!orgId) throw createError({ statusCode: 400, message: "orgId is required" });
+  // The library and the caller's standing as ONE request (access-snapshot.ts);
+  // the compose check answers from that standing and refuses before any row
+  // is used. A failed batch checks and reads one by one as before.
+  const batched = await batchWithAccessSnapshot(event, orgId, { blocks: blockLibrarySpec(orgId) }).catch(() => null);
   await requireOrgComposeAccess(event, orgId);
 
-  const directus = getTypedDirectus();
-  const rows = (await directus.request(
-    readItems("hoa_newsletter_blocks", {
-      filter: {
-        _or: [{ is_system: { _eq: true } }, { organization: { _eq: orgId } }],
-      },
-      fields: [
-        "id", "name", "slug", "description", "category",
-        "mjml_source", "variables_schema", "is_system", "sort",
-      ],
-      sort: ["category", "sort", "name"],
-      limit: 200,
-    })
-  )) as HoaNewsletterBlock[];
+  let rows: HoaNewsletterBlock[];
+  if (batched) rows = (batched.blocks ?? []) as HoaNewsletterBlock[];
+  else {
+    const { collection, ...query } = blockLibrarySpec(orgId);
+    rows = (await getTypedDirectus().request(readItems(collection as "hoa_newsletter_blocks", query as any))) as unknown as HoaNewsletterBlock[];
+  }
 
   // Group by category for the sidebar palette.
   const library: Record<string, HoaNewsletterBlock[]> = {};
