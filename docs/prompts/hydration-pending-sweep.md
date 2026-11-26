@@ -18,10 +18,11 @@ are test data.
 1. Confirm before fixing. For each candidate in the prompt file (and any other
    `server: false` useAsyncData/useFetch whose template branches on its
    pending/status), load the page in the Browser pane through the dev server
-   (preview_start "hoaconnect") signed in as the right demo login (demo@,
-   demo-board@, demo-tenant@ from .env DEMO_USER_EMAIL / DEMO_USER_PASSWORD,
-   others from core/shared/demo/scenario.ts; read only those keys, never
-   `source` .env), on the demo org (slug `demo`). Read the console for
+   (preview_start "hoaconnect") signed in as the right demo login (demo@
+   from .env DEMO_USER_EMAIL / DEMO_USER_PASSWORD, read only those keys and
+   never `source` .env; every demo-<persona>@ login, board and tenant
+   included, from core/shared/demo/scenario.ts PERSONAS), on the demo org
+   (slug `demo`). Read the console for
    "Hydration" warnings on a fresh navigate, and check the page shows its
    data. Seed a row with the Directus MCP when the demo org has none to show
    (it had no requests until 2026-11-26).

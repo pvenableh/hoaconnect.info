@@ -134,7 +134,9 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
     if (!dRole) throw new Error(`role ${p.directusRole} not found`);
     let user = (await dx(`/users${qs({ filter: { email: { _eq: email } }, fields: "id", limit: 1 })}`))?.data?.[0];
     if (!user) user = (await mut(`user ${email}`, "POST", "/users", { email, password: p.password, first_name: p.first, last_name: p.last, role: dRole, status: "active" }))?.data;
-    else if (!dry) await dx(`/users/${user.id}`, { method: "PATCH", body: JSON.stringify({ password: p.password }) });
+    // The password here is the only one these logins have: put it back (and
+    // un-suspend the account) every run, whatever was set by hand since.
+    else if (!dry) await dx(`/users/${user.id}`, { method: "PATCH", body: JSON.stringify({ password: p.password, status: "active" }) });
     const manager = p.key === "manager";
     let member = await findOne("hoa_members", { organization: { _eq: t.orgId }, email: { _eq: email } }, "id,member_type");
     if (!member)
@@ -157,6 +159,17 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
         await mut(`area grant ${area}`, "POST", "/items/hoa_area_grants", { ...org, member: member.id, area, starts_at: "2026-01-01T00:00:00.000Z", granted_by: t.adminUserId, holder_name: `${p.first} ${p.last}` });
       }
   }
+  // Prove each login works with the password above, so a drifted account shows
+  // up in the seed log instead of as a 401 on the sign-in page.
+  if (!dry)
+    for (const p of PERSONAS) {
+      const email = personaEmail(p);
+      try {
+        await dx("/auth/login", { method: "POST", body: JSON.stringify({ email, password: p.password }) });
+      } catch (e) {
+        log(`  ! ${email} cannot sign in with its scenario.ts password: ${(e as Error).message}`);
+      }
+    }
 
   // ── Owner: a year of dues, one overdue, one due, a waiver waiting on the board ──
   const marker = "Demo scenario";

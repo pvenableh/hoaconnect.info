@@ -26,8 +26,9 @@ query covering several collections takes ~105ms.
 1. Measure first. Start your OWN dev server on a free port (3005 worked; add
    a temporary `.claude/launch.json` config with NUXT_PORT and a different
    Vite HMR PORT, and revert it before committing). Log in with curl as
-   demo-board@, demo-tenant@ and the .env DEMO_USER_EMAIL admin, all with
-   .env DEMO_USER_PASSWORD; read only those keys, never `source` .env. Demo
+   the .env DEMO_USER_EMAIL admin (.env DEMO_USER_PASSWORD; read only those
+   keys, never `source` .env) and as demo-board@ and demo-tenant@ with their
+   passwords from core/shared/demo/scenario.ts PERSONAS. Demo
    org 8628b141-4e01-4998-b084-9c2f50547d03. Count Directus requests per
    route with a temporary server/plugins/ Nitro plugin that subscribes to
    diagnostics_channel "undici:request:create" and sets an x-dx-count
