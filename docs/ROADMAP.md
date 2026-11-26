@@ -1,6 +1,7 @@
 # HOA Connect — Go-to-Market Roadmap
 
-> Living document. Last updated 2026-08-18.
+> Living document. Last updated 2026-11-26 (every phase item and tech-debt note
+> re-checked against the code and git history that day).
 > Product name: **HOA Connect** (renamed from "Property Flow" on 2026-08-27). Public domain: hoaconnect.info.
 > **Product vision + strategic phase sequence: [VISION.md](VISION.md)** — "Your
 > community owns everything. Everyone can see it." The vision's 7-phase roadmap
@@ -8,10 +9,78 @@
 > remain authoritative for the detailed checklists they contain (the vision's
 > Phase 1 *is* Phase 1 below — same Connect activation blockers).
 
-## Shipped since this roadmap was first written (2026-06 → 2026-08)
+## Where things stand (2026-11-26)
 
-A lot landed that the phases below predate. For an accurate picture of what
-exists, treat this list as authoritative over the older phase text:
+**The product is built; what stands between it and selling is mostly operator work.**
+The live launch list is [gtm-checklist.md](gtm-checklist.md) (🔒 rows are launch
+blockers, 👤 rows need Peter). Phases 2–5 below are shipped; Phase 1 is code-complete
+and waits on Stripe dashboard steps.
+
+**Still open, ranked by how directly it helps communities pay for HOA Connect:**
+
+1. 🔒👤 **Activate Stripe Connect** — [connect-activation-runbook.md](connect-activation-runbook.md)
+   §3–§6. Dues can't reach a community's bank (and the platform fee can't be taken) until
+   it's done. Read 2026-11-12: 0 live connected accounts, no Connect webhook endpoint,
+   0 of 7 communities onboarded.
+2. 👤 **Extra Storage add-on price** — make the $10/month price in each Stripe mode and set
+   `STRIPE_PRICE_ADDON_STORAGE_100_{TEST,LIVE}`; the Settings toggle 503s until then. A
+   paid add-on that is built and switched off.
+3. 🔒👤 **Production env checks in Vercel** — `OUTBOUND_EMAIL_ONLY_TO` absent, VAPID private
+   key and subject, the Anthropic and Voyage keys, both Stripe key pairs and `STRIPE_MODE`.
+   AI features (credit spend) and push are dark or wrong without them.
+4. 👤 **Finish verifying the subscription path** — the app's own Manage billing button, a
+   refund round trip, and what payers see on a Connect onboarding screen.
+5. 👤 **Trust and support basics** — a test mail to `support@`, one real email's SendGrid
+   events landing, a status page, emailed replies to support (Inbound Parse DNS), and the
+   privacy policy's email-preferences link.
+6. 👤 **Demos and pilots** — look over the re-seeded `/demo` and `/demo-classic`, delete the
+   transition fixture after its AI check, turn reminders on per pilot community.
+7. **Code gaps** (no operator needed):
+   - Tests for the AI chat route (`api/ai/chat.post.ts`) and retrieval (`ledger-retrieve`,
+     `ledger-index`); the landing builder's save route and UI.
+   - Delegation covers documents, feedback, projects and responsibilities; inquiries,
+     violations, directory, communications and meetings need routes first.
+   - Directus-side enforcement of comment/reaction rules lives in `scripts/lib/*` and
+     `setup-directus-permissions.ts`; `core/app/config/commentCapabilities.ts` only shapes
+     the UI. Worth one written map of which rule lives where.
+8. **Later, by decision:** marketing split to `app.hoaconnect.info`
+   ([plan-marketing-split.md](plan-marketing-split.md)); caching the public `hoa/find`
+   and more Directus instances ([prompts/perf-batch-next-routes.md](prompts/perf-batch-next-routes.md)).
+
+## Shipped since 2026-08-18
+
+Grouped from the commit log; each plan or spec has the detail.
+
+- **Platform hardening** (VISION Phase 2, Aug) — host→org resolver and spoof guard, web
+  push, three-signal versioning, marketing site moved into the app.
+- **Data Trust export, Management Transition Wizard, Community Ledger, "Ask the HOA"**
+  (VISION Phases 3–6, Aug) — [plan-phase6-owner-ai.md](plan-phase6-owner-ai.md).
+- **One chrome, shared realtime WebSocket, chart kit, AI Board Room and notices, channel
+  unread and mute** (Aug).
+- **PayHOA-parity billing engine** — schedules, late fees, payment methods (Sep;
+  [plan-payhoa-parity.md](plan-payhoa-parity.md)).
+- **Earnest parity round 3** — glass shell, dock and page titles, email classes and send
+  queue, reminders, PWA, channels v7, the audit gates, and launch Phase 9: band
+  subscription on the settings page, refunds, Reports PDF (Oct–Nov;
+  [plan-earnest-parity-round3-gtm.md](plan-earnest-parity-round3-gtm.md)).
+- **Signup on band pricing** — discount codes, 14-day unpaid expiry, automatic re-banding
+  (Nov; [prompts/signup-bands-build.md](prompts/signup-bands-build.md)).
+- **Operator console** — read-only console, ops audit log, support inbox with emailed
+  replies and attachments, system health (Nov; [plan-operator-console.md](plan-operator-console.md)).
+- **Governing documents** — read routes, search, statute flags, counsel sign-off (Nov;
+  [plan-governing-docs.md](plan-governing-docs.md)).
+- **Role-first UX** — role context, one app registry, resource scaffold, money approvals
+  and waivers, charge corrections, responsibilities pages and map, delegation, member
+  restrictions, Tint and the glass sweep, dock and focus (Nov; [plan-role-first-ux.md](plan-role-first-ux.md)).
+- **Unified experience** — role homes, motion and drag kits, notice acknowledgments
+  (with swipe), forms to sign, requests work board (Nov; [plan-unified-experience.md](plan-unified-experience.md)).
+- **1033 Lenox migrated and published** as a tenant (data Aug 22, published Nov 17).
+- **Perf batching of Directus reads** — most page routes now make one Directus request
+  (Nov 22–26; [prompts/perf-batch-next-routes.md](prompts/perf-batch-next-routes.md)).
+
+## Shipped 2026-06 → 2026-08
+
+The first wave after the phases below were written (kept as written then):
 
 - **AI assistant + token economy** — chat, RAG (Voyage), draft/rewrite, wallet/
   credits, HITL actions, graduated autonomy. Needs `ANTHROPIC_API_KEY` (+ `VOYAGE_API_KEY` for RAG).
@@ -25,12 +94,13 @@ exists, treat this list as authoritative over the older phase text:
 - **Simple financial reporting** (Phase 2, partial) — monthly running balance,
   income-by-type, expense-by-category, delinquency aging, CSV export. See the
   Reports tab on the Finances page (`/admin/payments`).
-- **Health**: typecheck 0 errors, 300+ passing unit tests (was "no test coverage").
+- **Health**: typecheck 0 errors, 300+ passing unit tests (was "no test coverage";
+  4,867 across 297 files on 2026-11-26).
 - **Responsibilities register** (role-first UX Phase 2b, [plan](plan-role-first-ux.md) §3.4) —
   who does each standing job, with dated history, board-term End / Change office / Correct,
   a published owner view and a PDF for the board. Spec: [spec-responsibilities.md](spec-responsibilities.md).
-  Schema script, gate and routes shipped 2026-11-15; the pages are Session 7. Due for the
-  1033 Lenox board, seated 2026-12-09.
+  Schema script, gate and routes shipped 2026-11-15; the pages (Session 7) 2026-11-16 and the
+  map (Session 9) 2026-11-18. Due for the 1033 Lenox board, seated 2026-12-09.
 - **Delegation to members** (role-first UX Session 8, [plan](plan-role-first-ux.md) §7) — an admin
   gives a member (a helper) or a committee (a team) some of a property manager's areas:
   documents, feedback, projects (without money) and the responsibilities register, each a dated
@@ -39,8 +109,10 @@ exists, treat this list as authoritative over the older phase text:
 - **Restricted members** (role-first UX Session 10, [plan](plan-role-first-ux.md) §7) — an admin
   pauses a member's posting in one community, dated and recorded for the board, while dues, requests
   and reading carry on; the same change stops archived and inactive members writing through Directus.
-  Spec: [spec-member-restrictions.md](spec-member-restrictions.md). Built 2026-11-17; the Directus
-  half waits on the operator (`pnpm add:admin-scope`, then `pnpm setup:permissions`).
+  Spec: [spec-member-restrictions.md](spec-member-restrictions.md). Built 2026-11-17. The plan's
+  Session 10 row still lists the operator steps (`pnpm add:admin-scope`, then
+  `pnpm setup:permissions`); a later `setup:permissions:audit` read 0/0/0, so they appear
+  applied, but no row says so outright.
 
 ## North star
 
@@ -99,12 +171,12 @@ Built end-to-end on `core/server/api/stripe/`. See `docs/prompts/phaseB-stripe-c
         `account.updated` sync (`tests/server/stripe-webhook.test.ts`). The webhook now
         dedupes `payment_intent.succeeded` on the PaymentIntent id (Stripe retries were
         double-crediting `payment_requests.amount_paid`).
-  - [ ] Operator activation — follow **[connect-activation-runbook.md](connect-activation-runbook.md)**:
+  - [ ] 🔒👤 Operator activation (still open 2026-11-26; see the GTM checklist's row) — follow **[connect-activation-runbook.md](connect-activation-runbook.md)**:
         `pnpm add:connect-fields` + `generate:types`, permissions audit, enable
         `account.updated`/`payout.*` on the webhook endpoint, set
         `STRIPE_CONNECT_FEE_PERCENT`, then the test-mode pilot smoke test.
 
-### Phase 2 — Simple reporting ledger — IN PROGRESS
+### Phase 2 — Simple reporting ledger — SHIPPED
 Data lives in `payment_requests` (money in), `payment_transactions` (Stripe/manual),
 `payment_expenses` (money out). Manual entry already exists (Finances page + Expenses page).
 - [x] **Manual entry of income AND expenses** (checks, Zelle, cash, offline) — Finances/Expenses pages
@@ -112,14 +184,15 @@ Data lives in `payment_requests` (money in), `payment_transactions` (Stripe/manu
       — pure module `core/shared/reporting/ledger.ts` (unit-tested) rendered by the
       **Reports tab** on the Finances page (`Payment/FinancialsReport.vue`), with CSV export.
 - [x] Auto-write income rows from successful dues payments — webhook writes `payment_transactions`
-- [ ] PDF export (CSV shipped; PDF still pending)
+- [x] PDF export — "Export PDF" on the Reports tab (`useReportPdf`, `core/shared/reporting/report-pdf.ts`,
+      `tests/shared/report-pdf.test.ts`; 2a6e2027, 2026-11-05)
 - [x] Opening-balance setting per org — `opening_balance` + `opening_balance_date`
       (`pnpm add:opening-balance`), threaded through `ledger.ts` (`summarize`/`monthlySeries`
       take the balance and drop entries dated before the as-of date) and edited in
       **Settings → Payments → Opening Balance**
-- [ ] Explicitly NOT: fund segregation, reconciliation engine, transfer auto-linking
+- Explicitly NOT: fund segregation, reconciliation engine, transfer auto-linking
 
-### Phase 3 — Earnest admin UX (design track) — IN PROGRESS
+### Phase 3 — Earnest admin UX (design track) — SHIPPED
 Port Earnest's design system into HOA Connect, additively.
 - [x] iOS material CSS layer (glass, glass-surface, ios-card/group, river skeleton,
       spinner, accent-tinted scrollbar/selection, focus rings) adapted to HOA
@@ -144,49 +217,68 @@ Port Earnest's design system into HOA Connect, additively.
   `hoa_meetings_files` M2M. Created via `scripts/create-meetings-collections.ts`
   (`pnpm create:meetings`); also cleaned the `hoa_board_members.title` enum typos. Admin
   page `MeetingsAdminPage.vue` (CRUD + attendees), member `MeetingsPage.vue` (published view).
-- **Still in progress:** floating bottom-dock nav (replaces top bar; per-app accent + palette
-  persistence + per-app unread badges); unified categorized notification center.
+- [x] Floating bottom dock (`App/Dock.vue`, `useDockApps.ts`; 6ea771c0, 2026-11-02) with per-app
+      unread badges and a saved order (2fa274bb, 2026-11-21). Per-app accents and dock palettes
+      were dropped by design for one per-person Tint (Appearance → Tint, 2026-11-18).
+- [x] Categorized notification center — the bell reads `directus_notifications` with category
+      tabs, unread counts and per-category switches (`Notification/Panel.vue`,
+      `core/shared/notifications/bell.ts`; 8c45ecce, 2026-08-24).
 
-### Phase 4 — Landing themes + 1033 migration (design track) — NOT STARTED
-- [ ] Refactor theming toward Earnest's dual-axis model (`data-theme` × `data-style`)
-- [ ] `classic` style = 1033's serif/editorial landing; `modern` = Earnest glass
-- [ ] Per-tenant landing page theme setting
-- [ ] Migrate 1033 in as tenant #1 (units, people, board, leases, dues)
+### Phase 4 — Landing themes + 1033 migration (design track) — SHIPPED
+- [x] Two-axis theming, done as classes rather than `data-style`: `html.theme-{classic,modern,luxury}-{light,dark}`
+      (`useTheme.ts`, `theme.css`); the workspace uses `html.theme-app` (575765c5, 2026-08-21)
+- [x] `classic` = 1033's serif/editorial landing, `modern` = glass, plus `luxury` (cc1ea0ce, 2026-06-04;
+      193697e8; 654c9618, 2026-08-25)
+- [x] Per-tenant landing theme (`settings.theme` → `forceThemeStyle` on `[slug]/index.vue`; cc1ea0ce)
+- [x] 1033 Lenox migrated as a tenant (`scripts/migrate-1033.ts`; 7ca26a5c and ed8775ee, 2026-08-22;
+      published e050f0d3, 2026-11-17). [prompts/phaseD-landing-themes-1033.md](prompts/phaseD-landing-themes-1033.md)
+      still says "scaffolded, not run"; it predates the run.
 
-### Phase 5 — Universal comments/reactions + Requests system (one-stop-shop) — NOT STARTED
+### Phase 5 — Universal comments/reactions + Requests system (one-stop-shop) — SHIPPED (2026-06-04)
 Prompt: `docs/prompts/phase5-comments-reactions-requests.md`. The channels feature
 already built a full messaging substrate (threaded, attachments, @mentions,
 real-time, role-gated); this phase generalizes it into **three shared rails** —
 comments, reactions, notifications — that every entity plugs into, then layers the
 HOA requests/tickets workflow on top.
-- [ ] **Universal comments** — custom polymorphic `hoa_comments` (target_collection +
+- [x] **Universal comments** (a35d6367; `scripts/create-comments-collections.ts`, `useComments.ts`) — custom polymorphic `hoa_comments` (target_collection +
       target_id, threaded, `is_internal` board-only notes), reusing the channel
       editor/@mention/upload internals. Drops a comment thread onto any entity.
-- [ ] **Universal reactions** — custom polymorphic `hoa_reactions` (on comments OR
+- [x] **Universal reactions** (a35d6367; `useReactions.ts`) — custom polymorphic `hoa_reactions` (on comments OR
       entities), one (user, target, emoji), client-aggregated.
-- [ ] **Role-based authorization** — code-first capability map (who may comment/react/
-      see-internal per collection), hardened into `setup-directus-permissions.ts`.
-- [ ] **Requests/Tickets** — single `hoa_requests` collection (Tier 1) with a `type`
+- [~] **Role-based authorization** — `core/app/config/commentCapabilities.ts` decides what the UI
+      offers; Directus enforcement lives in `create-comments-collections.ts`,
+      `scripts/lib/admin-scope-perms.ts` (writes through posts_in) and
+      `scripts/lib/shared-write-validations.ts` (members can't write `is_internal`), applied by
+      `setup-directus-permissions.ts`. Enforced, but split across files rather than one map.
+- [x] **Requests/Tickets** (dead5ee2; `scripts/create-requests-collections.ts`,
+      `core/app/config/requestWorkflows.ts` with 6 types, a drag work board 2026-11-22) — single `hoa_requests` collection (Tier 1) with a `type`
       discriminator (maintenance / ARC / violation / complaint / task), shared
       lifecycle, conversation via the comment thread. **Tier 2** = config-driven
       per-type workflows in code (`requestWorkflows.ts`), no new tables.
-- [ ] **Dock + notifications** — new Requests app; `comment` + `request` notification
+- [x] **Dock + notifications** (dead5ee2; `bell.ts` maps comments and requests) — new Requests app; `comment` + `request` notification
       types wired into `useNotifications.ts` + dock badges.
-- [ ] Explicitly NOT: Tier 3 ticketing (SLAs, assignment queues, vendor portal,
+- Explicitly NOT: Tier 3 ticketing (SLAs, assignment queues, vendor portal,
       email-in, kanban automations) — the QuickBooks trap.
 
 ## Known tech debt / cleanup
-- Two disconnected token systems: shadcn HSL tokens (`tailwind.css`) vs `--theme-*`
-  (`theme.css`). shadcn components don't currently respond to the theme switcher.
-  Phase 3/4 should converge these.
-- Legacy `tailwind.config.js` (v3-style) coexists with Tailwind v4 `@theme inline`
-  in `tailwind.css`. The v4 config is authoritative.
-- Test coverage skews to pure logic (`shared/*`) + access control. Zero tests on
-  the runtime money path (Stripe/Connect), AI chat runtime + RAG, channels,
-  requests runtime, projects, and the landing builder — highest-risk gap is payments.
-- `app/pages/settings/subscription.vue` (per-org subscribe) predates the flat
-  per-building **band** pricing (`subscribe-band.post.ts`, currently unwired) and
-  should be reconciled with it. Its checkout now confirms via Stripe Elements and
-  "Manage Billing" opens the Stripe portal (`stripe/portal.post.ts`), but the
-  subscribe route doesn't yet persist `stripe_customer_id` to the org (webhook does).
-</content>
+
+Re-checked 2026-11-26.
+
+- ~~Two disconnected token systems~~ — mostly converged: the workspace (`html.theme-app`) and
+  the classic and luxury landings map the shadcn variables to `--theme-*` (`theme-app.css`,
+  `theme.css`); shadcn primitives are stock behind App* wrappers ([shadcn-census.md](shadcn-census.md)).
+  The public `modern` landing still uses the static HSL values in `tailwind.css`, by design.
+- ~~Legacy `tailwind.config.js`~~ — deleted (c985707c, 2026-08-21).
+- Tests: the money path is now covered (`paymentintent`, `connect-endpoints`, `stripe-webhook`,
+  `stripe-webhook-replay`, `stripe-mode`, `billing-band-route`, `signup-band`, `band-prices`,
+  `reband`, `billing-engine`, …), as are channels, requests and projects. **Still untested:**
+  the AI chat route and retrieval (`api/ai/chat.post.ts`, `ledger-retrieve`, `ledger-index`;
+  the helpers around them are tested) and the landing builder's save route and UI.
+- ~~`settings/subscription.vue` predates band pricing~~ — reconciled: the page reads
+  `/api/org/billing/band` and subscribes through `/api/stripe/subscribe-band`, which saves
+  `stripe_customer_id` before creating the subscription (2a6e2027, 2026-11-05). Only the app's
+  own Manage billing button is unverified (GTM checklist §3).
+- Stale docs: [prompts/phaseD-landing-themes-1033.md](prompts/phaseD-landing-themes-1033.md) ("scaffolded,
+  not run") and [VISION.md](VISION.md)'s phase table, which records no status (by the commit log:
+  Phase 1 code-complete, not activated; Phases 2–5 shipped Aug 2026; Phase 6 partly shipped;
+  Phase 7 ongoing).
