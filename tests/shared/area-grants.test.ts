@@ -36,7 +36,7 @@ const row = (over: Partial<AreaGrantRow> = {}): AreaGrantRow => ({
 
 describe("which areas a helper can hold", () => {
   it("is exactly the server-only areas", () => {
-    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "directory", "documents", "feedback", "projects", "responsibilities"]);
+    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "violations", "directory", "documents", "feedback", "projects", "responsibilities"]);
   });
 
   it("every helper area is grantable and gated by a server file, never a page", () => {
@@ -50,7 +50,7 @@ describe("which areas a helper can hold", () => {
   });
 
   it("the areas that read Directus with the user's token, or are not a neighbour's, are absent", () => {
-    const absent = ["activity", "communications", "contact_platform", "violations"];
+    const absent = ["activity", "communications", "contact_platform"];
     for (const k of absent) expect(isHelperArea(k), k).toBe(false);
     expect([...NON_HELPER_GRANT_KEYS].sort()).toEqual(absent);
     expect(isHelperArea("vendors")).toBe(false);

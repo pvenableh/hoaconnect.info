@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /**
  * Manager inquiries queue. The list comes from /api/org/inquiries, read with
- * the app's token behind the "inquiries" area, so a helper or committee holding
- * it sees what a manager sees (docs/spec-delegation.md). Creating a violation is
- * gated server-side (/api/hoa/requests/manager-create checks the "violations"
- * area). Reuses the shared request list components.
+ * the app's token behind the "inquiries" area (or "violations" alone, for the
+ * violation requests), so a helper or committee holding it sees what a manager
+ * sees (docs/spec-delegation.md). Creating a violation is gated server-side
+ * (/api/hoa/requests/manager-create checks the "violations" area), and so is its
+ * member picker (/api/org/violations/members). Reuses the shared request list
+ * components.
  */
 import { requestTypeList, getWorkflow, getStateMeta } from "#core/app/config/requestWorkflows";
 import { toast } from "vue-sonner";
@@ -19,14 +21,13 @@ import {
 definePageMeta({
   middleware: ["manager", "subscription"],
   layout: "auth",
-  managerCapability: "inquiries",
+  managerCapability: ["inquiries", "violations"],
 });
 
 const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
 const { list } = useInquiries();
 const { managerCan } = useCurrentDomainAccess();
-const membersApi = useDirectusItems("hoa_members");
 
 const basePath = computed(() => buildOrgPath("/manage/inquiries"));
 const typeFilter = ref<string>("all");
@@ -57,12 +58,9 @@ const openNew = async () => {
   showNew.value = true;
   if (!members.value.length && selectedOrgId.value) {
     try {
-      members.value = await membersApi.list({
-        filter: { organization: { _eq: selectedOrgId.value }, status: { _eq: "active" } },
-        fields: ["id", "first_name", "last_name"],
-        sort: ["first_name"],
-        limit: -1,
-      });
+      ({ members: members.value } = await $fetch<{ members: any[] }>("/api/org/violations/members", {
+        query: { orgId: selectedOrgId.value },
+      }));
     } catch {
       /* member select stays empty */
     }

@@ -207,15 +207,17 @@ describe("no grant without a gate", () => {
   it("never offers an area that cannot be granted", () => {
     for (const e of NAV_ENTRIES)
       for (const n of e.needs)
-        if ("area" in n && n.area !== "any") expect(MANAGER_GRANT_KEYS as readonly string[], e.id).toContain(n.area);
+        if ("area" in n && n.area !== "any")
+          for (const k of typeof n.area === "string" ? [n.area] : n.area) expect(MANAGER_GRANT_KEYS as readonly string[], e.id).toContain(k);
   });
 
   it("gives every grantable area an entry, or says why it waits", () => {
-    // violations is worked on the inquiries page; contact_platform is an action, not a destination.
-    const WAITS = new Set(["violations", "contact_platform"]);
+    // contact_platform is an action, not a destination.
+    const WAITS = new Set(["contact_platform"]);
+    const names = (a: string | readonly string[]) => (typeof a === "string" ? [a] : a);
     for (const k of MANAGER_GRANT_KEYS) {
       if (WAITS.has(k)) continue;
-      expect(NAV_ENTRIES.some((e) => e.needs.some((n) => "area" in n && n.area === k)), k).toBe(true);
+      expect(NAV_ENTRIES.some((e) => e.needs.some((n) => "area" in n && names(n.area).includes(k))), k).toBe(true);
     }
   });
 });
@@ -366,8 +368,10 @@ describe("helpers and committees (docs/spec-delegation.md)", () => {
     expect(seat.filter((id) => id === "responsibilities-register" || id === "responsibilities-mgr")).toEqual(["responsibilities-register"]);
   });
 
-  it("inquiries: the queue's page is added", () => {
+  it("inquiries or violations: the queue's page is added, once", () => {
     expect(helperDock(ctx({ areas: ["inquiries"] }), ["inquiries"])).toEqual([...owner, "inquiries"]);
+    expect(helperDock(ctx({ areas: ["violations"] }), ["violations"])).toEqual([...owner, "inquiries"]);
+    expect(helperDock(ctx({ areas: ["inquiries", "violations"] }), ["inquiries", "violations"])).toEqual([...owner, "inquiries"]);
   });
 
   it("directory: the directory and its change approvals are added", () => {

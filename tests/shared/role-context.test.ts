@@ -319,7 +319,7 @@ describe("resolveRoleContext", () => {
         member(),
         [],
         null,
-        opts({ helperAreas: ["violations", "communications", "activity", "contact_platform", "billing", "junk"] })
+        opts({ helperAreas: ["communications", "activity", "contact_platform", "billing", "junk"] })
       );
       expect(working(ctx)).toEqual([]);
       expect(ctx.helps).toEqual([]);

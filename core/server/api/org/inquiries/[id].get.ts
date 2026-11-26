@@ -1,8 +1,9 @@
 /**
  * GET /api/org/inquiries/:id?orgId= — one request and its linked discussion
  * channel, for /manage/inquiries/:id (docs/spec-delegation.md). Admin, the
- * `inquiries` grant, or a helper or committee holding it; 404 for a request
- * of another community.
+ * `inquiries` area (a grant, or a helper or committee holding it), or the
+ * `violations` area for a violation; 404 for a request of another community
+ * or outside that scope.
  */
 import { requireOrgId } from "#core/server/utils/area-reads";
 import { linkedChannelOf, readAreaRequest } from "#core/server/utils/area-requests";

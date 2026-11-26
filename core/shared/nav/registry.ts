@@ -19,8 +19,8 @@ export type NavNeed =
   | { admin: true }
   /** Admin holds every capability, so a capability entry also admits admins. */
   | { capability: Capability }
-  /** `areas[k].canWork`; "any" = at least one area. */
-  | { area: AreaKey | "any" }
+  /** `areas[k].canWork`; a list means any one of them; "any" = at least one area. */
+  | { area: AreaKey | readonly AreaKey[] | "any" }
   | { residency: "owner" | "tenant" | "any" }
   /** The community's module toggle. A list means any one of them is on. */
   | { module: string | readonly string[] }
@@ -53,7 +53,7 @@ export interface NavEntry {
 
 const A = { admin: true } as const;
 const mod = (m: string | readonly string[]) => ({ module: m }) as const;
-const area = (a: AreaKey | "any") => ({ area: a }) as const;
+const area = (a: AreaKey | readonly AreaKey[] | "any") => ({ area: a }) as const;
 const cap = (c: Capability) => ({ capability: c }) as const;
 
 // ORDER MATTERS inside a hub: a hub opens on its first visible pill.
@@ -159,7 +159,8 @@ export const NAV_ENTRIES: readonly NavEntry[] = [
   { id: "vendors", label: "Vendors", shortName: "Vendors", icon: "contact", path: "/vendors", needs: [mod("vendors")] },
 
   // ── Manager areas: one entry per area that has a page ─────────────────────
-  { id: "inquiries", label: "Inquiries", shortName: "Inquiries", icon: "inbox", path: "/manage/inquiries", needs: [area("inquiries")] },
+  // Violations are worked on the inquiries page: the violation requests, and "New violation".
+  { id: "inquiries", label: "Inquiries", shortName: "Inquiries", icon: "inbox", path: "/manage/inquiries", needs: [area(["inquiries", "violations"])] },
   { id: "directory", label: "Directory", shortName: "Directory", icon: "users", path: "/manage/directory", needs: [area("directory")] },
   // The server (isChangeReviewer) lets a manager or helper with Directory review changes.
   { id: "approvals", label: "Approvals", shortName: "Approvals", icon: "clipboard-check", path: "/admin/approvals", needs: [area("directory")] },
@@ -234,7 +235,8 @@ export function holds(need: NavNeed, ctx: NavContext): boolean {
   if ("capability" in need) return ctx.admin || ctx.capabilities.includes(need.capability);
   if ("area" in need) {
     if (need.area === "any") return ctx.admin || anyAreaWorkable(ctx);
-    return ctx.admin || ctx.canWork(need.area);
+    const keys: readonly AreaKey[] = typeof need.area === "string" ? [need.area] : need.area;
+    return ctx.admin || keys.some((k) => ctx.canWork(k));
   }
   if ("residency" in need) {
     return need.residency === "any" ? ctx.residency !== "none" : ctx.residency === need.residency;

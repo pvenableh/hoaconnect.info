@@ -2,8 +2,9 @@
  * PATCH /api/org/inquiries/:id — { orgId, details }: "Save details" on a
  * request (docs/spec-delegation.md). Only the request's workflow detail
  * fields change (mergeDetails); its state, status and anything else in
- * metadata stay as they are. Admin, the `inquiries` grant, or a helper or
- * committee holding it; 404 for a request of another community.
+ * metadata stay as they are. Admin, the `inquiries` area, or the `violations`
+ * area for a violation (readAreaRequest); 404 for a request of another
+ * community or outside that scope.
  */
 import { z } from "zod";
 import { requireOrgId } from "#core/server/utils/area-reads";

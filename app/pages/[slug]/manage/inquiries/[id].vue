@@ -2,7 +2,7 @@
 definePageMeta({
   middleware: ["manager", "subscription"],
   layout: "auth",
-  managerCapability: "inquiries",
+  managerCapability: ["inquiries", "violations"],
 });
 
 const route = useRoute();

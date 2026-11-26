@@ -5,8 +5,9 @@
  * writes the status, posts the system note to the request's thread, and tells
  * the submitter through the reminder engine when the status is news to them.
  *
- * Admin, the `inquiries` grant, or a helper or committee holding it; 404 for
- * a request of another community, 409 for a move the workflow does not allow.
+ * Admin, the `inquiries` area, or the `violations` area for a violation
+ * (readAreaRequest); 404 for a request of another community or outside that
+ * scope, 409 for a move the workflow does not allow.
  * Returns the request and the note's id, which the page announces as it
  * announces any comment (`announce` false when the submitter hears otherwise).
  */

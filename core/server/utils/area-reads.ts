@@ -22,6 +22,24 @@ export function requireOrgId(value: unknown): string {
 }
 
 /**
+ * `specs` read with the caller's access snapshot, BEFORE any gate: the caller
+ * must decide with requireAreaWork before returning a row, then call `rows()`
+ * (the batch's rows, or the specs read one by one when the batch failed).
+ * 401 without a session.
+ */
+export async function readBeforeGate<K extends string>(
+  event: H3Event,
+  orgId: string,
+  specs: Record<K, BatchSpec>
+): Promise<{ rows: () => Promise<Record<K, any[]>> }> {
+  await requireUserSession(event);
+  const batched = await Promise.resolve()
+    .then(() => batchWithAccessSnapshot(event, orgId, specs))
+    .catch(() => null);
+  return { rows: async () => batched ?? (await readItemsBatchRest(specs)) };
+}
+
+/**
  * `specs` read for a caller who can work `area` in `orgId`: 401 without a
  * session, 403 for anyone else, and nothing read is returned before the gate.
  */
@@ -31,10 +49,7 @@ export async function readForArea<K extends string>(
   area: ManagerGrantKey,
   specs: Record<K, BatchSpec>
 ): Promise<{ rows: Record<K, any[]>; via: "admin" | "manager" | "helper" }> {
-  await requireUserSession(event);
-  const batched = await Promise.resolve()
-    .then(() => batchWithAccessSnapshot(event, orgId, specs))
-    .catch(() => null);
+  const read = await readBeforeGate(event, orgId, specs);
   const { via } = await requireAreaWork(event, orgId, area);
-  return { rows: batched ?? (await readItemsBatchRest(specs)), via };
+  return { rows: await read.rows(), via };
 }

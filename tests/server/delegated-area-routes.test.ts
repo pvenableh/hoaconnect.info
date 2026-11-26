@@ -201,3 +201,77 @@ describe("inquiries routes", () => {
     await expect(create(ev({ body }))).rejects.toMatchObject({ statusCode: 403 });
   });
 });
+
+describe("violations", () => {
+  const VIO = uuid(921);
+  const LEAK = uuid(922);
+  let list: (e: any) => Promise<any>;
+  let one: (e: any) => Promise<any>;
+  let transition: (e: any) => Promise<any>;
+  let members: (e: any) => Promise<any>;
+  let create: (e: any) => Promise<any>;
+
+  beforeAll(async () => {
+    vi.stubGlobal("notifyReminderEvent", async () => null);
+    vi.stubGlobal("requireAuthenticatedUser", async () => {
+      if (!state.who.userId) throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
+      return { userId: state.who.userId };
+    });
+    list = (await import("#core/server/api/org/inquiries/index.get")).default as any;
+    one = (await import("#core/server/api/org/inquiries/[id].get")).default as any;
+    transition = (await import("#core/server/api/org/inquiries/[id]/transition.post")).default as any;
+    members = (await import("#core/server/api/org/violations/members.get")).default as any;
+    create = (await import("#core/server/api/hoa/requests/manager-create.post")).default as any;
+  });
+
+  beforeEach(() => {
+    state.db.hoa_requests = [
+      { id: VIO, organization: ORG, type: "violation", title: "Trash out early", status: "open", member: ID.memberAnn, metadata: null },
+      { id: LEAK, organization: ORG, type: "maintenance", title: "Leak", status: "open", metadata: null },
+    ];
+    state.db.hoa_comments = [];
+    state.db.hoa_channels = [];
+  });
+
+  it("the member picker refuses without a session, an orgId or the violations area", async () => {
+    await refusals((o) => members(ev(o)), { query: { orgId: ORG } }, "violations");
+  });
+
+  it("the member picker gives names only, of this community's active members", async () => {
+    state.who = helper("violations");
+    state.db.hoa_members![0].email = "ann@example.test";
+    const res = await members(ev({ query: { orgId: ORG } }));
+    expect(res.members).toContainEqual({ id: ID.memberAnn, first_name: "Ann", last_name: "Lee" });
+    expect(res.members.map((m: any) => m.id)).not.toContain(ID.memberOther);
+    expect(JSON.stringify(res)).not.toContain("example.test");
+  });
+
+  it("violations alone reads the violation requests, and the others are a 404", async () => {
+    state.who = helper("violations");
+    const res = await list(ev({ query: { orgId: ORG } }));
+    expect(res).toMatchObject({ scope: "violations" });
+    expect(res.requests.map((r: any) => r.id)).toEqual([VIO]);
+    expect((await one(ev({ query: { orgId: ORG }, params: { id: VIO } }))).request.title).toBe("Trash out early");
+    await expect(one(ev({ query: { orgId: ORG }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(transition(ev({ body: { orgId: ORG, to: "assigned" }, params: { id: LEAK } }))).rejects.toMatchObject({ statusCode: 404 });
+    expect(state.db.hoa_requests![1].status).toBe("open");
+  });
+
+  it("inquiries reads every request", async () => {
+    state.who = helper("inquiries");
+    const res = await list(ev({ query: { orgId: ORG } }));
+    expect(res.scope).toBe("all");
+    expect(res.requests.map((r: any) => r.id).sort()).toEqual([VIO, LEAK].sort());
+  });
+
+  it("a helper holding violations opens a violation, against this community's member only; inquiries alone cannot", async () => {
+    const body = { organization: ORG, type: "violation", title: "Noise", status: "open", member: ID.memberBob };
+    state.who = helper("violations");
+    const { request } = await create(ev({ body }));
+    expect(state.db.hoa_requests!.find((r) => r.id === request.id)).toMatchObject({ type: "violation", member: ID.memberBob });
+    await expect(create(ev({ body: { ...body, member: ID.memberOther } }))).rejects.toMatchObject({ statusCode: 403 });
+    await expect(create(ev({ body: { ...body, type: "maintenance" } }))).rejects.toMatchObject({ statusCode: 403 });
+    state.who = helper("inquiries");
+    await expect(create(ev({ body }))).rejects.toMatchObject({ statusCode: 403 });
+  });
+});

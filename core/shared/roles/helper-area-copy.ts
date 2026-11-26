@@ -12,6 +12,10 @@ export const HELPER_AREA_COPY: Readonly<Record<HelperAreaKey, { label: string; d
     label: "Inquiries",
     desc: "See every resident request, move it along, edit its details and spawn follow-up tasks. Internal notes and discussion channels stay with admins, the board and managers.",
   },
+  violations: {
+    label: "Violations",
+    desc: "Open violations against a member and move them along. Without Inquiries, only the violation requests show. Charging a fine stays with admins.",
+  },
   directory: {
     label: "Directory",
     desc: "See every active member's email and phone, and approve or decline their contact, address, vehicle and pet changes. Editing members stays with admins.",
