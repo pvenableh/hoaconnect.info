@@ -154,7 +154,7 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
     if (p.key === "board" && (dry || !(await findOne("hoa_board_members", { hoa_member: { _eq: member.id } }))))
       await mut("board term (director)", "POST", "/items/hoa_board_members", { hoa_member: member.id, title: "director", status: "published", term_start: "2026-01-01" });
     if (p.key === "team")
-      for (const area of ["documents", "feedback"]) {
+      for (const area of ["documents", "feedback", "projects", "responsibilities"]) {
         if (!dry && (await findOne("hoa_area_grants", { organization: { _eq: t.orgId }, member: { _eq: member.id }, area: { _eq: area }, ends_at: { _null: true } }))) continue;
         await mut(`area grant ${area}`, "POST", "/items/hoa_area_grants", { ...org, member: member.id, area, starts_at: "2026-01-01T00:00:00.000Z", granted_by: t.adminUserId, holder_name: `${p.first} ${p.last}` });
       }
@@ -288,6 +288,9 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   await task("Collect bids for hallway paint", "in_progress", 6);
   await task("Update the guest parking sign", "completed", -1, true);
   await task("Photograph the lobby for the website", "completed", -3, true);
+
+  // ── A project past its due date, for the team's Projects queue ──
+  await ensure("hoa_projects", "Hallway repaint", { status: "active", start_date: day(-40), due_date: day(-5), description: "Repaint the level 2 and 3 hallways." });
 
   // ── Vendors with end dates across the year ──
   // Vendors are named by `name`, not `title`.

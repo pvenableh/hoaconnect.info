@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /** HomeTeamQueue — items waiting in the helper areas a team member works. */
 import type { RoleContext } from "#core/shared/roles/role-context";
-import { teamQueueRows } from "#core/shared/home/team-queue";
+import { overdueProjectCount, teamQueueRows, unassignedJobCount } from "#core/shared/home/team-queue";
 
 const props = defineProps<{ roleContext: RoleContext | null | undefined }>();
 const orgId = useState<string | null>("selectedOrgId", () => null);
@@ -19,6 +19,18 @@ const { data: counts } = useAsyncData(
       (await api.list({ fields: ["id"], filter: { organization: { _eq: orgId.value }, status: { _eq: status } }, limit: 200 }).catch(() => [])).length;
     if (helps.includes("documents")) out.documents = await count(docsApi, "draft");
     if (helps.includes("feedback")) out.feedback = await count(pollsApi, "open");
+    // Projects and the register go through their routes, which check the helper grant.
+    const today = new Date().toISOString().slice(0, 10);
+    const [projects, register] = await Promise.all([
+      helps.includes("projects")
+        ? $fetch<any[]>("/api/org/projects", { query: { orgId: orgId.value, parent: "none" } }).catch(() => [])
+        : Promise.resolve(null),
+      helps.includes("responsibilities")
+        ? $fetch<{ responsibilities: any[] }>("/api/org/responsibilities", { query: { orgId: orgId.value } }).catch(() => ({ responsibilities: [] }))
+        : Promise.resolve(null),
+    ]);
+    if (projects) out.projects = overdueProjectCount(projects, today);
+    if (register) out.responsibilities = unassignedJobCount(register.responsibilities);
     return out;
   },
   { watch: [orgId], server: false, default: () => ({}) as Record<string, number> },

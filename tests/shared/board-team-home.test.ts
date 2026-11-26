@@ -33,11 +33,32 @@ import { teamQueueRows } from "#core/shared/home/team-queue";
 
 describe("team queue", () => {
   it("lists only helper areas that have a queue, with counts and plurals", () => {
-    const rows = teamQueueRows(["documents", "feedback", "projects"], { documents: 2, feedback: 1 });
+    const rows = teamQueueRows(["documents", "feedback", "inquiries"], { documents: 2, feedback: 1 });
     expect(rows.map((r) => r.text)).toEqual(["2 draft documents", "1 open poll"]);
     expect(rows[0].path).toBe("/admin/documents");
   });
   it("shows zero for a queue with nothing waiting", () => {
     expect(teamQueueRows(["documents"], {})[0].text).toBe("0 draft documents");
+  });
+});
+
+import { overdueProjectCount, teamQueueRows, unassignedJobCount } from "#core/shared/home/team-queue";
+
+describe("team queue states", () => {
+  it("an open project past its due date is overdue; done, undated and future ones are not", () => {
+    const rows = [
+      { status: "active", due_date: "2026-11-20" },
+      { status: "on_hold", due_date: "2026-11-25T00:00:00" },
+      { status: "completed", due_date: "2026-11-01" },
+      { status: "active", due_date: "2026-12-01" },
+      { status: "planning", due_date: null },
+    ];
+    expect(overdueProjectCount(rows, "2026-11-26")).toBe(2);
+  });
+  it("a job nobody holds is unassigned unless retired", () => {
+    expect(unassignedJobCount([{ status: "active", holders: [] }, { status: "retired", holders: [] }, { status: "active", holders: [{}] }, { status: "disputed" }])).toBe(2);
+  });
+  it("projects and responsibilities helpers get their rows", () => {
+    expect(teamQueueRows(["projects", "responsibilities"], { projects: 1, responsibilities: 3 }).map((r) => r.text)).toEqual(["1 overdue project", "3 unassigned jobs"]);
   });
 });
