@@ -32,7 +32,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const { data: vendors, pending } = await useAsyncData(
+const { data: vendors, status } = await useAsyncData(
   `vendors-${selectedOrgId.value}`,
   () =>
     vendorsApi.list({
@@ -42,6 +42,9 @@ const { data: vendors, pending } = await useAsyncData(
     }),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const catLabel = (v: HoaVendor) => (v.category === "other" ? v.category_other || "Other" : CATEGORY_LABELS[v.category] || v.category);
 const vendorTitle = (v: HoaVendor) => v.company || v.name || "Vendor";

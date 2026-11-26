@@ -310,7 +310,7 @@ useSeoMeta({
           <AppCard>
             <CardContent class="pt-6">
               <!-- Loading — content-shaped skeleton -->
-              <WidgetRowSkeleton v-if="fetchStatus === 'pending'" :rows="6" :avatar="false" />
+              <WidgetRowSkeleton v-if="fetchStatus === 'idle' || fetchStatus === 'pending'" :rows="6" :avatar="false" />
 
               <AppDataTable
                 v-else-if="emails.length"

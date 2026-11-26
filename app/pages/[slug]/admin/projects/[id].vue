@@ -24,11 +24,14 @@ const tab = ref<"overview" | "tasks" | "timeline" | "files" | "discussion">("ove
 const tabPicked = ref(false);
 const editing = ref(false);
 
-const { data: project, pending, refresh } = await useAsyncData(
+const { data: project, status, refresh } = await useAsyncData(
   `admin-project-${projectId.value}`,
   () => getOne(projectId.value),
   { watch: [projectId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 /**
  * A project with a real schedule opens ON the schedule. The Gantt has always

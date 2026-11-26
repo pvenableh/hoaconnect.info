@@ -37,11 +37,14 @@ const householdBlurb = computed(() => {
   return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
 });
 
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   () => `my-household-${selectedOrgId.value}`,
   () => fetchHousehold(),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 // Pending-review lookups so each section can show "awaiting review".
 const pendingKinds = computed(

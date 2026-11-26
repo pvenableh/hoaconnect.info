@@ -15,7 +15,7 @@ const { listRequests, decide, requestDocumentUrl } = useChangeRequests();
 const { prompt } = useConfirm();
 
 const denied = ref(false);
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   () => `approvals-${selectedOrgId.value}`,
   async () => {
     try {
@@ -28,6 +28,9 @@ const { data, pending, refresh } = await useAsyncData(
   },
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const requests = computed(() => data.value?.requests || []);
 

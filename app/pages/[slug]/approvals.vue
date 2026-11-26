@@ -60,7 +60,7 @@ const { selectedOrgId } = await useSelectedOrg();
 const { prompt } = useConfirm();
 
 const view = ref<string>("open");
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   () => `money-approvals-${selectedOrgId.value}-${view.value}`,
   () =>
     selectedOrgId.value
@@ -68,6 +68,9 @@ const { data, pending, refresh } = await useAsyncData(
       : Promise.resolve({ approvals: [] as ApprovalItem[], awaitingMe: 0 }),
   { watch: [selectedOrgId, view], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 const items = computed(() => data.value?.approvals ?? []);
 const views = computed(() => [
   { value: "open", label: "Waiting" },

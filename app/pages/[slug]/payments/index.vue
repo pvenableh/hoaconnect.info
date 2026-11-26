@@ -17,7 +17,7 @@ const memberId = computed(() => currentOrg.value?.id ?? null);
 const userEmail = computed(() => user.value?.email || "");
 
 // --- Data ---------------------------------------------------------------
-const { data: requests, pending, refresh } = await useAsyncData(
+const { data: requests, status, refresh } = await useAsyncData(
   `member-payments-${selectedOrgId.value}`,
   async () => {
     if (!selectedOrgId.value || !memberId.value) return [];
@@ -38,6 +38,9 @@ const { data: requests, pending, refresh } = await useAsyncData(
   },
   { watch: [selectedOrgId, memberId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const { data: transactions } = await useAsyncData(
   `member-transactions-${selectedOrgId.value}`,

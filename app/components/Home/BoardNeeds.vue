@@ -32,7 +32,7 @@ const openRecord = (a: Item, e: Event) => {
   }
 };
 
-const { data, pending, refresh } = useAsyncData(
+const { data, status, refresh } = useAsyncData(
   () => `board-home-approvals-${orgId.value}`,
   async () =>
     orgId.value
@@ -40,6 +40,9 @@ const { data, pending, refresh } = useAsyncData(
       : { approvals: [] as Item[] },
   { watch: [orgId], server: false },
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 const items = computed(() => (data.value?.approvals ?? []).slice(0, 5));
 const total = computed(() => data.value?.approvals.length ?? 0);
 

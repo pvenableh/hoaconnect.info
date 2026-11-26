@@ -10,11 +10,14 @@ const goTo = (path: string) => navigateTo(path);
 const { selectedOrgId } = await useSelectedOrg();
 const { list, updateRequest } = useRequests();
 
-const { data: leads, pending, refresh } = await useAsyncData(
+const { data: leads, status, refresh } = await useAsyncData(
   `admin-leads-${selectedOrgId.value}`,
   () => list({ category: { _eq: "landing_inquiry" } }, ["-date_created"]),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const statusFilter = ref<"open" | "resolved" | "all">("open");
 const filtered = computed(() => {

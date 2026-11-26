@@ -24,11 +24,14 @@ useCreateIntent("project", () => {
   showNew.value = true;
 });
 
-const { data: projects, pending, refresh } = await useAsyncData(
+const { data: projects, status, refresh } = await useAsyncData(
   `admin-projects-${selectedOrgId.value}`,
   () => list({ parent: "none" }),
   { watch: [selectedOrgId], server: false, default: () => [] as ProjectRow[] }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 /**
  * Land on the timeline when there is a timeline to land on. Two scheduled

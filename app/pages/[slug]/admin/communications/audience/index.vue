@@ -16,7 +16,7 @@ const { list } = useDirectusItems<HoaMember>("hoa_members");
 
 const orgId = computed(() => selectedOrgId.value);
 
-const { data: members, pending } = await useAsyncData(
+const { data: members, status } = await useAsyncData(
   `comms-audience-${orgId.value}`,
   async () => {
     if (!orgId.value) return [] as HoaMember[];
@@ -35,6 +35,9 @@ const { data: members, pending } = await useAsyncData(
   },
   { watch: [orgId], server: false },
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const all = computed(() => members.value || []);
 const withEmail = computed(() => all.value.filter((m) => !!m.email).length);

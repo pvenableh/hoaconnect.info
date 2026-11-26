@@ -16,7 +16,7 @@ const askOnly = computed(() => route.query.ask === "1");
 const showNew = ref(askOnly.value);
 
 // Members see only their own requests (the API enforces this too).
-const { data: requests, pending, refresh } = await useAsyncData(
+const { data: requests, status, refresh } = await useAsyncData(
   `my-requests-${selectedOrgId.value}`,
   () =>
     list(
@@ -30,6 +30,9 @@ const { data: requests, pending, refresh } = await useAsyncData(
     ),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const onCreated = async (id: string) => {
   showNew.value = false;

@@ -39,11 +39,14 @@ useCreateIntent("request", () => {
   showNew.value = true;
 });
 
-const { data: requests, pending, refresh } = await useAsyncData(
+const { data: requests, status, refresh } = await useAsyncData(
   `admin-requests-${selectedOrgId.value}`,
   () => list({}, ["-date_updated"]),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const filtered = computed(() => {
   let rows = requests.value || [];

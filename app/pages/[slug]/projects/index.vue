@@ -9,11 +9,14 @@ const { selectedOrgId } = await useSelectedOrg();
 const { list } = useProjects();
 
 // Server scopes members to member_visible projects automatically.
-const { data: projects, pending } = await useAsyncData(
+const { data: projects, status } = await useAsyncData(
   `member-projects-${selectedOrgId.value}`,
   () => list({ parent: "none" }),
   { watch: [selectedOrgId], server: false, default: () => [] as ProjectRow[] }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const fmt = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null;

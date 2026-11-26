@@ -19,7 +19,7 @@ useCreateIntent("poll", () => {
 // community's `feedback` grant, which no role check on this page could see.
 // Asking it, rather than inferring from isAdmin/isBoardMember, is what keeps the
 // page and the routes that enforce it from drifting apart.
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   "org-polls",
   () => fetchOrgPolls(["open", "closed", "draft"]),
   {
@@ -30,6 +30,9 @@ const { data, pending, refresh } = await useAsyncData(
     }),
   }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const polls = computed(() => data.value?.polls ?? []);
 const canManage = computed(() => data.value?.viewer?.canManage === true);

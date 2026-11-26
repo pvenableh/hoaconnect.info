@@ -28,7 +28,7 @@ const documentId = computed(() => route.params.id as string);
 // bell both recompute off the same list.
 useMarkItemRead("hoa_documents", documentId);
 
-const { data: doc, pending } = await useAsyncData(
+const { data: doc, status } = await useAsyncData(
   `document-${documentId.value}`,
   async () => {
     if (!selectedOrgId.value || !documentId.value) return null;
@@ -58,6 +58,9 @@ const { data: doc, pending } = await useAsyncData(
   },
   { watch: [documentId, selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const categoryName = computed(() => {
   const cat = doc.value?.document_category;

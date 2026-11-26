@@ -17,11 +17,14 @@ const requestId = computed(() => route.params.id as string);
 // bell both recompute off the same list.
 useMarkItemRead("hoa_requests", requestId);
 
-const { data: request, pending, refresh } = await useAsyncData(
+const { data: request, status, refresh } = await useAsyncData(
   `request-${requestId.value}`,
   () => getOne(requestId.value),
   { watch: [requestId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 // Admin or a board seat. A team's domain used to add its members here too, but
 // no route checked it: promote and "Start a channel" refused them, and the rest

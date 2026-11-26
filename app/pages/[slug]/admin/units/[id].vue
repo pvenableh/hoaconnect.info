@@ -32,11 +32,14 @@ const {
   endRecord,
 } = useUnitRecords(unitId);
 
-const { data, pending, refresh, error } = await useAsyncData(
+const { data, status, refresh, error } = await useAsyncData(
   () => `unit-records-${unitId.value}`,
   () => fetchRecords(),
   { watch: [unitId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const records = computed<UnitRecordsResponse | null>(() => data.value || null);
 const canManage = computed(() => !!records.value?.canManage);

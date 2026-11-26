@@ -29,11 +29,14 @@ const { data: projectOptions } = await useAsyncData(
 const projectName = (id: string | null | undefined) =>
   projectOptions.value?.find((p) => p.id === id)?.title || null;
 
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   `admin-expenses-${selectedOrgId.value}`,
   () => listWithViewer(selectedOrgId.value || undefined),
   { watch: [selectedOrgId], server: false }
 );
+// server: false, so the server renders "idle": count it as loading, or the
+// server's empty state and the client's first-render spinner disagree at hydration.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 const expenses = computed<ExpenseRow[]>(() => data.value?.expenses ?? []);
 const canEnter = computed(() => data.value?.canEnter === true);
 
