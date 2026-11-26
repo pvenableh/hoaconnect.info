@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { createReusableTemplate } from "@vueuse/core";
+// The announcements and documents cards: in the role home's What's new band, or below it when there is no role home.
+const [DefineNewsCards, NewsCards] = createReusableTemplate();
 import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "#core/types/directus";
 import { homeFor } from "#core/shared/home/roles";
 import { emptyRoleContext } from "#core/shared/roles/role-context";
@@ -633,162 +636,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
         <!-- Install (Phase 6): renders nothing unless this device can add the app and hasn't dismissed it on this build. -->
         <AppInstallCard />
 
-        <!-- Role home (§5): Needs you · At a glance. The feed band is the
-             announcements and documents cards below, so it is left empty here. -->
-        <HomePage
-          v-if="homeBands.roles.length"
-          :role-context="roleContext"
-          :organization-id="selectedOrgId"
-          data-testid="member-home"
-        >
-          <template #needs>
-            <HomeManagerQueue v-if="has.needs('delegated-queue')" :role-context="roleContext" />
-            <HomeBoardNeeds v-if="has.needs('approvals')" />
-            <HomeAckPending v-if="roleContext.hats.board" :organization-id="orgId" />
-            <HomeFormTracking v-if="roleContext.hats.board" :organization-id="orgId" />
-            <HomeAcknowledge :organization-id="orgId" :swipe="has.acts('swipe-acknowledge')" />
-            <HomeSignForms :organization-id="orgId" />
-            <div v-if="has.needs('my-tasks')" class="space-y-3">
-              <HomeTeamNeeds :tasks="myTasks" @done="() => refreshTasks()" />
-              <HomeTeamQueue v-if="has.needs('area-queue')" :role-context="roleContext" />
-            </div>
-            <div v-if="memberNeeds" class="space-y-3">
-              <h2 v-if="!otherNeeds" class="t-eyebrow">Needs you</h2>
-              <AppCard class="overflow-hidden py-0">
-                <ul class="divide-y">
-                  <li v-for="item in nextByKind('dues')" v-show="has.needs('balance-due')" :key="item.key">
-                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-balance-due">
-                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
-                      <span class="min-w-0 flex-1">
-                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
-                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
-                      </span>
-                      <AppButton v-if="has.acts('pay-sheet')" size="sm" @click="payingCharge = idOf(item.key)">Pay</AppButton>
-                    </div>
-                  </li>
-                  <li v-for="item in nextByKind('poll')" v-show="has.needs('votes')" :key="item.key">
-                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-vote">
-                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
-                      <span class="min-w-0 flex-1">
-                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
-                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
-                      </span>
-                      <AppButton v-if="has.acts('vote-in-card')" size="sm" variant="outline" @click="votingPoll = idOf(item.key)">Vote</AppButton>
-                    </div>
-                  </li>
-                  <li v-for="r in homeRequests" v-show="has.needs('my-requests')" :key="r.id">
-                    <NuxtLink
-                      :to="buildOrgPath(`/requests/${r.id}`)"
-                      class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
-                      data-testid="home-request"
-                    >
-                      <Icon name="i-lucide-wrench" class="h-4 w-4 shrink-0 t-text-muted" />
-                      <span class="min-w-0 flex-1 truncate text-sm font-medium t-text">{{ r.title }}</span>
-                      <Icon name="i-lucide-chevron-right" class="h-4 w-4 shrink-0 t-text-muted" />
-                    </NuxtLink>
-                  </li>
-                  <li
-                    v-if="!has.needs('approvals') && !(has.needs('balance-due') && nextByKind('dues').length) && !(has.needs('votes') && nextByKind('poll').length) && !(has.needs('my-requests') && homeRequests.length)"
-                    class="px-4 py-3 text-sm t-text-muted"
-                  >
-                    Nothing needs you right now.
-                  </li>
-                </ul>
-              </AppCard>
-              <AppButton
-                v-if="has.acts('new-request-sheet') && isEnabled('requests')"
-                variant="outline"
-                size="sm"
-                data-testid="home-new-request"
-                @click="showNewRequest = true"
-              >
-                <Icon name="i-lucide-plus" class="mr-1.5 h-4 w-4" />
-                New request
-              </AppButton>
-            </div>
-          </template>
-
-          <template #glance>
-            <HomeManagerGlance v-if="has.glance('community-load')" :role-context="roleContext" />
-            <HomeBoardGlance v-if="has.glance('arrears-meter')" />
-            <HomeTeamGlance v-if="has.glance('team-ring')" :tasks="myTasks" />
-            <div v-if="memberGlance" class="space-y-3">
-              <h2 v-if="!otherGlance" class="t-eyebrow">At a glance</h2>
-              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <AppCard v-if="has.glance('paid-ring') && isEnabled('payments')" class="flex items-center gap-4 p-4" data-testid="home-paid-ring">
-                  <AppChartRing :value="paidYear.paid" :max="paidYear.charged || 1" :size="84" label="Paid this year" />
-                  <div>
-                    <p class="text-sm font-medium t-text">Paid this year</p>
-                    <p class="text-xs t-text-muted">{{ fmtMoney(paidYear.paid) }} of {{ fmtMoney(paidYear.charged) }}</p>
-                  </div>
-                </AppCard>
-                <AppCard v-if="has.glance('balance-sparkline') && isEnabled('payments')" class="p-4" data-testid="home-balance-spark">
-                  <p class="text-sm font-medium t-text">Balance, last 12 months</p>
-                  <AppChartSparkline :values="balancePoints" :width="220" :height="40" label="Balance owed, last 12 months" />
-                </AppCard>
-                <AppCard v-if="has.glance('next-meeting') && nextMeeting" class="p-4" data-testid="home-next-meeting">
-                  <p class="t-eyebrow mb-1">Next meeting</p>
-                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
-                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
-                  <AppButton v-if="has.acts('rsvp')" class="mt-3" size="sm" variant="outline" @click="navigateToOrg('/meetings')">RSVP</AppButton>
-                </AppCard>
-                <AppCard
-                  v-if="has.glance('request-status-track') && homeRequests.length"
-                  class="space-y-4 p-4 sm:col-span-2"
-                  data-testid="home-status-tracks"
-                >
-                  <div v-for="r in homeRequests" :key="r.id">
-                    <p class="mb-2 truncate text-sm font-medium t-text">{{ r.title }}</p>
-                    <AppChartStatusTrack :steps="[...REQUEST_STEPS]" :current="requestTrackKey(r.status)" />
-                  </div>
-                </AppCard>
-                <AppCard v-if="has.glance('next-event') && nextMeeting && !has.glance('next-meeting')" class="p-4" data-testid="home-next-event">
-                  <p class="t-eyebrow mb-1">Next in your building</p>
-                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
-                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
-                </AppCard>
-              </div>
-            </div>
-          </template>
-
-          <template #feed><span class="hidden" /></template>
-        </HomePage>
-        <HomeUpNext v-else :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
-
-        <HomePaySheet :charge-id="payingCharge" @close="payingCharge = null" @paid="onHomePaid" />
-        <HomeVoteSheet :poll-id="votingPoll" @close="votingPoll = null" @voted="refreshUpNext()" />
-
-        <AppBottomSheet v-model:open="showNewRequest" title="New request">
-          <RequestsRequestForm
-            :organization-id="selectedOrgId"
-            :allowed-types="['question', 'maintenance', 'arc', 'complaint']"
-            @created="onRequestCreated"
-            @cancel="showNewRequest = false"
-          />
-        </AppBottomSheet>
-
-        <!-- Board Member Stats (only for board members) -->
-        <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <AppStatCard
-            title="Total Members"
-            :value="memberStats?.total || 0"
-            description="Active community members"
-            icon="i-lucide-users"
-          />
-          <AppStatCard
-            title="Owners"
-            :value="memberStats?.owners || 0"
-            description="Property owners"
-            icon="i-lucide-home"
-          />
-          <AppStatCard
-            title="Residents"
-            :value="memberStats?.tenants || 0"
-            description="Tenants"
-            icon="i-lucide-users-round"
-          />
-        </div>
-
+        <DefineNewsCards>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Recent Announcements -->
           <AppCard>
@@ -906,6 +754,168 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
             </CardContent>
           </AppCard>
         </div>
+        </DefineNewsCards>
+        <!-- Role home (§5): Needs you · At a glance · What's new. The feed band holds
+             the announcements and documents cards (NewsCards); with no role home
+             they render below instead. -->
+        <HomePage
+          v-if="homeBands.roles.length"
+          :role-context="roleContext"
+          :organization-id="selectedOrgId"
+          data-testid="member-home"
+        >
+          <template #needs>
+            <HomeManagerQueue v-if="has.needs('delegated-queue')" :role-context="roleContext" />
+            <HomeBoardNeeds v-if="has.needs('approvals')" />
+            <HomeAckPending v-if="roleContext.hats.board" :organization-id="orgId" />
+            <HomeFormTracking v-if="roleContext.hats.board" :organization-id="orgId" />
+            <HomeAcknowledge :organization-id="orgId" :swipe="has.acts('swipe-acknowledge')" />
+            <HomeSignForms :organization-id="orgId" />
+            <div v-if="has.needs('my-tasks')" class="space-y-3">
+              <HomeTeamNeeds :tasks="myTasks" @done="() => refreshTasks()" />
+              <HomeTeamQueue v-if="has.needs('area-queue')" :role-context="roleContext" />
+            </div>
+            <div v-if="memberNeeds" class="space-y-3">
+              <h2 v-if="!otherNeeds" class="t-eyebrow">Needs you</h2>
+              <AppCard class="overflow-hidden py-0">
+                <ul class="divide-y">
+                  <li v-for="item in nextByKind('dues')" v-show="has.needs('balance-due')" :key="item.key">
+                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-balance-due">
+                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
+                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
+                      </span>
+                      <AppButton v-if="has.acts('pay-sheet')" size="sm" @click="payingCharge = idOf(item.key)">Pay</AppButton>
+                    </div>
+                  </li>
+                  <li v-for="item in nextByKind('poll')" v-show="has.needs('votes')" :key="item.key">
+                    <div class="flex w-full items-center gap-3 px-4 py-3" data-testid="home-vote">
+                      <Icon :name="item.icon" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1">
+                        <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
+                        <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
+                      </span>
+                      <AppButton v-if="has.acts('vote-in-card')" size="sm" variant="outline" @click="votingPoll = idOf(item.key)">Vote</AppButton>
+                    </div>
+                  </li>
+                  <li v-for="r in homeRequests" v-show="has.needs('my-requests')" :key="r.id">
+                    <NuxtLink
+                      :to="buildOrgPath(`/requests/${r.id}`)"
+                      class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
+                      data-testid="home-request"
+                    >
+                      <Icon name="i-lucide-wrench" class="h-4 w-4 shrink-0 t-text-muted" />
+                      <span class="min-w-0 flex-1 truncate text-sm font-medium t-text">{{ r.title }}</span>
+                      <Icon name="i-lucide-chevron-right" class="h-4 w-4 shrink-0 t-text-muted" />
+                    </NuxtLink>
+                  </li>
+                  <li
+                    v-if="!has.needs('approvals') && !(has.needs('balance-due') && nextByKind('dues').length) && !(has.needs('votes') && nextByKind('poll').length) && !(has.needs('my-requests') && homeRequests.length)"
+                    class="px-4 py-3 text-sm t-text-muted"
+                  >
+                    Nothing needs you right now.
+                  </li>
+                </ul>
+              </AppCard>
+              <AppButton
+                v-if="has.acts('new-request-sheet') && isEnabled('requests')"
+                variant="outline"
+                size="sm"
+                data-testid="home-new-request"
+                @click="showNewRequest = true"
+              >
+                <Icon name="i-lucide-plus" class="mr-1.5 h-4 w-4" />
+                New request
+              </AppButton>
+            </div>
+          </template>
+
+          <template #glance>
+            <HomeManagerGlance v-if="has.glance('community-load')" :role-context="roleContext" />
+            <HomeBoardGlance v-if="has.glance('arrears-meter')" />
+            <HomeTeamGlance v-if="has.glance('team-ring')" :tasks="myTasks" />
+            <div v-if="memberGlance" class="space-y-3">
+              <h2 v-if="!otherGlance" class="t-eyebrow">At a glance</h2>
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <AppCard v-if="has.glance('paid-ring') && isEnabled('payments')" class="flex items-center gap-4 p-4" data-testid="home-paid-ring">
+                  <AppChartRing :value="paidYear.paid" :max="paidYear.charged || 1" :size="84" label="Paid this year" />
+                  <div>
+                    <p class="text-sm font-medium t-text">Paid this year</p>
+                    <p class="text-xs t-text-muted">{{ fmtMoney(paidYear.paid) }} of {{ fmtMoney(paidYear.charged) }}</p>
+                  </div>
+                </AppCard>
+                <AppCard v-if="has.glance('balance-sparkline') && isEnabled('payments')" class="p-4" data-testid="home-balance-spark">
+                  <p class="text-sm font-medium t-text">Balance, last 12 months</p>
+                  <AppChartSparkline :values="balancePoints" :width="220" :height="40" label="Balance owed, last 12 months" />
+                </AppCard>
+                <AppCard v-if="has.glance('next-meeting') && nextMeeting" class="p-4" data-testid="home-next-meeting">
+                  <p class="t-eyebrow mb-1">Next meeting</p>
+                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
+                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
+                  <AppButton v-if="has.acts('rsvp')" class="mt-3" size="sm" variant="outline" @click="navigateToOrg('/meetings')">RSVP</AppButton>
+                </AppCard>
+                <AppCard
+                  v-if="has.glance('request-status-track') && homeRequests.length"
+                  class="space-y-4 p-4 sm:col-span-2"
+                  data-testid="home-status-tracks"
+                >
+                  <div v-for="r in homeRequests" :key="r.id">
+                    <p class="mb-2 truncate text-sm font-medium t-text">{{ r.title }}</p>
+                    <AppChartStatusTrack :steps="[...REQUEST_STEPS]" :current="requestTrackKey(r.status)" />
+                  </div>
+                </AppCard>
+                <AppCard v-if="has.glance('next-event') && nextMeeting && !has.glance('next-meeting')" class="p-4" data-testid="home-next-event">
+                  <p class="t-eyebrow mb-1">Next in your building</p>
+                  <p class="text-sm font-medium t-text">{{ nextMeeting.title }}</p>
+                  <p class="text-xs t-text-muted">{{ nextMeeting.sub }}</p>
+                </AppCard>
+              </div>
+            </div>
+          </template>
+
+          <template #feed>
+            <h2 class="t-eyebrow mb-3">What's new</h2>
+            <NewsCards />
+          </template>
+        </HomePage>
+        <HomeUpNext v-else :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
+
+        <HomePaySheet :charge-id="payingCharge" @close="payingCharge = null" @paid="onHomePaid" />
+        <HomeVoteSheet :poll-id="votingPoll" @close="votingPoll = null" @voted="refreshUpNext()" />
+
+        <AppBottomSheet v-model:open="showNewRequest" title="New request">
+          <RequestsRequestForm
+            :organization-id="selectedOrgId"
+            :allowed-types="['question', 'maintenance', 'arc', 'complaint']"
+            @created="onRequestCreated"
+            @cancel="showNewRequest = false"
+          />
+        </AppBottomSheet>
+
+        <!-- Board Member Stats (only for board members) -->
+        <div v-if="isBoardMember" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <AppStatCard
+            title="Total Members"
+            :value="memberStats?.total || 0"
+            description="Active community members"
+            icon="i-lucide-users"
+          />
+          <AppStatCard
+            title="Owners"
+            :value="memberStats?.owners || 0"
+            description="Property owners"
+            icon="i-lucide-home"
+          />
+          <AppStatCard
+            title="Residents"
+            :value="memberStats?.tenants || 0"
+            description="Tenants"
+            icon="i-lucide-users-round"
+          />
+        </div>
+
+        <NewsCards v-if="!homeBands.roles.length" />
 
         <!-- Portal sections — where to go next, AFTER what is happening.
              This used to open the Overview tab, so a resident signing in was met

@@ -51,7 +51,7 @@ if (home.value && !isManagerHome.value) await navigateTo(buildOrgPath(home.value
       <HomePage :role-context="roleContext" data-testid="manager-home">
         <template #needs><HomeManagerQueue :role-context="roleContext" /></template>
         <template #glance><HomeManagerGlance :role-context="roleContext" /></template>
-        <template #feed><span class="hidden" /></template>
+        <template #feed><HomeWhatsNew /></template>
       </HomePage>
     </PageContainer>
     <PageContainer v-else>

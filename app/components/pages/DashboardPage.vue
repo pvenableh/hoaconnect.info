@@ -342,7 +342,7 @@ const ambientVariant = computed<"waves" | "orbs">(() =>
                     <HomeStacks :organization-id="selectedOrgId" :channels="channels || []" />
                   </template>
                   <template #glance><HomeGlanceRail /></template>
-                  <template #feed><span class="hidden" /></template>
+                  <template #feed><HomeWhatsNew :organization-id="selectedOrgId" /></template>
                 </HomePage>
                 <HomeChartRail class="mt-4 xl:mt-0" />
               </div>

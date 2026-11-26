@@ -25,11 +25,14 @@ export const useManagerHome = (roleContext: Ref<RoleContext | null | undefined>)
   const requestItems = useDirectusItems<any>("hoa_requests");
   const memberItems = useDirectusItems<any>("hoa_members");
 
-  const { data, pending } = useAsyncData(
+  const { data, status } = useAsyncData(
     () => `manager-home-${orgId.value}`,
     async () => (await list({}, ["date_created"])) as unknown as ManagerRequest[],
     { watch: [orgId], server: false, default: () => [] as ManagerRequest[] },
   );
+  // server: false renders "idle" on the server: count it as loading, or the
+  // server's empty line and the client's loading line disagree at hydration.
+  const pending = computed(() => status.value === "idle" || status.value === "pending");
 
   const canWork = (area: AreaKey) => !!roleContext.value?.areas?.[area]?.canWork;
   const workable = computed(() => AREA_KEYS.filter((k) => k === "inquiries" || k === "violations").filter(canWork));
