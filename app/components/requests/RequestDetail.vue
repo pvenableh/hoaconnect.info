@@ -14,18 +14,41 @@ const props = withDefaults(
     isBoard?: boolean;
     isSubmitter?: boolean;
     isAssignee?: boolean;
+    /**
+     * "area": the manage pages (/manage/inquiries), read and written through
+     * the inquiries routes (useInquiries) so a helper or committee holding the
+     * area works it with the app's token (docs/spec-delegation.md). The page
+     * passes the linked channel it read with the request.
+     */
+    via?: "directus" | "area";
+    channel?: { id: string; name: string; slug: string } | null;
   }>(),
-  { isBoard: false, isSubmitter: false, isAssignee: false }
+  { isBoard: false, isSubmitter: false, isAssignee: false, via: "directus", channel: null }
 );
 
 const emit = defineEmits<{ (e: "updated"): void }>();
 
 const { applyTransition, updateRequest, currentState, createRequest } = useRequests();
+const inquiries = useInquiries();
 const { buildOrgPath } = useOrgNavigation();
 const { isEnabled } = useModules();
 const { list: listChannels } = useDirectusItems("hoa_channels");
+const access = useCurrentDomainAccess();
 
+const area = computed(() => props.via === "area");
 const channelsEnabled = computed(() => isEnabled("channels"));
+// On the manage pages a channel is started and read by admins and board
+// seats only (/api/hoa/channels/create); a helper or manager who is neither
+// keeps the ticket, its task and its thread. Promoting needs the Projects area.
+const channelsAllowed = computed(
+  () => !area.value || access.isAdminOfCurrentDomain.value || access.isBoardMemberOfCurrentDomain.value
+);
+const canPromote = computed(() => !area.value || access.canWorkArea("projects"));
+// The thread's staff view (internal notes, moderation): a helper reads it as
+// the member they are; admins, board seats and managers as staff.
+const threadAsBoard = computed(
+  () => props.isBoard && (!area.value || channelsAllowed.value || access.isPropertyManagerOfCurrentDomain.value)
+);
 
 const local = ref<RequestRow>({ ...props.request });
 watch(
@@ -80,8 +103,12 @@ const personName = (p: RequestRow["assigned_to"]) => {
 const doTransition = async (to: string, label: string) => {
   transitioning.value = true;
   try {
-    await applyTransition(local.value, to, label);
+    if (area.value) await inquiries.transition(local.value.id, to);
+    else await applyTransition(local.value, to, label);
     emit("updated");
+  } catch (e: any) {
+    if (!area.value) throw e;
+    toast.error(e?.data?.message || "Could not change the status");
   } finally {
     transitioning.value = false;
   }
@@ -90,10 +117,15 @@ const doTransition = async (to: string, label: string) => {
 const saveMetadata = async () => {
   savingMeta.value = true;
   try {
-    await updateRequest(local.value.id, {
-      metadata: { ...(local.value.metadata || {}), ...metaEdit.value },
-    } as Partial<RequestRow>);
+    if (area.value) await inquiries.saveDetails(local.value.id, metaEdit.value);
+    else
+      await updateRequest(local.value.id, {
+        metadata: { ...(local.value.metadata || {}), ...metaEdit.value },
+      } as Partial<RequestRow>);
     emit("updated");
+  } catch (e: any) {
+    if (!area.value) throw e;
+    toast.error(e?.data?.message || "Could not save the details");
   } finally {
     savingMeta.value = false;
   }
@@ -113,6 +145,10 @@ const authorName = computed(() => personName(props.request.submitted_by));
 const linkedChannel = ref<{ id: string; name: string; slug: string } | null>(null);
 const loadLinkedChannel = async () => {
   if (!channelsEnabled.value) return;
+  if (area.value) {
+    linkedChannel.value = props.channel ?? null;
+    return;
+  }
   try {
     const rows = (await listChannels({
       fields: ["id", "name", "slug"],
@@ -126,7 +162,7 @@ const loadLinkedChannel = async () => {
   }
 };
 onMounted(loadLinkedChannel);
-watch(() => props.request.id, loadLinkedChannel);
+watch(() => [props.request.id, props.channel], loadLinkedChannel);
 
 const showSpawnDialog = ref(false);
 // The linked channel's thread, inline (Phase 7.5): the ticket and its
@@ -173,6 +209,17 @@ const doSpawnChannel = async () => {
 const spawnTask = async () => {
   spawningTask.value = true;
   try {
+    if (area.value) {
+      const task = await inquiries.spawnTask(props.request, {
+        title: `Follow-up: ${props.request.title || "ticket"}`.slice(0, 100),
+        description: props.request.description,
+        member: idOf(props.request.member),
+        unit: idOf(props.request.unit),
+      });
+      toast.success("Task created");
+      await navigateTo(buildOrgPath(`/manage/inquiries/${task.id}`));
+      return;
+    }
     const created: any = await createRequest({
       type: "task",
       title: `Follow-up: ${props.request.title || "ticket"}`.slice(0, 100),
@@ -184,7 +231,7 @@ const spawnTask = async () => {
     toast.success("Task created");
     await navigateTo(buildOrgPath(`/admin/requests/${created.id}`));
   } catch (e: any) {
-    toast.error(e?.message || "Failed to create task");
+    toast.error(e?.data?.message || e?.message || "Failed to create task");
   } finally {
     spawningTask.value = false;
   }
@@ -274,11 +321,12 @@ const doPromote = async () => {
         </AppButton>
       </div>
 
-      <!-- Spawn channel / task (board + admin) -->
+      <!-- Spawn channel / task (board + admin; on the manage pages the task for anyone working the area) -->
       <div
-        v-if="isBoard && channelsEnabled"
+        v-if="isBoard && ((channelsEnabled && channelsAllowed) || area)"
         class="flex flex-wrap gap-2 mt-4 pt-4 border-t t-border"
       >
+        <template v-if="channelsEnabled && channelsAllowed">
         <template v-if="linkedChannel">
           <AppButton
             size="sm"
@@ -310,6 +358,7 @@ const doPromote = async () => {
           <Icon name="lucide:message-square-plus" class="w-3.5 h-3.5 mr-1" />
           Start a channel
         </AppButton>
+        </template>
         <AppButton
           size="sm"
           variant="outline"
@@ -324,7 +373,7 @@ const doPromote = async () => {
 
       <!-- The linked channel, inline -->
       <div
-        v-if="isBoard && channelsEnabled && linkedChannel && showDiscussion && organizationId"
+        v-if="isBoard && channelsEnabled && channelsAllowed && linkedChannel && showDiscussion && organizationId"
         class="mt-4 h-[32rem] ios-card overflow-hidden flex flex-col"
         data-testid="request-discussion"
       >
@@ -344,7 +393,7 @@ const doPromote = async () => {
 
       <!-- Promote to / view linked project (board + admin, projects module on) -->
       <div
-        v-if="isBoard && projectsEnabled"
+        v-if="isBoard && projectsEnabled && canPromote"
         class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t t-border"
       >
         <NuxtLink v-if="linkedProject" :to="buildOrgPath(`/admin/projects/${linkedProject.id}`)">
@@ -449,7 +498,7 @@ const doPromote = async () => {
         :target-collection="'hoa_requests'"
         :target-id="request.id"
         :organization-id="organizationId"
-        :is-board="isBoard"
+        :is-board="threadAsBoard"
         :is-member="true"
         :is-participant="isSubmitter || isAssignee || isBoard"
         title="Activity"

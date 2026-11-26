@@ -115,8 +115,10 @@ beforeEach(() => {
   vi.stubGlobal("refuseIfDirectMessage", async () => {});
   vi.stubGlobal("getOrgChannelEnrollees", async () => [{ user: ME, hoa_member: "m-oscar" }]);
   vi.stubGlobal("logChannelModeration", async (e: any) => void logged.push(e));
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string) => {
+  // manager-create asks requireAreaWork since docs/spec-delegation.md (inquiries, violations).
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string) => {
     if (org !== LENOX) throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
+    return { via: "admin" };
   });
   vi.stubGlobal("getTypedDirectus", () => ({
     request: async (op: any) => {

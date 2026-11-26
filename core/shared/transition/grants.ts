@@ -47,7 +47,7 @@
  * as well as viewing: an area names a responsibility, not a verb.
  */
 export const AREAS = [
-  { key: "inquiries", label: "Inquiries", gate: "app/pages/[slug]/manage/inquiries/index.vue" },
+  { key: "inquiries", label: "Inquiries", gate: "core/server/utils/area-requests.ts" },
   { key: "violations", label: "Violations", gate: "app/pages/[slug]/manage/inquiries/index.vue" },
   { key: "directory", label: "Directory", gate: "core/server/utils/change-request-access.ts" },
   { key: "documents", label: "Documents", gate: "core/server/utils/governing-access.ts" },

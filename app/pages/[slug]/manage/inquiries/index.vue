@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * Manager inquiries queue. Read-access comes from the Property Manager policy;
- * creating a violation is gated server-side (/api/hoa/requests/manager-create
- * checks the "violations" grant). Reuses the shared request list components.
+ * Manager inquiries queue. The list comes from /api/org/inquiries, read with
+ * the app's token behind the "inquiries" area, so a helper or committee holding
+ * it sees what a manager sees (docs/spec-delegation.md). Creating a violation is
+ * gated server-side (/api/hoa/requests/manager-create checks the "violations"
+ * area). Reuses the shared request list components.
  */
 import { requestTypeList, getWorkflow, getStateMeta } from "#core/app/config/requestWorkflows";
 import { toast } from "vue-sonner";
@@ -22,7 +24,7 @@ definePageMeta({
 
 const { buildOrgPath } = useOrgNavigation();
 const { selectedOrgId } = await useSelectedOrg();
-const { list } = useRequests();
+const { list } = useInquiries();
 const { managerCan } = useCurrentDomainAccess();
 const membersApi = useDirectusItems("hoa_members");
 
@@ -32,7 +34,7 @@ const statusFilter = ref<string>("open");
 
 const { data: requests, pending, refresh } = await useAsyncData(
   `manage-inquiries-${selectedOrgId.value}`,
-  () => list({}, ["-date_updated"]),
+  () => list(),
   { watch: [selectedOrgId], server: false }
 );
 

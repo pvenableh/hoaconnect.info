@@ -8,6 +8,10 @@
 import type { HelperAreaKey } from "./area-grants";
 
 export const HELPER_AREA_COPY: Readonly<Record<HelperAreaKey, { label: string; desc: string }>> = {
+  inquiries: {
+    label: "Inquiries",
+    desc: "See every resident request, move it along, edit its details and spawn follow-up tasks. Internal notes and discussion channels stay with admins, the board and managers.",
+  },
   directory: {
     label: "Directory",
     desc: "See every active member's email and phone, and approve or decline their contact, address, vehicle and pet changes. Editing members stays with admins.",

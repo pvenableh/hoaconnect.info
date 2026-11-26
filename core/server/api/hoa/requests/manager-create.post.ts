@@ -9,19 +9,22 @@ const idOf = (v: any): string | null =>
  * Property managers have no direct `create` on hoa_requests (their policy is
  * read + update only). Creating a request — chiefly a violation — is a gated
  * action: a violation requires the per-manager "violations" grant; any other
- * type requires the "inquiries" grant. Org admins are always allowed. The
+ * type requires the "inquiries" grant. Org admins are always allowed, and so
+ * is a helper or committee holding the area (requireAreaWork,
+ * docs/spec-delegation.md). The
  * client passes an already-formed payload (status/metadata computed from the
  * shared requestWorkflows config); the server stamps organization + submitted_by
  * and authorizes. The `unit` and `member` the body names must be rows of that
  * same organization (the write is on the admin client, so this route is the
- * only thing stopping a request in A from pointing at B's unit or member).
+ * only thing stopping a request in A from pointing at B's unit or member), and
+ * so must a `parent_request` (a follow-up task spawned from a ticket).
  *
  * `attachments` are NOT org-checked here: the request form uploads them as plain
  * files with no folder and no owning row, so nothing can prove which community
  * they belong to, and refusing them would refuse legitimate uploads.
  *
  * Body: { organization, type, title, status, description?, priority?, category?,
- *         unit?, member?, due_date?, attachments?, metadata? }
+ *         unit?, member?, due_date?, attachments?, metadata?, parent_request? }
  */
 export default defineEventHandler(async (event) => {
   const body = await readBody(event);
@@ -38,6 +41,7 @@ export default defineEventHandler(async (event) => {
     due_date,
     attachments,
     metadata,
+    parent_request,
   } = body || {};
 
   if (!organization || !type || !title) {
@@ -48,7 +52,7 @@ export default defineEventHandler(async (event) => {
 
   // Violations need the "violations" grant; everything else the "inquiries" grant.
   const grantKey = type === "violation" ? "violations" : "inquiries";
-  await requireAdminOrManagerGrant(event, organization, grantKey);
+  await requireAreaWork(event, organization, grantKey);
 
   const directus = getTypedDirectus();
 
@@ -56,6 +60,7 @@ export default defineEventHandler(async (event) => {
   for (const [collection, id, label] of [
     ["hoa_units", unit, "unit"],
     ["hoa_members", member, "member"],
+    ["hoa_requests", parent_request, "request"],
   ] as const) {
     if (!id) continue;
     const rows = (await directus.request(
@@ -88,6 +93,7 @@ export default defineEventHandler(async (event) => {
       due_date: due_date || null,
       attachments: attachments?.length ? attachments : null,
       metadata: metadata || null,
+      ...(parent_request ? { parent_request } : {}),
     } as any)
   );
 

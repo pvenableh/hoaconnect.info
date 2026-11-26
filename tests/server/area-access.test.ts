@@ -68,7 +68,7 @@ describe("getHelperAreas", () => {
       row({ member: ID.memberBob, ends_at: "2026-02-01T00:00:00.000Z" }),
       row({ member: ID.memberBob, area: "feedback", starts_at: "2999-01-01T00:00:00.000Z" }),
       row({ member: ID.memberBob, area: "documents", organization: OTHER }),
-      row({ member: ID.memberBob, area: "inquiries" }),
+      row({ member: ID.memberBob, area: "activity" }),
       row({ member: ID.memberBob, area: "communications" })
     );
     expect(await helps()).toEqual([]);
@@ -92,12 +92,12 @@ describe("getHelperAreas", () => {
 
 describe("the gates", () => {
   beforeEach(() => {
-    state.db.hoa_area_grants!.push(row({ member: ID.memberBob, area: "projects" }), row({ member: ID.memberBob, area: "inquiries" }));
+    state.db.hoa_area_grants!.push(row({ member: ID.memberBob, area: "projects" }), row({ member: ID.memberBob, area: "activity" }));
   });
 
   it("requireAreaWork admits a helper for their area, and no other", async () => {
     expect(await access.requireAreaWork(ev(), ORG, "projects")).toEqual({ via: "helper" });
-    await expect(access.requireAreaWork(ev(), ORG, "inquiries")).rejects.toMatchObject({ statusCode: 403 });
+    await expect(access.requireAreaWork(ev(), ORG, "activity")).rejects.toMatchObject({ statusCode: 403 });
     await expect(access.requireAreaWork(ev(), ORG, "documents")).rejects.toMatchObject({ statusCode: 403 });
   });
 
@@ -135,7 +135,7 @@ describe("the gates", () => {
     expect(g.manager).toBeNull();
     expect(g.helps).toEqual(["projects"]);
     expect(g.areas.projects).toBe(true);
-    expect(g.areas.inquiries).toBe(false);
+    expect(g.areas.activity).toBe(false);
   });
 });
 

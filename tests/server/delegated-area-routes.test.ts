@@ -6,7 +6,7 @@
  * nobody without the area gets in. Run against the in-memory Directus.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { ID, ORG, PERSONAS, ev, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
+import { ID, ORG, OTHER, PERSONAS, ev, seed, stubGlobals, uuid, type Db, type Who } from "./__fixtures__/responsibilities-db";
 
 vi.mock("@directus/sdk", async () => (await import("./__fixtures__/responsibilities-db")).sdkMock());
 
@@ -100,5 +100,104 @@ describe("change requests (directory approvals)", () => {
     expect(await isChangeReviewer(ev(), ORG)).toBe(false);
     state.who = PERSONAS.manager;
     expect(await isChangeReviewer(ev(), ORG)).toBe(true);
+  });
+});
+
+describe("inquiries routes", () => {
+  const REQ = uuid(911);
+  const REQ_OTHER = uuid(912);
+  let list: (e: any) => Promise<any>;
+  let one: (e: any) => Promise<any>;
+  let patch: (e: any) => Promise<any>;
+  let transition: (e: any) => Promise<any>;
+  let create: (e: any) => Promise<any>;
+  const notify = vi.fn(async () => null);
+
+  beforeAll(async () => {
+    vi.stubGlobal("notifyReminderEvent", notify);
+    vi.stubGlobal("requireAuthenticatedUser", async () => {
+      if (!state.who.userId) throw Object.assign(new Error("Unauthorized"), { statusCode: 401 });
+      return { userId: state.who.userId };
+    });
+    list = (await import("#core/server/api/org/inquiries/index.get")).default as any;
+    one = (await import("#core/server/api/org/inquiries/[id].get")).default as any;
+    patch = (await import("#core/server/api/org/inquiries/[id].patch")).default as any;
+    transition = (await import("#core/server/api/org/inquiries/[id]/transition.post")).default as any;
+    create = (await import("#core/server/api/hoa/requests/manager-create.post")).default as any;
+  });
+
+  beforeEach(() => {
+    notify.mockClear();
+    state.db.hoa_requests = [
+      { id: REQ, organization: ORG, type: "maintenance", title: "Leak", status: "open", submitted_by: ID.userAnn, metadata: { workflow_state: "open", location: "3B" }, date_updated: "2026-11-20T00:00:00Z" },
+      { id: REQ_OTHER, organization: OTHER, type: "maintenance", title: "Elsewhere", status: "open", metadata: null },
+    ];
+    state.db.hoa_channels = [{ id: "ch-1", organization: ORG, request: REQ, name: "Ticket: Leak", slug: "ticket-leak" }];
+    state.db.hoa_comments = [];
+  });
+
+  it("refuse without a session, an orgId or the inquiries area", async () => {
+    await refusals((o) => list(ev(o)), { query: { orgId: ORG } }, "inquiries");
+    await refusals((o) => one(ev(o)), { query: { orgId: ORG }, params: { id: REQ } }, "inquiries");
+    await refusals((o) => patch(ev(o)), { body: { orgId: ORG, details: { location: "4C" } }, params: { id: REQ } }, "inquiries");
+    await refusals((o) => transition(ev(o)), { body: { orgId: ORG, to: "assigned" }, params: { id: REQ } }, "inquiries");
+    expect(state.db.hoa_requests![0].metadata.location).toBe("3B");
+    expect(state.db.hoa_requests![0].status).toBe("open");
+  });
+
+  it("a helper holding inquiries lists this community's requests, and reads one with its channel", async () => {
+    state.who = helper("inquiries");
+    const { requests } = await list(ev({ query: { orgId: ORG } }));
+    expect(requests.map((r: any) => r.id)).toEqual([REQ]);
+    const res = await one(ev({ query: { orgId: ORG }, params: { id: REQ } }));
+    expect(res.request.title).toBe("Leak");
+    expect(res.channel).toMatchObject({ slug: "ticket-leak" });
+  });
+
+  it("another community's request is a 404 on every route", async () => {
+    state.who = helper("inquiries");
+    await expect(one(ev({ query: { orgId: ORG }, params: { id: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(patch(ev({ body: { orgId: ORG, details: { location: "x" } }, params: { id: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    await expect(transition(ev({ body: { orgId: ORG, to: "assigned" }, params: { id: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 404 });
+    expect(state.db.hoa_requests![1].metadata).toBeNull();
+  });
+
+  it("save details writes the workflow's detail fields only", async () => {
+    state.who = helper("inquiries");
+    const res = await patch(ev({ body: { orgId: ORG, details: { location: "4C", vendor: "Acme", workflow_state: "closed", junk: 1 } }, params: { id: REQ } }));
+    expect(res.request.metadata).toEqual({ workflow_state: "open", location: "4C", vendor: "Acme" });
+    await expect(patch(ev({ body: { orgId: ORG, details: "nope" }, params: { id: REQ } }))).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("a transition writes the status from the workflow, posts the note, and tells the submitter when it is news", async () => {
+    state.who = helper("inquiries");
+    const res = await transition(ev({ body: { orgId: ORG, to: "assigned" }, params: { id: REQ } }));
+    const row = state.db.hoa_requests![0];
+    expect(row.status).toBe("in_progress");
+    expect(row.metadata).toMatchObject({ workflow_state: "assigned", location: "3B" });
+    expect(row.metadata.status_changed_at).toBeTruthy();
+    expect(state.db.hoa_comments).toHaveLength(1);
+    expect(state.db.hoa_comments![0]).toMatchObject({ target_collection: "hoa_requests", target_id: REQ, organization: ORG, is_internal: false });
+    expect(state.db.hoa_comments![0].body).toContain("Assign");
+    expect(res).toMatchObject({ label: "Assign", commentId: state.db.hoa_comments![0].id, announce: false });
+    expect(notify).toHaveBeenCalledWith(ORG, { collection: "hoa_requests", id: REQ }, "status");
+  });
+
+  it("a move the workflow does not allow from where it stands is a 409 and writes nothing", async () => {
+    state.who = helper("inquiries");
+    await expect(transition(ev({ body: { orgId: ORG, to: "closed" }, params: { id: REQ } }))).rejects.toMatchObject({ statusCode: 409 });
+    await expect(transition(ev({ body: { orgId: ORG }, params: { id: REQ } }))).rejects.toMatchObject({ statusCode: 400 });
+    expect(state.db.hoa_requests![0].status).toBe("open");
+    expect(state.db.hoa_comments).toHaveLength(0);
+  });
+
+  it("a follow-up task: a helper holding inquiries creates it under this community's ticket, never another's", async () => {
+    state.who = helper("inquiries");
+    const body = { organization: ORG, type: "task", title: "Follow-up: Leak", status: "open", parent_request: REQ };
+    const { request } = await create(ev({ body }));
+    expect(state.db.hoa_requests!.find((r) => r.id === request.id)).toMatchObject({ type: "task", parent_request: REQ, submitted_by: state.who.userId });
+    await expect(create(ev({ body: { ...body, parent_request: REQ_OTHER } }))).rejects.toMatchObject({ statusCode: 403 });
+    state.who = helper("projects");
+    await expect(create(ev({ body }))).rejects.toMatchObject({ statusCode: 403 });
   });
 });

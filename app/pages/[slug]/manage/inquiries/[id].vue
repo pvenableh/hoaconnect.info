@@ -9,15 +9,18 @@ const route = useRoute();
 const { buildOrgPath } = useOrgNavigation();
 const { user } = useDirectusAuth();
 const { selectedOrgId } = await useSelectedOrg();
-const { getOne } = useRequests();
+const { getOne } = useInquiries();
 
 const requestId = computed(() => route.params.id as string);
 
-const { data: request, pending, refresh } = await useAsyncData(
+// Through /api/org/inquiries/:id (docs/spec-delegation.md): a helper holding
+// the area reads it with the app's token, as a manager does.
+const { data, pending, refresh } = await useAsyncData(
   `manage-inquiry-${requestId.value}`,
-  () => getOne(requestId.value),
+  () => getOne(requestId.value).catch(() => null),
   { watch: [requestId], server: false }
 );
+const request = computed(() => data.value?.request ?? null);
 
 const submittedById = computed(() => {
   const s = request.value?.submitted_by;
@@ -43,6 +46,8 @@ const isAssignee = computed(() => !!user.value?.id && assignedById.value === use
         :request="request"
         :organization-id="selectedOrgId"
         :is-board="true"
+        via="area"
+        :channel="data?.channel ?? null"
         :is-submitter="isSubmitter"
         :is-assignee="isAssignee"
         @updated="refresh"
