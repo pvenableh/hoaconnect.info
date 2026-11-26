@@ -36,8 +36,8 @@ and waits on Stripe dashboard steps.
 6. 👤 **Demos and pilots** — look over the re-seeded `/demo` and `/demo-classic`, delete the
    transition fixture after its AI check, turn reminders on per pilot community.
 7. **Code gaps** (no operator needed):
-   - Tests for the AI chat route (`api/ai/chat.post.ts`) and retrieval (`ledger-retrieve`,
-     `ledger-index`); the landing builder's save route and UI.
+   - Tests for the landing builder's UI. (Its Save has no server route: it writes to
+     Directus from the client, gated by `/api/hoa/find`'s `admin_view`, which is tested.)
    - Delegation covers documents, feedback, projects and responsibilities; inquiries,
      violations, directory, communications and meetings need routes first.
    - Directus-side enforcement of comment/reaction rules lives in `scripts/lib/*` and
@@ -271,9 +271,11 @@ Re-checked 2026-11-26.
 - ~~Legacy `tailwind.config.js`~~ — deleted (c985707c, 2026-08-21).
 - Tests: the money path is now covered (`paymentintent`, `connect-endpoints`, `stripe-webhook`,
   `stripe-webhook-replay`, `stripe-mode`, `billing-band-route`, `signup-band`, `band-prices`,
-  `reband`, `billing-engine`, …), as are channels, requests and projects. **Still untested:**
-  the AI chat route and retrieval (`api/ai/chat.post.ts`, `ledger-retrieve`, `ledger-index`;
-  the helpers around them are tested) and the landing builder's save route and UI.
+  `reband`, `billing-engine`, …), as are channels, requests and projects, and now the AI
+  chat route (`ai-chat-route`), ledger retrieval and indexing (`ledger-retrieval`) and the
+  landing builder's AI wizard (`landing-ai-generate`), 2026-11-26. **Still untested:** the
+  landing builder's UI. Its Save writes to Directus from the client (no server route); the
+  `admin_view` gate it relies on is covered in `public-org-fields`.
 - ~~`settings/subscription.vue` predates band pricing~~ — reconciled: the page reads
   `/api/org/billing/band` and subscribes through `/api/stripe/subscribe-band`, which saves
   `stripe_customer_id` before creating the subscription (2a6e2027, 2026-11-05). Only the app's
