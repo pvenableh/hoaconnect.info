@@ -229,7 +229,15 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   const ann = (title: string, content: string, daysAgo: number, pinned = false) =>
     ensure("hoa_announcements", title, { content, status: "published", announcement_type: "general", publish_date: at(-daysAgo, 9), is_pinned: pinned, target_audience: "all" });
   await ann("Welcome to Harborview Lofts", "Pay dues, send requests, vote in polls and see what is happening in the building, all in one place.", 30, true);
-  await ann("Water shut-off Thursday 10am–1pm", "We are replacing the main valve. Please store some water ahead of time.", 5);
+  const waterNotice = await ann("Water shut-off Thursday 10am–1pm", "We are replacing the main valve. Please store some water ahead of time.", 5);
+  // A notice to acknowledge (tenant "Notices", swipe to acknowledge): the due
+  // date moves with the run, so the row is never overdue on a fresh demo.
+  if (!dry && waterNotice !== "DRY") {
+    await dx(`/items/hoa_announcements/${waterNotice}`, { method: "PATCH", body: JSON.stringify({ requires_acknowledgment: true, ack_due: day(3) }) });
+    // Each run puts the row back: drop acknowledgments of this notice by the demo logins.
+    const acks = (await dx(`/items/hoa_acknowledgments${qs({ filter: { announcement: { _eq: waterNotice } }, fields: "id", limit: -1 })}`))?.data ?? [];
+    if (acks.length) await dx("/items/hoa_acknowledgments", { method: "DELETE", body: JSON.stringify(acks.map((a: { id: string }) => a.id)) });
+  }
   await ann("Holiday lobby decorating", "Volunteers welcome Saturday at 2pm. Cocoa provided.", 2);
 
   // ── Meetings: one past with minutes, two coming up ──
@@ -239,11 +247,38 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   await mtg("December board meeting", "scheduled", 12, { agenda: "Budget draft, gutter repair approval, holiday party." });
   await mtg("Annual owners meeting", "scheduled", 55, { type: "annual", agenda: "Board elections and budget vote." });
 
+  // ── A form for owners to sign (owner "Forms to sign"), with its PDF ──
+  const formTitle = "Pet registration 2027";
+  const form = await findOne("hoa_forms", { organization: { _eq: t.orgId }, title: { _eq: formTitle } }, "id");
+  if (form) {
+    if (!dry) await dx(`/items/hoa_forms/${form.id}`, { method: "PATCH", body: JSON.stringify({ status: "open", due_date: day(7) }) });
+  } else {
+    let fileId: string | null = null;
+    if (!dry) {
+      const fd = new FormData();
+      fd.append("title", `${formTitle} (demo)`);
+      fd.append("file", new Blob([demoPdf(formTitle, "Register each pet living in your home for 2027 (demo copy).")], { type: "application/pdf" }), "pet-registration-2027.pdf");
+      fileId = (await dx("/files", { method: "POST", body: fd }))?.data?.id ?? null;
+    }
+    await mut(`hoa_forms: ${formTitle}`, "POST", "/items/hoa_forms", {
+      ...org, title: formTitle, description: "One form per household, so the building knows who lives here.",
+      audience: "owners", status: "open", due_date: day(7), sent_at: at(-2, 9), ...(fileId ? { document: fileId } : {}),
+    });
+  }
+
   // ── Polls the owner can vote in ──
   const poll = (title: string, closesDays: number, options: string[]) =>
     ensure("hoa_polls", title, { status: "open", closes_at: at(closesDays, 17), options: options.map((label, i) => ({ id: `o${i + 1}`, label })) });
-  await poll("Rooftop deck hours", 10, ["Dawn to 10pm", "Dawn to 9pm", "Dawn to 11pm"]);
-  await poll("Add a bike room?", 9, ["Yes", "No"]);
+  const pollIds = [
+    await poll("Rooftop deck hours", 10, ["Dawn to 10pm", "Dawn to 9pm", "Dawn to 11pm"]),
+    await poll("Add a bike room?", 9, ["Yes", "No"]),
+  ].filter((id) => id !== "DRY");
+  // Each run reopens the ballot: drop the demo logins' votes on these polls.
+  if (!dry && pollIds.length) {
+    const users = Object.values(ids).map((x) => x.user);
+    const votes = (await dx(`/items/hoa_poll_votes${qs({ filter: { poll: { _in: pollIds }, user: { _in: users } }, fields: "id", limit: -1 })}`))?.data ?? [];
+    if (votes.length) await dx("/items/hoa_poll_votes", { method: "DELETE", body: JSON.stringify(votes.map((v: { id: string }) => v.id)) });
+  }
 
   // ── Team tasks across this week ──
   const task = (title: string, status: string, dueDays: number, done = false) =>

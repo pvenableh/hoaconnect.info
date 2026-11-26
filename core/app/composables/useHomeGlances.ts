@@ -309,7 +309,7 @@ export async function useUpNextGlance(
   });
   const quietly = async <T>(read: Promise<T>, fallback: T): Promise<T> => read.catch(() => fallback);
 
-  const { data, pending } = await useAsyncData(
+  const { data, pending, refresh } = await useAsyncData(
     `home-up-next-${orgId.value}-${memberId.value}`,
     async () => {
       if (!orgId.value) return empty();
@@ -392,5 +392,5 @@ export async function useUpNextGlance(
     return buildUpNext(d.input, { asOf: new Date(), timeZone: orgTimeZone({ timezone: d.timezone }) });
   });
 
-  return { pending, items };
+  return { pending, items, refresh };
 }

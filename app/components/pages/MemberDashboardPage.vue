@@ -429,11 +429,17 @@ const { data: myTasksData, refresh: refreshTasks } = useAsyncData(
 );
 const myTasks = computed(() => myTasksData.value ?? []);
 
-const { items: upNext } = await useUpNextGlance(() => selectedOrgId.value, {
+const { items: upNext, refresh: refreshUpNext } = await useUpNextGlance(() => selectedOrgId.value, {
   memberId: () => currentOrg.value?.id,
   userId: () => user.value?.id,
 });
 const nextByKind = (kind: string) => upNext.value.filter((i) => i.kind === kind);
+// Pay and vote open over the home (§5 "Acts in place"); the row key carries the id.
+const idOf = (key: string) => key.slice(key.indexOf(":") + 1);
+const payingCharge = ref<string | null>(null);
+const votingPoll = ref<string | null>(null);
+// Stripe confirms by webhook, so read again shortly after (as the payments page does).
+const onHomePaid = () => setTimeout(() => refreshUpNext(), 1500);
 
 const { list: listCharges } = useDirectusItems("payment_requests");
 const { list: listMyRequests } = useDirectusItems("hoa_requests");
@@ -657,7 +663,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                         <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
                         <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
                       </span>
-                      <AppButton v-if="has.acts('pay-sheet')" size="sm" @click="navigateToOrg('/payments')">Pay</AppButton>
+                      <AppButton v-if="has.acts('pay-sheet')" size="sm" @click="payingCharge = idOf(item.key)">Pay</AppButton>
                     </div>
                   </li>
                   <li v-for="item in nextByKind('poll')" v-show="has.needs('votes')" :key="item.key">
@@ -667,7 +673,7 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
                         <span class="block truncate text-sm font-medium t-text">{{ item.title }}</span>
                         <span class="block truncate text-sm t-text-muted">{{ item.sub }}</span>
                       </span>
-                      <AppButton v-if="has.acts('vote-in-card')" size="sm" variant="outline" @click="navigateToOrg(item.route)">Vote</AppButton>
+                      <AppButton v-if="has.acts('vote-in-card')" size="sm" variant="outline" @click="votingPoll = idOf(item.key)">Vote</AppButton>
                     </div>
                   </li>
                   <li v-for="r in homeRequests" v-show="has.needs('my-requests')" :key="r.id">
@@ -748,6 +754,9 @@ function formatBoardTermDate(dateString: string | null | undefined): string {
           <template #feed><span class="hidden" /></template>
         </HomePage>
         <HomeUpNext v-else :org-id="selectedOrgId" :member-id="currentOrg?.id" :user-id="user?.id" />
+
+        <HomePaySheet :charge-id="payingCharge" @close="payingCharge = null" @paid="onHomePaid" />
+        <HomeVoteSheet :poll-id="votingPoll" @close="votingPoll = null" @voted="refreshUpNext()" />
 
         <AppBottomSheet v-model:open="showNewRequest" title="New request">
           <RequestsRequestForm
