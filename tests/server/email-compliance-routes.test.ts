@@ -87,7 +87,7 @@ function stubGlobals() {
     if (!adminOf.includes(org)) throw Object.assign(new Error("403"), { statusCode: 403 });
     return { isAdmin: true };
   });
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, grant: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, grant: string) => {
     if (grant !== "communications" || !grantOf.includes(org)) throw Object.assign(new Error("403"), { statusCode: 403 });
   });
   vi.stubGlobal("useRuntimeConfig", () => ({

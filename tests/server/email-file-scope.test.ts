@@ -132,7 +132,7 @@ function stubGlobals() {
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u-oscar" } }));
   vi.stubGlobal("readBody", async () => h.body);
   // Oscar manages Lenox's communications, and nothing at Birch.
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, grant: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, grant: string) => {
     if (org !== ORG_A || grant !== "communications") throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   });
   vi.stubGlobal("useRuntimeConfig", () => ({

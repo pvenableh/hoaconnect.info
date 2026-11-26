@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   if (!email) throw createError({ statusCode: 404, message: "Email not found" });
   const organizationId = typeof email.organization === "object" ? email.organization?.id : email.organization;
   if (!organizationId) throw createError({ statusCode: 404, message: "Email not found" });
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   if (email.status !== "paused" || !(await emailQueueSchema(directus))) {
     throw createError({ statusCode: 409, message: "This email isn't paused.", data: { code: "not_paused" } });

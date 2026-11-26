@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   // Tenant isolation: the caller must be an admin / communications-manager OF
   // this org. Without this, any signed-in user could read another org's email
   // activity by passing its id. Mirrors the gate on send.post.ts.
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   // The three reads go as one request (email-activity-reads.ts), after the
   // gate: most callers are refused (the home page asks for every member), and

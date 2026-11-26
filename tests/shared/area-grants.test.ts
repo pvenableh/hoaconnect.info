@@ -36,7 +36,7 @@ const row = (over: Partial<AreaGrantRow> = {}): AreaGrantRow => ({
 
 describe("which areas a helper can hold", () => {
   it("is exactly the server-only areas", () => {
-    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "violations", "directory", "documents", "feedback", "projects", "responsibilities"]);
+    expect([...HELPER_AREA_KEYS]).toEqual(["inquiries", "violations", "directory", "documents", "communications", "feedback", "projects", "responsibilities"]);
   });
 
   it("every helper area is grantable and gated by a server file, never a page", () => {
@@ -50,7 +50,7 @@ describe("which areas a helper can hold", () => {
   });
 
   it("the areas that read Directus with the user's token, or are not a neighbour's, are absent", () => {
-    const absent = ["activity", "communications", "contact_platform"];
+    const absent = ["activity", "contact_platform"];
     for (const k of absent) expect(isHelperArea(k), k).toBe(false);
     expect([...NON_HELPER_GRANT_KEYS].sort()).toEqual(absent);
     expect(isHelperArea("vendors")).toBe(false);
@@ -98,7 +98,7 @@ describe("helperAreasFor", () => {
   });
 
   it("ignores a non-helper area and a row with two holders or none", () => {
-    expect(read([row({ area: "activity" }), row({ area: "communications" })])).toEqual([]);
+    expect(read([row({ area: "activity" }), row({ area: "contact_platform" })])).toEqual([]);
     expect(read([row({ team: "t-1" })], ["t-1"])).toEqual([]);
     expect(read([row({ member: null })])).toEqual([]);
   });

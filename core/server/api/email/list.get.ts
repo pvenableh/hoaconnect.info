@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   // The same gate as sending. Until 2026-11-12 any signed-in user could list
   // any community's emails (subjects, dates, counts) by its id.
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   const filter = emailListFilter(organizationId, status);
 

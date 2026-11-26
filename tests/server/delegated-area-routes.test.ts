@@ -275,3 +275,88 @@ describe("violations", () => {
     await expect(create(ev({ body }))).rejects.toMatchObject({ statusCode: 403 });
   });
 });
+
+describe("communications routes", () => {
+  let recipients: (e: any) => Promise<any>;
+  let templates: (e: any) => Promise<any>;
+  let activity: (e: any) => Promise<any>;
+
+  beforeAll(async () => {
+    recipients = (await import("#core/server/api/org/communications/recipients.get")).default as any;
+    templates = (await import("#core/server/api/org/communications/templates.get")).default as any;
+    activity = (await import("#core/server/api/org/communications/activity.get")).default as any;
+  });
+
+  beforeEach(() => {
+    state.db.hoa_members!.find((m) => m.id === ID.memberAnn)!.email = "ann@example.test";
+    state.db.hoa_members!.find((m) => m.id === ID.memberOther)!.email = "oz@example.test";
+    state.db.block_settings = [
+      { id: 1, organization: ORG, cc_bcc_threshold: 8 },
+      { id: 2, organization: OTHER, cc_bcc_threshold: 99 },
+    ];
+    state.db.hoa_email_templates = [
+      { id: "t-own", organization: ORG, status: "published", name: "Ours" },
+      { id: "t-global", organization: null, status: "published", name: "Everyone's" },
+      { id: "t-draft", organization: ORG, status: "draft", name: "Draft" },
+      { id: "t-other", organization: OTHER, status: "published", name: "Theirs" },
+    ];
+    state.db.hoa_email_activity = [
+      { id: "a-1", organization: ORG, event: "delivered", date_created: "2026-11-20T00:00:00Z" },
+      { id: "a-2", organization: ORG, event: "open", date_created: "2026-11-21T00:00:00Z" },
+      { id: "a-3", organization: ORG, event: "open", date_created: "2026-11-22T00:00:00Z" },
+      { id: "a-4", organization: OTHER, event: "open", date_created: "2026-11-22T00:00:00Z" },
+    ];
+    state.db.hoa_emails = [
+      { id: "e-1", organization: ORG, status: "sent", subject: "Water off", sent_at: "2026-11-20T00:00:00Z" },
+      { id: "e-2", organization: ORG, status: "draft", subject: "Draft" },
+      { id: "e-3", organization: OTHER, status: "sent", subject: "Theirs" },
+    ];
+  });
+
+  it("each refuses without a session, an orgId or the communications area", async () => {
+    await refusals((o) => recipients(ev(o)), { query: { orgId: ORG } }, "communications");
+    await refusals((o) => templates(ev(o)), { query: { orgId: ORG } }, "communications");
+    await refusals((o) => activity(ev(o)), { query: { orgId: ORG } }, "communications");
+  });
+
+  it("recipients: this community's active members with an email, and its CC/BCC cutoff", async () => {
+    state.who = helper("communications");
+    const res = await recipients(ev({ query: { orgId: ORG } }));
+    expect(res.members.map((m: any) => m.id)).toEqual([ID.memberAnn]);
+    expect(res.ccBccThreshold).toBe(8);
+  });
+
+  it("templates: the community's published ones and the global ones", async () => {
+    state.who = helper("communications");
+    const res = await templates(ev({ query: { orgId: ORG } }));
+    expect(res.templates.map((t: any) => t.id).sort()).toEqual(["t-global", "t-own"]);
+  });
+
+  it("activity: this community's counts, events and sent emails; later pages carry events only", async () => {
+    state.who = helper("communications");
+    const first = await activity(ev({ query: { orgId: ORG } }));
+    expect(first.counts).toEqual({ total: 3, delivered: 1, open: 2, click: 0, bounce: 0 });
+    expect(first.activities.map((a: any) => a.id).sort()).toEqual(["a-1", "a-2", "a-3"]);
+    expect(first.emails.map((e: any) => e.id)).toEqual(["e-1"]);
+    expect(first.hasMore).toBe(false);
+    const next = await activity(ev({ query: { orgId: ORG, page: 1 } }));
+    expect(next.counts).toBeUndefined();
+    expect(next.emails).toBeUndefined();
+  });
+});
+
+describe("the email routes admit a helper holding communications", () => {
+  it("every /api/email route that gates on communications asks requireAreaWork", async () => {
+    const { readFileSync, readdirSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const walk = (d: string): string[] =>
+      readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : [join(d, f)]));
+    const gated = walk(join(process.cwd(), "core/server/api/email")).filter((f) => readFileSync(f, "utf8").includes('"communications")'));
+    expect(gated.length).toBeGreaterThan(10);
+    for (const f of gated) {
+      const src = readFileSync(f, "utf8");
+      expect(src, f).toContain("requireAreaWork(");
+      expect(src, f).not.toMatch(/requireAdminOrManagerGrant\([^;]*"communications"/);
+    }
+  });
+});

@@ -28,7 +28,7 @@ export default defineEventHandler(async (event) => {
   // Org-gated like save and send: the preview renders this org's branding and
   // board roster.
   if (body?.organizationId) {
-    await requireAdminOrManagerGrant(event, body.organizationId, "communications");
+    await requireAreaWork(event, body.organizationId, "communications");
   }
 
   const {

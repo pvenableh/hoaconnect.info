@@ -2,7 +2,7 @@
  * The public email web view: sent emails for anyone, drafts for senders only,
  * and never script on the app's origin.
  *
- *  - GET /api/email/view/:id — a draft takes requireAdminOrManagerGrant
+ *  - GET /api/email/view/:id — a draft takes requireAreaWork
  *    (communications) on its community; every answer carries a CSP sandbox
  *    with no allow-scripts / allow-same-origin. Until 2026-11-12 drafts were
  *    public and the community's raw HTML ran on the app's origin;
@@ -57,7 +57,7 @@ beforeEach(() => {
   });
   vi.stubGlobal("useRuntimeConfig", () => ({ public: { appUrl: "https://app.test" }, directus: { url: "https://d.test" } }));
   vi.stubGlobal("resolveEmailBranding", () => ({ headerText: null, footerImage: null, homepageUrl: null }));
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, grant: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, grant: string) => {
     if (!canSend || org !== "org-lenox" || grant !== "communications") {
       throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
     }

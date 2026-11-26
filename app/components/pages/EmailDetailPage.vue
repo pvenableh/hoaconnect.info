@@ -17,6 +17,7 @@ const props = defineProps<{
 }>();
 
 const { navigateToOrg } = useOrgNavigation();
+const comms = useCommsBase();
 const emailSystem = useEmailSystem();
 
 // Tab state
@@ -193,7 +194,7 @@ const handleDelete = async () => {
     const wasDraft = email.value?.status === "draft";
     await emailSystem.deleteEmail(props.emailId);
     toast.success(wasDraft ? "Email draft deleted" : "Failed email removed");
-    navigateToOrg("/admin/communications");
+    navigateToOrg(comms.path());
   } catch (error: any) {
     toast.error(error?.data?.message || error.message || "Failed to delete email");
   } finally {
@@ -207,7 +208,7 @@ const canRemove = computed(() => canRemoveEmail(email.value?.status, ((email.val
 
 // Edit draft
 const handleEdit = () => {
-  navigateToOrg(`/admin/communications/compose?id=${props.emailId}`);
+  navigateToOrg(comms.path(`/compose?id=${props.emailId}`));
 };
 
 // "Resend to these N unknown" (core/shared/email/resend-unknown.ts): only for a
@@ -239,7 +240,7 @@ const handleResendUnknown = async () => {
   try {
     const res = await $fetch<{ draftId: string }>(`/api/email/${props.emailId}/resend-unknown`, { method: "POST" });
     toast.success(`Draft ready for ${people}`);
-    navigateToOrg(`/admin/communications/compose?id=${res.draftId}`);
+    navigateToOrg(comms.path(`/compose?id=${res.draftId}`));
   } catch (error: any) {
     toast.error(error?.data?.message || "Couldn't make the draft");
   } finally {
@@ -266,7 +267,7 @@ const handleRetryFailed = async () => {
   try {
     const res = await $fetch<{ draftId: string }>(`/api/email/${props.emailId}/retry-failed`, { method: "POST" });
     toast.success(`Draft ready for ${people}. Review it and send.`);
-    navigateToOrg(`/admin/communications/compose?id=${res.draftId}`);
+    navigateToOrg(comms.path(`/compose?id=${res.draftId}`));
   } catch (error: any) {
     toast.error(error?.data?.message || "Couldn't make the draft");
   } finally {
@@ -276,7 +277,7 @@ const handleRetryFailed = async () => {
 
 // Back to list
 const handleBack = () => {
-  navigateToOrg("/admin/communications");
+  navigateToOrg(comms.path());
 };
 
 // Format helpers

@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { HoaMember, DirectusFile, DirectusFolder, BlockSetting } from "#core/types/directus";
+import type { HoaMember, DirectusFile, DirectusFolder } from "#core/types/directus";
 import type { PickedFile } from "#core/app/composables/useOrgStorage";
 import {
   CC_TOKEN_BOARD,
@@ -34,10 +34,10 @@ const props = defineProps<{
 const { navigateToOrg, buildOrgPath } = useOrgNavigation();
 const emailSystem = useEmailSystem();
 const emailTemplates = useEmailTemplates();
-const { list: listMembers } = useDirectusItems("hoa_members");
-const filesComposable = useDirectusFiles();
-const foldersComposable = useDirectusFolders();
 const orgStorage = useOrgStorage();
+// Under /manage/communications for a manager, helper or committee: the pages
+// navigate there, and saving a template (the admin's Templates page) is hidden.
+const comms = useCommsBase();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
@@ -129,6 +129,9 @@ const recipientFilterOptions = [
   { value: "tenants", label: "Tenants Only", icon: "lucide:key" },
 ] as const;
 
+// Org's small/large cutoff (defaults to 5 until the recipients route answers).
+const ccBccThreshold = ref(DEFAULT_CC_BCC_THRESHOLD);
+
 // Fetch all members for recipient selection
 const { data: allMembers } = await useAsyncData(
   `email-members-${orgId.value}`,
@@ -136,27 +139,15 @@ const { data: allMembers } = await useAsyncData(
     if (!orgId.value) return [];
 
     try {
-      const result = (await listMembers({
-        fields: [
-          "id",
-          "first_name",
-          "last_name",
-          "email",
-          "status",
-          "member_type",
-          // What residencyFor() reads off the unit link. Without these the
-          // composer would still filter on the member's own member_type while
-          // the actual send resolves through the link — two different lists
-          // for one email.
-          ...RESIDENCY_UNIT_FIELDS,
-        ],
-        filter: {
-          organization: { _eq: orgId.value },
-          status: { _eq: "active" },
-          email: { _nnull: true },
-        },
-        sort: ["last_name", "first_name"],
-      })) as HoaMember[];
+      // Through /api/org/communications/recipients (docs/spec-delegation.md):
+      // the active members with an email and the unit links residencyFor()
+      // reads, with the app's token, and the community's CC/BCC cutoff.
+      const res = await $fetch<{ members: HoaMember[]; ccBccThreshold: number | null }>(
+        "/api/org/communications/recipients",
+        { query: { orgId: orgId.value } }
+      );
+      if (res.ccBccThreshold) ccBccThreshold.value = res.ccBccThreshold;
+      const result = res.members;
 
       return result || [];
     } catch (error) {
@@ -293,7 +284,10 @@ const openTemplatePicker = async () => {
   showTemplatePicker.value = true;
   loadingTemplates.value = true;
   try {
-    availableTemplates.value = await emailTemplates.listForOrg(orgId.value);
+    ({ templates: availableTemplates.value } = await $fetch<{ templates: HoaEmailTemplate[] }>(
+      "/api/org/communications/templates",
+      { query: { orgId: orgId.value } }
+    ));
   } catch (e: any) {
     toast.error(e.message || "Failed to load templates");
   } finally {
@@ -373,24 +367,7 @@ const selectedRecipients = computed(() => {
 const recipientCount = computed(() => selectedRecipients.value.length);
 
 // ── CC / BCC ──────────────────────────────────────────────────────────────
-// Org's small/large cutoff (defaults to 5 until the org's setting loads).
-const ccBccThreshold = ref(DEFAULT_CC_BCC_THRESHOLD);
-const { list: listSettings } = useDirectusItems<BlockSetting>("block_settings");
-watchEffect(async () => {
-  if (!orgId.value) return;
-  try {
-    const rows = await listSettings({
-      filter: { organization: { _eq: orgId.value } },
-      fields: ["cc_bcc_threshold"],
-      limit: 1,
-    });
-    const t = Number((rows?.[0] as any)?.cc_bcc_threshold);
-    if (Number.isFinite(t) && t > 0) ccBccThreshold.value = t;
-  } catch {
-    /* keep default */
-  }
-});
-
+// The cutoff (ccBccThreshold) is read with the recipients, above.
 const ccTokenLabel = ccEntryLabel; // expose to template
 const newEmail = reactive<{ cc: string; bcc: string }>({ cc: "", bcc: "" });
 
@@ -508,7 +485,7 @@ const handleSaveDraft = async () => {
       bcc: form.bcc.length > 0 ? form.bcc : undefined,
     });
     toast.success("Draft saved");
-    navigateToOrg("/admin/communications");
+    navigateToOrg(comms.path());
     return result;
   } catch (error: any) {
     toast.error(error.message || "Failed to save draft");
@@ -599,7 +576,7 @@ const handleSend = async () => {
       toast.success(`Email sent to ${delivered} recipients${heldNote}`);
     }
 
-    navigateToOrg("/admin/communications");
+    navigateToOrg(comms.path());
   } catch (error: any) {
     // The server's sentence (a missing mailing address, a newsletter marked
     // essential, everyone selected unsubscribed) beats $fetch's "[POST] …: 400".
@@ -617,7 +594,7 @@ const closeSendProgress = () => {
   sendProgress.stop();
   const id = sendingEmailId.value;
   sendingEmailId.value = null;
-  navigateToOrg(id ? `/admin/communications/${id}` : "/admin/communications");
+  navigateToOrg(id ? comms.path(`/${id}`) : comms.path());
 };
 
 // ---- Scheduling (Phase 9 Stage C) ----
@@ -692,7 +669,7 @@ const handleSchedule = async () => {
       attachmentIds: form.attachmentIds.length > 0 ? form.attachmentIds : undefined,
     });
     toast.success(repeatSentence.value ? `Scheduled. ${repeatSentence.value}` : `Scheduled for ${when.toLocaleString()}`);
-    navigateToOrg("/admin/communications");
+    navigateToOrg(comms.path());
   } catch (error: any) {
     toast.error(error.message || "Failed to schedule email");
   }
@@ -700,7 +677,7 @@ const handleSchedule = async () => {
 
 // Cancel
 const handleCancel = () => {
-  navigateToOrg("/admin/communications");
+  navigateToOrg(comms.path());
 };
 
 // Attachment functions
@@ -714,20 +691,11 @@ const openAttachmentBrowser = async () => {
 const loadAttachmentFilesAndFolders = async () => {
   isLoadingAttachments.value = true;
   try {
-    const filesResult = await filesComposable.listByFolder(
-      currentAttachmentFolder.value,
-      {
-        fields: ["id", "title", "filename_download", "type", "filesize"],
-        sort: ["-created_on"],
-        limit: 100,
-      }
-    );
-    attachmentFiles.value = (filesResult as DirectusFile[]) || [];
-
-    const foldersResult = await foldersComposable.getByParent(
-      currentAttachmentFolder.value
-    );
-    attachmentFolders.value = (foldersResult as DirectusFolder[]) || [];
+    // The community's library through /api/org/storage/list, which scopes it
+    // to the community and the caller's access (docs/spec-delegation.md).
+    const listing = await orgStorage.list({ folderId: currentAttachmentFolder.value, scope: "library", limit: 100 });
+    attachmentFiles.value = (listing.files as unknown as DirectusFile[]) || [];
+    attachmentFolders.value = (listing.folders as unknown as DirectusFolder[]) || [];
   } catch (error) {
     console.error("Failed to load files:", error);
   } finally {
@@ -970,7 +938,7 @@ useSeoMeta({
     <div class="p-6">
       <div class="max-w-5xl mx-auto">
         <AppPageHeader
-          :back-to="buildOrgPath('/admin/communications')"
+          :back-to="buildOrgPath(comms.path())"
           back-label="Communications"
           :title="props.emailId ? 'Edit Email' : 'Compose Email'"
           description="Create and send emails to your HOA members."
@@ -980,7 +948,7 @@ useSeoMeta({
               <Icon name="lucide:layout-template" class="w-4 h-4 mr-2" />
               Start from template
             </AppButton>
-            <AppButton variant="outline" size="sm" @click="openSaveTemplate">
+            <AppButton v-if="!comms.managed.value" variant="outline" size="sm" @click="openSaveTemplate">
               <Icon name="lucide:bookmark-plus" class="w-4 h-4 mr-2" />
               Save as template
             </AppButton>

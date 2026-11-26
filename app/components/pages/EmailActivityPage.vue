@@ -3,13 +3,15 @@ import { toast } from "vue-sonner";
 import type { HoaEmailActivity, HoaEmail } from "#core/types/directus";
 
 const { navigateToOrg } = useOrgNavigation();
-const { isAdmin, isHoaAdmin } = useRoles();
+const { canWorkArea } = useCurrentDomainAccess();
+const comms = useCommsBase();
 
 // Await to ensure org is loaded during SSR
 const { currentOrg, selectedOrgId, isLoading } = await useSelectedOrg();
 
 // Access control
-const hasAccess = computed(() => isAdmin.value || isHoaAdmin.value);
+// Admins, and anyone who works Communications (a manager grant, or a helper or committee).
+const hasAccess = computed(() => canWorkArea("communications"));
 
 // Computed organization from the composable
 const organization = computed(() => currentOrg.value?.organization || null);
@@ -25,7 +27,6 @@ const eventFilter = ref<string>("all");
 const emailFilter = ref<string>("all");
 
 // Pagination state for infinite scroll
-const pageSize = 100;
 const currentPage = ref(0);
 const hasMore = ref(true);
 
@@ -116,51 +117,14 @@ const getPercentage = (loaded: number, total: number): number => {
   return Math.round((loaded / total) * 100);
 };
 
-// Methods
-async function fetchTotalCounts() {
-  if (!orgId.value) return;
-
-  try {
-    const items = useDirectusItems<{ count: number }[]>("hoa_email_activity");
-
-    // Filter by organization
-    const orgFilter = { organization: { _eq: orgId.value } };
-
-    // Fetch aggregate counts for each event type in parallel
-    const [totalResult, deliveredResult, openResult, clickResult, bounceResult] =
-      await Promise.all([
-        items.aggregate({
-          aggregate: { count: ["*"] },
-          filter: orgFilter,
-        }),
-        items.aggregate({
-          aggregate: { count: ["*"] },
-          filter: { ...orgFilter, event: { _eq: "delivered" } },
-        }),
-        items.aggregate({
-          aggregate: { count: ["*"] },
-          filter: { ...orgFilter, event: { _eq: "open" } },
-        }),
-        items.aggregate({
-          aggregate: { count: ["*"] },
-          filter: { ...orgFilter, event: { _eq: "click" } },
-        }),
-        items.aggregate({
-          aggregate: { count: ["*"] },
-          filter: { ...orgFilter, event: { _eq: "bounce" } },
-        }),
-      ]);
-
-    totalCounts.value = {
-      total: (totalResult as any)?.[0]?.count || 0,
-      delivered: (deliveredResult as any)?.[0]?.count || 0,
-      open: (openResult as any)?.[0]?.count || 0,
-      click: (clickResult as any)?.[0]?.count || 0,
-      bounce: (bounceResult as any)?.[0]?.count || 0,
-    };
-  } catch (error: any) {
-    console.error("Failed to fetch counts:", error);
-  }
+// Methods — one route (/api/org/communications/activity, docs/spec-delegation.md)
+// reads the counts, a page of events and the sent emails with the app's token,
+// so a helper holding Communications sees what an admin sees.
+interface ActivityPage {
+  activities: HoaEmailActivity[];
+  hasMore: boolean;
+  emails?: HoaEmail[];
+  counts?: typeof totalCounts.value;
 }
 
 async function fetchActivities(reset = false) {
@@ -177,36 +141,14 @@ async function fetchActivities(reset = false) {
   loadingMore.value = !reset && activities.value.length > 0;
 
   try {
-    const items = useDirectusItems<HoaEmailActivity>("hoa_email_activity");
-
-    const response = await items.list({
-      fields: [
-        "*",
-        "member.first_name",
-        "member.last_name",
-        "member.email",
-        "email_recipient.id",
-        "email_recipient.recipient_email",
-        "email_recipient.email.id",
-        "email_recipient.email.subject",
-      ],
-      filter: {
-        organization: { _eq: orgId.value },
-      },
-      sort: ["-date_created"],
-      limit: pageSize,
-      offset: currentPage.value * pageSize,
+    const res = await $fetch<ActivityPage>("/api/org/communications/activity", {
+      query: { orgId: orgId.value, page: currentPage.value },
     });
-
-    const newActivities = response || [];
-
-    if (reset) {
-      activities.value = newActivities;
-    } else {
-      activities.value = [...activities.value, ...newActivities];
-    }
-
-    hasMore.value = newActivities.length === pageSize;
+    const newActivities = res.activities || [];
+    activities.value = reset ? newActivities : [...activities.value, ...newActivities];
+    if (res.counts) totalCounts.value = res.counts;
+    if (res.emails) emails.value = res.emails;
+    hasMore.value = res.hasMore;
     currentPage.value++;
   } catch (error: any) {
     console.error("Failed to fetch activities:", error);
@@ -214,28 +156,6 @@ async function fetchActivities(reset = false) {
   } finally {
     loading.value = false;
     loadingMore.value = false;
-  }
-}
-
-async function fetchEmails() {
-  if (!orgId.value) return;
-
-  try {
-    const items = useDirectusItems<HoaEmail>("hoa_emails");
-
-    const response = await items.list({
-      fields: ["id", "subject", "status", "sent_at"],
-      filter: {
-        status: { _eq: "sent" },
-        organization: { _eq: orgId.value },
-      },
-      sort: ["-sent_at"],
-      limit: 50,
-    });
-
-    emails.value = response || [];
-  } catch (error: any) {
-    console.error("Failed to fetch emails:", error);
   }
 }
 
@@ -316,7 +236,7 @@ function getEmailSubject(activity: HoaEmailActivity): string {
 }
 
 async function refreshData() {
-  await Promise.all([fetchActivities(true), fetchEmails(), fetchTotalCounts()]);
+  await fetchActivities(true);
 }
 
 // Infinite scroll handler
@@ -336,7 +256,7 @@ function handleScroll() {
 
 // Navigation
 const goToEmails = () => {
-  navigateToOrg("/admin/communications");
+  navigateToOrg(comms.path());
 };
 
 // Initialize

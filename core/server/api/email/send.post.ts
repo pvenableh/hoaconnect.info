@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
 
   // Authorize: must be an org admin, or a property manager with the
   // "communications" grant. (Previously this route only required a session.)
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   // Every file this send stores or mails — attachments, the body's images, the
   // footer photo — must be this community's (org-files.ts), before anything is

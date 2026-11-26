@@ -40,7 +40,7 @@ beforeEach(() => {
   vi.stubGlobal("getRouterParam", () => h.id);
   vi.stubGlobal("getQuery", () => h.query);
   // Oscar manages Lenox (communications) and nothing else.
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, grant: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, grant: string) => {
     if (org !== "org-lenox" || grant !== "communications") throw Object.assign(new Error("Forbidden"), { statusCode: 403 });
   });
   // The list's page and count go as one batch: here, the same specs read one by one.

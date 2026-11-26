@@ -231,6 +231,11 @@ export function fakeDirectus(state: { db: Db; fail?: { failCreate?: string } }) 
         }
         return r;
       }
+      case "aggregate": {
+        // A CountSpec's REST read (directus-graphql restRead): count only, ungrouped.
+        const n = rows.filter((r) => matches(db, op.collection, r, op.query?.query?.filter)).length;
+        return [{ count: String(n) }];
+      }
       case "deleteItem":
         db[op.collection] = rows.filter((x) => x.id !== op.id);
         return null;

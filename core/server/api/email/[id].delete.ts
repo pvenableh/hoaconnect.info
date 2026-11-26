@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     // property manager with the communications grant. (Until Phase 3b any
     // session could delete any org's draft.)
     const organizationId = typeof email.organization === "object" ? (email.organization as { id: string })?.id : email.organization;
-    await requireAdminOrManagerGrant(event, String(organizationId), "communications");
+    await requireAreaWork(event, String(organizationId), "communications");
 
     // A send in flight (or paused mid-send): its rows are being delivered.
     if (email.status === "sending" || email.status === "paused") {

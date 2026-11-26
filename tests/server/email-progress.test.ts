@@ -99,7 +99,7 @@ describe("the progress route (53)", () => {
     directus = fakeDirectus(store, { org: {}, members: [] });
     vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u1" } }));
     vi.stubGlobal("getRouterParam", () => "email-1");
-    vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, g: string) => {
+    vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, g: string) => {
       if (org !== grant.org || g !== "communications") throw Object.assign(new Error("403"), { statusCode: 403 });
     });
     vi.stubGlobal("getTypedDirectus", () => directus);

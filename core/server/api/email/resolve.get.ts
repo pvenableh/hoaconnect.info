@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   if (email.status === "draft") {
     const orgId = typeof email.organization === "string" ? email.organization : (email.organization as { id?: string } | null)?.id;
     const allowed = orgId
-      ? await requireAdminOrManagerGrant(event, orgId, "communications").then(() => true, () => false)
+      ? await requireAreaWork(event, orgId, "communications").then(() => true, () => false)
       : false;
     if (!allowed) throw createError({ statusCode: 404, message: "Email not found" });
   }

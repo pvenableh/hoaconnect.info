@@ -66,7 +66,7 @@ beforeEach(() => {
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u-oscar" } }));
   vi.stubGlobal("getRouterParam", () => emailId);
   vi.stubGlobal("getTypedDirectus", () => db);
-  vi.stubGlobal("requireAdminOrManagerGrant", async () => {
+  vi.stubGlobal("requireAreaWork", async () => {
     if (h.gate) throw h.gate;
   });
 });

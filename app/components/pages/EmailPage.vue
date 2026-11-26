@@ -10,6 +10,7 @@ import {
 import type { HoaEmail } from "#core/types/directus";
 
 const { navigateToOrg } = useOrgNavigation();
+const comms = useCommsBase();
 const emailSystem = useEmailSystem();
 
 // Declared before the await: composables must not run after a top-level await.
@@ -123,19 +124,19 @@ const confirmDelete = (id: string) => {
 
 // Navigation
 const goToCompose = () => {
-  navigateToOrg("/admin/communications/compose");
+  navigateToOrg(comms.path("/compose"));
 };
 
 const goToActivity = () => {
-  navigateToOrg("/admin/communications/activity");
+  navigateToOrg(comms.path("/activity"));
 };
 
 const goToTemplates = () => {
-  navigateToOrg("/admin/communications/templates");
+  navigateToOrg(comms.path("/templates"));
 };
 
 const goToEmail = (id: string) => {
-  navigateToOrg(`/admin/communications/${id}`);
+  navigateToOrg(comms.path(`/${id}`));
 };
 
 const goToPage = (page: number) => {
@@ -197,7 +198,7 @@ useSeoMeta({
           description="Alerts, newsletters, reminders, and notices for your members."
         >
           <template #actions>
-            <AppButton variant="outline" @click="goToTemplates">
+            <AppButton v-if="!comms.managed.value" variant="outline" @click="goToTemplates">
               <Icon name="lucide:layout-template" />
               Templates
             </AppButton>

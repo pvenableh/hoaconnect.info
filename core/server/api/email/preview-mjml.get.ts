@@ -116,7 +116,7 @@ export default defineEventHandler(async (event) => {
   )) as unknown as Array<HoaOrganization & { settings: BlockSetting | null }>;
   const organization = rows?.[0];
   if (!organization) throw createError({ statusCode: 404, message: "Organization not found" });
-  await requireAdminOrManagerGrant(event, organization.id, "communications");
+  await requireAreaWork(event, organization.id, "communications");
 
   // The form's unsaved palette, or none at all.
   if (q.palette === "none") {

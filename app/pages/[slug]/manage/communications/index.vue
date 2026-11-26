@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * Manager communications — reuses the admin email composer. Page access requires
- * the "communications" grant; the send itself is authorized server-side
- * (send.post.ts → requireAdminOrManagerGrant(..., "communications")).
+ * Manager communications — reuses the admin email pages, under
+ * /manage/communications (useCommsBase). Page access requires the
+ * "communications" area, held by a manager grant or by a helper or committee
+ * (docs/spec-delegation.md); every read and the send are authorized server-side
+ * (requireAreaWork(..., "communications")).
  */
 definePageMeta({
   middleware: ["manager", "subscription"],

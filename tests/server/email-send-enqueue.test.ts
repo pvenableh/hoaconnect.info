@@ -44,7 +44,7 @@ function stub() {
   vi.stubGlobal("defineEventHandler", (fn: any) => fn);
   vi.stubGlobal("requireUserSession", async () => ({ user: { id: "u1" } }));
   vi.stubGlobal("readBody", async () => body);
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, o: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, o: string) => {
     if (o !== ORG.id) throw Object.assign(new Error("403"), { statusCode: 403 });
   });
   vi.stubGlobal("useRuntimeConfig", () => ({

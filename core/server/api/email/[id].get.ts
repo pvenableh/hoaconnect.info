@@ -78,7 +78,7 @@ export default defineEventHandler(async (event) => {
     // its content and every recipient's name and address.
     const organizationId = typeof email.organization === "object" ? email.organization?.id : email.organization;
     if (!organizationId) throw createError({ statusCode: 404, message: "Email not found" });
-    await requireAdminOrManagerGrant(event, organizationId, "communications");
+    await requireAreaWork(event, organizationId, "communications");
 
     // Get recipients if email has been sent. With the send queue, the rows of
     // the latest occurrence (a recurring email keeps every occurrence's rows),

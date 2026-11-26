@@ -39,7 +39,7 @@ beforeEach(() => {
   vi.stubGlobal("getQuery", () => h.query);
   vi.stubGlobal("setHeader", (_e: unknown, k: string, v: string) => void (h.headers[k] = v));
   vi.stubGlobal("createError", (o: any) => Object.assign(new Error(o.message), o));
-  vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, g: string) => {
+  vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, g: string) => {
     if (org !== ORG.id || g !== "communications") throw Object.assign(new Error("403"), { statusCode: 403 });
   });
   vi.stubGlobal("getTypedDirectus", () => ({
@@ -56,7 +56,7 @@ const route = async () => (await import("#core/server/api/email/preview-mjml.get
 
 describe("GET /api/email/preview-mjml", () => {
   it("is org-gated: another org's admin gets 403; an unknown org 404; no org 400", async () => {
-    vi.stubGlobal("requireAdminOrManagerGrant", async () => {
+    vi.stubGlobal("requireAreaWork", async () => {
       throw Object.assign(new Error("403"), { statusCode: 403 });
     });
     h.query = { org: "demo" };
@@ -69,7 +69,7 @@ describe("GET /api/email/preview-mjml", () => {
 
   it("the gate asks for the communications grant on the org it read (by slug or id)", async () => {
     const asked: string[] = [];
-    vi.stubGlobal("requireAdminOrManagerGrant", async (_e: unknown, org: string, g: string) => void asked.push(`${org}:${g}`));
+    vi.stubGlobal("requireAreaWork", async (_e: unknown, org: string, g: string) => void asked.push(`${org}:${g}`));
     h.query = { org: "demo" };
     await (await route())({});
     h.query = { org: ORG.id };

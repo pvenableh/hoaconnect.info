@@ -104,7 +104,7 @@ export default defineEventHandler(async (event) => {
 
     if (email.status === "draft") {
       const draftOrgId = typeof organization === "string" ? organization : organization.id;
-      await requireAdminOrManagerGrant(event, draftOrgId, "communications");
+      await requireAreaWork(event, draftOrgId, "communications");
     }
 
     // Get board members if included in footer

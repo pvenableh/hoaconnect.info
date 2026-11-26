@@ -198,7 +198,7 @@ export type NavLayoutId = keyof typeof NAV_LAYOUTS;
  * pages show their manage controls from the server's `viewer`. Kept out of
  * NAV_LAYOUTS.member so page transitions and MEMBER_APPS are unchanged.
  */
-export const MEMBER_HELPER_ENTRIES = ["inquiries", "directory", "approvals", "projects-mgr", "responsibilities-mgr"] as const;
+export const MEMBER_HELPER_ENTRIES = ["inquiries", "directory", "approvals", "communications", "projects-mgr", "responsibilities-mgr"] as const;
 
 
 /** Hubs that keep a landing page of their own instead of opening on a pill. */

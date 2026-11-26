@@ -69,7 +69,7 @@ describe("getHelperAreas", () => {
       row({ member: ID.memberBob, area: "feedback", starts_at: "2999-01-01T00:00:00.000Z" }),
       row({ member: ID.memberBob, area: "documents", organization: OTHER }),
       row({ member: ID.memberBob, area: "activity" }),
-      row({ member: ID.memberBob, area: "communications" })
+      row({ member: ID.memberBob, area: "contact_platform" })
     );
     expect(await helps()).toEqual([]);
   });

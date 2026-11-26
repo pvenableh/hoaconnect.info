@@ -10,6 +10,7 @@ import {
 import type { HoaEmailTemplate } from "#core/types/directus";
 
 const { navigateToOrg, buildOrgPath } = useOrgNavigation();
+const comms = useCommsBase();
 const emailTemplates = useEmailTemplates();
 const { selectedOrgId } = await useSelectedOrg();
 const orgId = computed(() => selectedOrgId.value);
@@ -78,7 +79,7 @@ useSeoMeta({ title: "Email Templates" });
         description="Reusable starting points for your emails. Save one from the composer with “Save as template”."
       >
         <template #actions>
-          <AppButton class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+          <AppButton class="rounded-full" @click="navigateToOrg(comms.path('/compose'))">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             New email
           </AppButton>
@@ -95,7 +96,7 @@ useSeoMeta({ title: "Email Templates" });
           title="No templates yet"
           description="Templates are made in the composer, not here — write an email you expect to send again, then choose “Save as template”."
         >
-          <AppButton class="rounded-full" @click="navigateToOrg('/admin/communications/compose')">
+          <AppButton class="rounded-full" @click="navigateToOrg(comms.path('/compose'))">
             <Icon name="lucide:plus" class="w-4 h-4 mr-1.5" />
             Compose an email
           </AppButton>
@@ -117,7 +118,7 @@ useSeoMeta({ title: "Email Templates" });
           <p v-if="tpl.subject" class="text-xs t-text-muted mt-1 truncate">Subject: {{ tpl.subject }}</p>
 
           <div class="flex gap-2 mt-auto pt-3">
-            <AppButton size="sm" variant="outline" class="rounded-full flex-1" @click="navigateToOrg('/admin/communications/compose')">
+            <AppButton size="sm" variant="outline" class="rounded-full flex-1" @click="navigateToOrg(comms.path('/compose'))">
               <Icon name="lucide:pencil" class="w-3.5 h-3.5 mr-1.5" />
               Use
             </AppButton>

@@ -77,7 +77,7 @@ export default defineEventHandler(async (event) => {
   // Authorize: the same gate as send.post.ts. A saved email with status
   // "scheduled" is sent by the cron to the whole org, so saving one is sending
   // one; this route previously required only a session — any session, any org.
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   // A newsletter can't be essential, saved or sent.
   const classResolution = resolveEmailClass(emailType, requestedClass);

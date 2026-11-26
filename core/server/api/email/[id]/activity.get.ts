@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   // Tenant isolation: only an admin / communications-manager of this org may
   // read its email activity, and results are hard-scoped to the org.
-  await requireAdminOrManagerGrant(event, organizationId, "communications");
+  await requireAreaWork(event, organizationId, "communications");
 
   try {
     const directus = getTypedDirectus();

@@ -374,6 +374,10 @@ describe("helpers and committees (docs/spec-delegation.md)", () => {
     expect(helperDock(ctx({ areas: ["inquiries", "violations"] }), ["inquiries", "violations"])).toEqual([...owner, "inquiries"]);
   });
 
+  it("communications: the email pages are added", () => {
+    expect(helperDock(ctx({ areas: ["communications"] }), ["communications"])).toEqual([...owner, "communications"]);
+  });
+
   it("directory: the directory and its change approvals are added", () => {
     expect(helperDock(ctx({ areas: ["directory"] }), ["directory"])).toEqual([...owner, "directory", "approvals"]);
   });
