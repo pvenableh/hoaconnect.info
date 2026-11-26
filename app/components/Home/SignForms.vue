@@ -94,7 +94,7 @@ async function sign() {
         <li v-for="f in rows" :key="f.id" class="flex items-center gap-3 px-4 py-3" data-testid="home-sign-row">
           <Icon name="i-lucide-pen-line" class="h-4 w-4 shrink-0 t-text-muted" />
           <div class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-medium t-text">Sign: {{ f.title }}</span>
+            <span class="block truncate text-sm font-medium t-text">{{ f.title }}</span>
             <span class="block truncate text-sm" :class="isFormOverdue({ due_date: f.dueDate }, today) ? 'text-destructive' : 't-text-muted'">{{ dueLabel(f.dueDate) }}</span>
           </div>
           <AppButton size="sm" variant="outline" @click="openSheet(f)">Sign</AppButton>

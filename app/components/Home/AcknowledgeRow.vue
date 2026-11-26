@@ -52,7 +52,7 @@ function onSwipeConfirm() {
     >
       <Icon name="i-lucide-megaphone" class="h-4 w-4 shrink-0 t-text-muted" />
       <NuxtLink :to="buildOrgPath('/announcements')" class="min-w-0 flex-1">
-        <span class="block truncate text-sm font-medium t-text">Acknowledge: {{ title }}</span>
+        <span class="block truncate text-sm font-medium t-text">{{ title }}</span>
         <span class="block truncate text-sm" :class="overdue ? 'text-destructive' : 't-text-muted'">{{ dueLabel }}</span>
       </NuxtLink>
       <AppButton size="sm" variant="outline" :disabled="busy" @click="emit('acknowledge', id, 'button')">Acknowledge</AppButton>
