@@ -337,6 +337,52 @@ describe("who sees a request", () => {
     expect(community.requests[0].community).toBe("Harbor Court");
   });
 
+  it("reads your own list in one request, and a community's in a batch and one read", async () => {
+    await open("officer", { category: "feature" });
+    const reads: string[] = [];
+    const batches: string[][] = [];
+    const batch = globalThis.readItemsBatch as any;
+    vi.stubGlobal("getTypedDirectus", () => ({ request: (op: any) => (reads.push(op.collection), directusRequest(op)) }));
+    vi.stubGlobal("readItemsBatch", (specs: Record<string, any>) => (batches.push(Object.keys(specs)), batch(specs)));
+    as("owner");
+    const own = await call(r.list);
+    expect(reads).toEqual(["support_requests"]);
+    expect(batches).toEqual([]);
+    expect(own.requests).toEqual([expect.objectContaining({ subject: "The dues page is blank", community: "Harbor Court", requester: null })]);
+    reads.length = 0;
+    as("admin", ROLE.hoaAdmin);
+    const community = await call(r.list, { query: { view: "community" } });
+    expect(batches).toEqual([["sv_admins", "sv_accounts"]]);
+    expect(reads).toEqual(["support_requests"]);
+    expect(community.requests).toHaveLength(2);
+    // The same answer when the batch fails: the seats are read one by one.
+    vi.stubGlobal("readItemsBatch", async () => {
+      throw new Error("GraphQL down");
+    });
+    expect(await call(r.list, { query: { view: "community" } })).toEqual(community);
+    // No seats, no rows read; signed out, nothing read.
+    reads.length = 0;
+    vi.stubGlobal("readItemsBatch", batch);
+    as("tenant");
+    expect(await call(r.list, { query: { view: "community" } })).toEqual({ view: "community", requests: [] });
+    expect(reads).toEqual([]);
+    as(null);
+    await expect(call(r.list)).rejects.toMatchObject({ statusCode: 401 });
+    expect(reads).toEqual([]);
+  });
+
+  it("names a request's community by its slug when it has no name, and by nothing when it is gone", () => {
+    const viewer = { userId: "u-1", staff: false, adminOf: new Set<string>(), accountAdminOf: new Set<string>() };
+    const rows = [
+      { id: "a", organization: { id: "o1", name: "", slug: "slug-only" }, last_message_at: "2026-11-02" },
+      { id: "b", organization: null, date_created: "2026-11-01" },
+    ];
+    expect(support.supportListFrom("mine", viewer, rows).requests.map((x: any) => [x.id, x.community, x.lastMessageAt])).toEqual([
+      ["a", "slug-only", "2026-11-02"],
+      ["b", null, "2026-11-01"],
+    ]);
+  });
+
   it("offers each person the right doors", async () => {
     as("owner");
     const owner = await call(r.context);

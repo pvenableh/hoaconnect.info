@@ -8,6 +8,7 @@
 // helpers with the admin token, after the route has checked who is asking.
 import { createItem, readItems, updateItem } from "@directus/sdk";
 import type { H3Event } from "h3";
+import type { ReadSpec } from "./directus-graphql";
 import { residencyFor, RESIDENCY_UNIT_FIELDS } from "#core/shared/members/residency";
 import { opsCan } from "#core/shared/ops/permissions";
 import {
@@ -111,32 +112,94 @@ export async function supportViewerFor(event: H3Event): Promise<SupportViewer> {
   return supportViewerForUser(userId, opsCan(actor?.role, "support"));
 }
 
-/** The same, for a person known by id: an emailed reply (support-inbound.ts) passes `staff: false`. */
-export async function supportViewerForUser(userId: string, staff: boolean): Promise<SupportViewer> {
+/** The viewer's two reads, as batch specs: their HOA Admin seats, and the billing accounts they own or administer. */
+export function supportViewerSpecs(userId: string): Record<"sv_admins" | "sv_accounts", ReadSpec> {
   const config = useRuntimeConfig();
-  const [admins, accounts] = await Promise.all([
-    directus().request(
-      readAny("hoa_members", {
-        filter: { user: { _eq: userId }, role: { _eq: config.public.directusRoleHoaAdmin }, status: { _eq: "active" } },
-        fields: ["organization"],
-        limit: -1,
-      })
-    ) as Promise<any[]>,
-    directus()
-      .request(
-        readAny("billing_account_members", {
-          filter: { user: { _eq: userId }, role: { _in: ["owner", "billing_admin"] } },
-          fields: ["billing_account"],
-          limit: -1,
-        })
-      )
-      .catch(() => []) as Promise<any[]>,
-  ]);
+  return {
+    sv_admins: {
+      collection: "hoa_members",
+      filter: { user: { _eq: userId }, role: { _eq: config.public.directusRoleHoaAdmin }, status: { _eq: "active" } },
+      fields: ["organization"],
+      limit: -1,
+    },
+    sv_accounts: {
+      collection: "billing_account_members",
+      filter: { user: { _eq: userId }, role: { _in: ["owner", "billing_admin"] } },
+      fields: ["billing_account"],
+      limit: -1,
+    },
+  };
+}
+
+/** The viewer from the rows supportViewerSpecs read. */
+export function supportViewerFrom(userId: string, staff: boolean, admins: readonly any[], accounts: readonly any[]): SupportViewer {
   return {
     userId,
     staff,
     adminOf: new Set((admins ?? []).map((a) => idOf(a.organization)).filter((x): x is string => !!x)),
     accountAdminOf: new Set((accounts ?? []).map((a) => idOf(a.billing_account)).filter((x): x is string => !!x)),
+  };
+}
+
+/** The same, for a person known by id: an emailed reply (support-inbound.ts) passes `staff: false`. */
+export async function supportViewerForUser(userId: string, staff: boolean): Promise<SupportViewer> {
+  const read = ({ collection, ...query }: ReadSpec) => directus().request(readAny(collection, query)) as Promise<any[]>;
+  const specs = supportViewerSpecs(userId);
+  const [admins, accounts] = await Promise.all([read(specs.sv_admins), read(specs.sv_accounts).catch(() => [])]);
+  return supportViewerFrom(userId, staff, admins, accounts);
+}
+
+// ── Listing ─────────────────────────────────────────────────────────────────
+
+export type SupportListView = "mine" | "community";
+
+/** Which requests a view covers: none (null) when the viewer administers nothing. */
+export function supportListScopes(view: SupportListView, viewer: SupportViewer): Record<string, unknown> | null {
+  const scopes: Record<string, unknown>[] = [];
+  if (view === "mine") scopes.push({ requester: { _eq: viewer.userId } });
+  else {
+    if (viewer.adminOf.size) scopes.push({ organization: { _in: [...viewer.adminOf] } });
+    if (viewer.accountAdminOf.size) scopes.push({ billing_account: { _in: [...viewer.accountAdminOf] } });
+  }
+  if (!scopes.length) return null;
+  return scopes.length === 1 ? scopes[0]! : { _or: scopes };
+}
+
+/** The list's read, with each request's community name through the relation. */
+export function supportListSpec(filter: Record<string, unknown>): ReadSpec {
+  return {
+    collection: "support_requests",
+    filter,
+    fields: [
+      "id", "organization.id", "organization.name", "organization.slug", "billing_account", "requester", "requester_name",
+      "category", "status", "subject", "last_message_at", "last_message_by", "date_created",
+    ],
+    sort: ["-last_message_at"],
+    limit: 200,
+  };
+}
+
+/** The list from the rows supportListSpec read. */
+export function supportListFrom(view: SupportListView, viewer: SupportViewer, rows: readonly any[]) {
+  const community = (r: any) => {
+    const org = r.organization && typeof r.organization === "object" ? r.organization : null;
+    return org ? (org.name || org.slug) ?? null : null;
+  };
+  return {
+    view,
+    requests: [...rows]
+      .sort((a, b) => String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")))
+      .map((r) => ({
+        id: r.id,
+        community: community(r),
+        category: r.category,
+        status: r.status,
+        subject: r.subject,
+        lastMessageAt: r.last_message_at ?? r.date_created ?? null,
+        repliedByHoaConnect: r.last_message_by === "staff",
+        // HOA Admins see who in their community asked; your own list doesn't need it.
+        requester: view === "community" ? (idOf(r.requester) === viewer.userId ? "You" : r.requester_name ?? null) : null,
+      })),
   };
 }
 

@@ -4,51 +4,45 @@
 // request from the communities where they are an HOA Admin, and about the
 // billing accounts they own or administer (§9.6). Newest activity first.
 import { readItems } from "@directus/sdk";
-import { supportViewerFor } from "#core/server/utils/support";
+import { opsCan } from "#core/shared/ops/permissions";
+import type { SupportViewer } from "#core/shared/support/access";
+import { getPlatformActor } from "#core/server/utils/admin-auth";
+import {
+  supportListFrom,
+  supportListScopes,
+  supportListSpec,
+  supportViewerForUser,
+  supportViewerFrom,
+  supportViewerSpecs,
+} from "#core/server/utils/support";
 
 const readAny = readItems as any;
-const idOf = (v: unknown): string | null =>
-  v && typeof v === "object" ? ((v as { id?: string }).id ?? null) : typeof v === "string" && v ? v : null;
+
+/** The list's read as REST: the fallback when a batch fails. */
+async function readList(filter: Record<string, unknown>): Promise<any[]> {
+  const { collection, ...query } = supportListSpec(filter);
+  return ((await getTypedDirectus().request(readAny(collection, query))) ?? []) as any[];
+}
 
 export default defineEventHandler(async (event) => {
-  const viewer = await supportViewerFor(event);
+  const session = await getUserSession(event);
+  const userId = session?.user?.id ? String(session.user.id) : "";
+  if (!userId) throw createError({ statusCode: 401, message: "Authentication required" });
+  const staff = opsCan((await getPlatformActor(event))?.role, "support");
   const view = getQuery(event).view === "community" ? "community" : "mine";
-  const scopes: Record<string, unknown>[] = [];
-  if (view === "mine") scopes.push({ requester: { _eq: viewer.userId } });
-  else {
-    if (viewer.adminOf.size) scopes.push({ organization: { _in: [...viewer.adminOf] } });
-    if (viewer.accountAdminOf.size) scopes.push({ billing_account: { _in: [...viewer.accountAdminOf] } });
-  }
-  if (!scopes.length) return { view, requests: [] };
 
-  const directus = getTypedDirectus() as any;
-  const rows = (await getTypedDirectus().request(
-    readItems("support_requests", {
-      filter: scopes.length === 1 ? scopes[0] : { _or: scopes },
-      fields: ["id", "organization", "billing_account", "requester", "requester_name", "category", "status", "subject", "last_message_at", "last_message_by", "date_created"],
-      sort: ["-last_message_at"],
-      limit: 200,
-    })
-  )) as any[];
-  const orgIds = [...new Set(rows.map((r) => idOf(r.organization)).filter((x): x is string => !!x))];
-  const orgs = orgIds.length
-    ? ((await directus.request(readAny("hoa_organizations", { filter: { id: { _in: orgIds } }, fields: ["id", "name", "slug"], limit: -1 }))) as any[])
-    : [];
-  const orgName = new Map(orgs.map((o) => [o.id, o.name || o.slug]));
-  return {
-    view,
-    requests: rows
-      .sort((a, b) => String(b.last_message_at ?? "").localeCompare(String(a.last_message_at ?? "")))
-      .map((r) => ({
-        id: r.id,
-        community: orgName.get(idOf(r.organization) ?? "") ?? null,
-        category: r.category,
-        status: r.status,
-        subject: r.subject,
-        lastMessageAt: r.last_message_at ?? r.date_created ?? null,
-        repliedByHoaConnect: r.last_message_by === "staff",
-        // HOA Admins see who in their community asked; your own list doesn't need it.
-        requester: view === "community" ? (idOf(r.requester) === viewer.userId ? "You" : r.requester_name ?? null) : null,
-      })),
-  };
+  // Their own list needs only who they are: one read, each community's name
+  // through the relation. The community view reads the viewer's seats (one
+  // batch), then the rows. A failed batch reads the seats one by one as before.
+  if (view === "mine") {
+    const viewer: SupportViewer = { userId, staff, adminOf: new Set(), accountAdminOf: new Set() };
+    return supportListFrom(view, viewer, await readList({ requester: { _eq: userId } }));
+  }
+  const batched = await readItemsBatch(supportViewerSpecs(userId)).catch(() => null);
+  const viewer: SupportViewer = batched
+    ? supportViewerFrom(userId, staff, batched.sv_admins ?? [], batched.sv_accounts ?? [])
+    : await supportViewerForUser(userId, staff);
+  const filter = supportListScopes(view, viewer);
+  if (!filter) return { view, requests: [] };
+  return supportListFrom(view, viewer, await readList(filter));
 });
