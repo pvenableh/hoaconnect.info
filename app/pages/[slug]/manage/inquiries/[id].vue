@@ -15,11 +15,13 @@ const requestId = computed(() => route.params.id as string);
 
 // Through /api/org/inquiries/:id (docs/spec-delegation.md): a helper holding
 // the area reads it with the app's token, as a manager does.
-const { data, pending, refresh } = await useAsyncData(
+const { data, status, refresh } = await useAsyncData(
   `manage-inquiry-${requestId.value}`,
   () => getOne(requestId.value).catch(() => null),
   { watch: [requestId], server: false }
 );
+// "idle" on the server and the client's first render: the spinner on both, so hydration matches.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 const request = computed(() => data.value?.request ?? null);
 
 const submittedById = computed(() => {

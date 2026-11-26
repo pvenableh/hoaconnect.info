@@ -33,11 +33,14 @@ const basePath = computed(() => buildOrgPath("/manage/inquiries"));
 const typeFilter = ref<string>("all");
 const statusFilter = ref<string>("open");
 
-const { data: requests, pending, refresh } = await useAsyncData(
+const { data: requests, status, refresh } = await useAsyncData(
   `manage-inquiries-${selectedOrgId.value}`,
   () => list(),
   { watch: [selectedOrgId], server: false }
 );
+// "idle" is the server's render and the client's first one (server: false):
+// both show the skeleton, so hydration matches and the list can replace it.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 
 const filtered = computed(() => {
   let rows = requests.value || [];

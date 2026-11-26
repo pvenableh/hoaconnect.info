@@ -13,12 +13,14 @@ definePageMeta({
 
 const { selectedOrgId } = await useSelectedOrg();
 
-const { data: members, pending } = await useAsyncData(
+const { data: members, status } = await useAsyncData(
   `manage-directory-${selectedOrgId.value}`,
   () =>
     $fetch<{ members: any[] }>("/api/org/directory", { query: { orgId: selectedOrgId.value } }).then((r) => r.members),
   { watch: [selectedOrgId], server: false }
 );
+// "idle" on the server and the client's first render: "Loading…" on both, so hydration matches.
+const pending = computed(() => status.value === "idle" || status.value === "pending");
 </script>
 
 <template>
