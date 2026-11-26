@@ -146,6 +146,15 @@ const formatAmount = (amount: number) => {
   }).format(amount / 100);
 };
 
+// The server says why it refused ("Payments are disabled in the demo.", "Amount
+// must be at least $0.50"); show that rather than a generic line.
+const serverReason = (err: any): string | null => {
+  const details = err?.data?.data?.details;
+  if (typeof details === "string" && details) return details;
+  const msg = err?.data?.message;
+  return typeof msg === "string" && msg ? msg.replace(/^Payment intent creation failed:\s*/, "") : null;
+};
+
 const handleError = (message: string, err: any = null) => {
   console.error("Payment Error:", err || message);
   error.value = {
@@ -172,7 +181,7 @@ const createPaymentIntent = async () => {
     return data;
   } catch (err: any) {
     console.error("Payment Intent Error:", err);
-    handleError(err.message || "Failed to create payment intent", err);
+    handleError(serverReason(err) || err.message || "Failed to create payment intent", err);
     throw err;
   }
 };
@@ -333,7 +342,7 @@ onMounted(async () => {
     await setupStripeElement(clientSecret);
   } catch (err: any) {
     isElementLoading.value = false;
-    handleError("Payment setup failed", err);
+    handleError(serverReason(err) || "Payment setup failed", err);
   }
 });
 

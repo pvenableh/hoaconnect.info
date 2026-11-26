@@ -291,7 +291,7 @@ const TYPE_LABEL: Record<string, string> = {
           <div v-if="selectedRequest" class="py-2">
             <PaymentMethods
               :email="userEmail"
-              :amount="selectedRequest.amount_remaining ?? selectedRequest.amount ?? 0"
+              :amount="Number(selectedRequest.amount_remaining ?? selectedRequest.amount ?? 0)"
               :metadata="{
                 organizationId: selectedRequest.organization,
                 memberId: selectedRequest.member,

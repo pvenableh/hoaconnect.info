@@ -32,7 +32,8 @@ watch(
   { immediate: true },
 );
 
-const amount = computed(() => charge.value?.amount_remaining ?? charge.value?.amount ?? 0);
+// Directus returns decimals as strings ("250.00"); PaymentMethods takes a number.
+const amount = computed(() => Number(charge.value?.amount_remaining ?? charge.value?.amount ?? 0));
 const money = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v || 0);
 const onPaid = () => {
   emit("paid");
