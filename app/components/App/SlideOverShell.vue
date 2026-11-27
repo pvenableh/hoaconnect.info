@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
     background: var(--background);
   }
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .app-slide-over-shell__header {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

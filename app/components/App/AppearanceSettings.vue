@@ -10,15 +10,19 @@
 //   Show app names — the dock's names under its icons (Session 18). Off by
 //     default: the icons, the open app's ring and a pointer's tooltip carry
 //     it. Stored with the tint, so it follows the person too.
+//   Solid surfaces — no blur, opaque surfaces, drawn edges: what Reduce
+//     Transparency and Increase Contrast give where the device reports them.
+//     iOS does not report either to a page, so this is the only way to get
+//     them there (plan-apple-platform-direction §7, session 2). Per device.
 // Everything else the old panel offered is gone: dock palettes (the tint
-// replaces them), the glass chrome switch (the device's Reduce Transparency
-// decides) and dock position (bottom).
+// replaces them) and dock position (bottom).
 import { Switch } from "@/components/ui/switch";
 import { TINT_SWATCHES, swatchAccent, type TintSwatchId } from "#core/shared/branding/accent";
 import type { AppearanceMode } from "#core/app/composables/useAppearance";
 
 const { mode, isDark, setMode, tintOn, tintSwatch, communityColor, setTintOn, setTintSwatch, dockNames, setDockNames } =
   useAppearance();
+const { solidSurfaces, setSolidSurfaces } = useSolidSurfaces();
 
 const MODES = [
   { value: "light", label: "Light", icon: "lucide:sun" },
@@ -97,6 +101,22 @@ function onSwatchKey(e: KeyboardEvent, i: number) {
         <span class="type-meta t-text-muted">{{ dockNames ? "Under each icon in the dock." : "Icons only." }}</span>
       </span>
       <Switch :model-value="dockNames" aria-label="Show app names" @update:model-value="setDockNames" @click.stop />
+    </div>
+
+    <div class="appearance__toggle" data-appearance-solid @click="setSolidSurfaces(!solidSurfaces)">
+      <Icon name="lucide:square" class="appearance__toggle-icon" />
+      <span class="appearance__toggle-body">
+        <span class="type-body t-text">Solid surfaces</span>
+        <span class="type-meta t-text-muted">{{
+          solidSurfaces ? "No glass: opaque, with clear edges. This device only." : "Glass, unless the device asks otherwise."
+        }}</span>
+      </span>
+      <Switch
+        :model-value="solidSurfaces"
+        aria-label="Solid surfaces"
+        @update:model-value="setSolidSurfaces"
+        @click.stop
+      />
     </div>
   </div>
 </template>

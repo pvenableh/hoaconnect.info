@@ -228,7 +228,7 @@ watch(
     background: var(--theme-nav-capsule-bg);
   }
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .app-subnav__capsule {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

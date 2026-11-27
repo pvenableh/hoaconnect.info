@@ -360,7 +360,7 @@ html.theme-app .field-underline[aria-invalid="true"] {
    `@supports not (backdrop-filter)` twin that used to sit here is gone: this
    rule no longer depends on backdrop-filter, so there is nothing to fall back
    from. */
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	html.theme-app .field-underline {
 		background: var(--theme-bg-elevated);
 	}
@@ -422,7 +422,7 @@ html.theme-app select:focus-visible {
 html.theme-app select[aria-invalid="true"] {
 	box-shadow: var(--glass-rim-shadow), 0 0 0 3px hsl(0 72% 51% / 0.28);
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	html.theme-app select {
 		background: var(--theme-bg-elevated);
 	}

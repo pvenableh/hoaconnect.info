@@ -1,6 +1,6 @@
 # Plan — Apple platform direction for HOA Connect
 
-**Status:** Session 1 code side done, device walk pending · **Author:** Peter + Claude · **Date:** 2026-11-27
+**Status:** Sessions 1 (code side; device walk pending) and 2 done · **Author:** Peter + Claude · **Date:** 2026-11-27
 
 This plan follows Earnest's `docs/apple-platform-direction-plan.md`, whose eleven phases are all on Earnest's `main`.
 That file holds the Apple evidence (HIG and WWDC25/26 links, §2) and the as-built notes (§6–§6i); this plan cites it as
@@ -93,7 +93,7 @@ reading list; do not survey the repo. Earnest paths are under `~/Sites/earnest/e
 | Session | What                                                                                                                                                                                                                                                                                  | Closes  | Model      | Read first                                                                                             | State |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------ | ----- |
 | 1       | **Truth on a device.** Peter walks `push-verification.md` on his iPhone. Copy Earnest's `public/media-probe.html` and read what iOS reports with Increase Contrast and Reduce Transparency on. Find where `material-*` is applied. Add `apple-mobile-web-app-title`.                  | H1 part | Sonnet 5.5 | `docs/push-verification.md`; `earnest-ui.css:1298-1413`; `core/nuxt.config.ts:385-400`                 | [[~]   |
-| 2       | **Solid surfaces.** Every `backdrop-filter` rule answers Reduce Transparency and Increase Contrast. Appearance gains a per-device Solid surfaces switch that applies the same rules by attribute, stamped before first paint. Port Earnest's PostCSS copy so rules stay written once. | H2      | Sonnet 5.5 | E§7 third bullet; Earnest `scripts/postcss-solid-surfaces.ts`, `useSolidSurfaces`; `useAppearance.ts`  | [ ]   |
+| 2       | **Solid surfaces.** Every `backdrop-filter` rule answers Reduce Transparency and Increase Contrast. Appearance gains a per-device Solid surfaces switch that applies the same rules by attribute, stamped before first paint. Port Earnest's PostCSS copy so rules stay written once. | H2      | Sonnet 5.5 | E§7 third bullet; Earnest `scripts/postcss-solid-surfaces.ts`, `useSolidSurfaces`; `useAppearance.ts`  | [[x]   |
 | 3       | **Motion that degrades.** Under reduced motion, slides become 150ms fades (sheet, slide-over, page push). Add `audit:easing` to `audit:all` at today's count and lower it.                                                                                                            | H4      | Sonnet 5.5 | E§6b; `variables.css:50-85`; `core/shared/motion/index.ts`; Earnest `scripts/audit-easing.ts`          | [ ]   |
 | 4       | **Width classes and orientation.** One composable returns `widthClass` and `pointer`; the three `matchMedia` sites read it. Add left, right and top safe-area insets to the shell, dock and sheet, then drop `orientation` from the manifest. No visual change at a phone upright.    | H3, H5  | Opus 5.5   | E§6c first bullet; Earnest `app/composables/useAppsMode.ts`; `Dock.vue:30-45`; `BottomSheet.vue:60-75` | [ ]   |
 | 5       | **The dock gets out of the way.** Compact only: fold on scroll, return on scroll up, tap, focus or route change; a soft scroll edge above it. Hold the page's bottom padding while folded (E§6e "two heights").                                                                       | H6      | Opus 5.5   | E§6e; `App/Dock.vue`; `layouts/auth.vue:225-241`                                                       | [ ]   |
@@ -161,6 +161,70 @@ refused the localhost tab this session, so checks were by `curl`; nothing here c
 - [ ] The haptic switch-checkbox from §8, if convenient: it decides whether session 9 builds an iOS haptic path.
 
 When those are in, write the results here, tick session 1 in §6, and move the §8 items they settle.
+
+### Session 2 — Solid surfaces (2026-11-27)
+
+Run before session 1's device results, because it builds both halves either way: the media rules, for a browser that
+reports the settings, and the switch, the only route on iOS if Earnest's finding holds here.
+
+**What changed.**
+
+- **Every blur answers both settings.** Each `@media (prefers-reduced-transparency: reduce)` block now reads
+  `(prefers-reduced-transparency: reduce), (prefers-contrast: more)`, as in Earnest: Increase Contrast also makes the
+  glass opaque. Twelve existing blocks across `earnest-ui.css`, `theme-app.css`, `SlideOverShell.vue`, `SlideOverStack.vue` and
+  `SubNav.vue`.
+- **The materials block names what the templates wear.** The block after Material v2 sets `--mat-bar-fill`,
+  `--mat-menu-fill` and `--mat-sheet-fill` to 100% (`:root` and `.dark`), so each surface keeps its own ground (bar:
+  elevated; menu and sheet: card) and stops showing through. It also drops the blur from `.glass-surface`,
+  `.glass-surface--strong` and `.dark .glass-surface--strong`. Before, those three re-added their blur after the older
+  block near the top of the file, so every dialog, sheet, popover, menu, the dock and the auth cards kept their glass
+  under Reduce Transparency even where the browser reported it.
+- **The public site too.** `.glass-widget`, `.landing-drawer`, `.landing-glass-btn` (earnest-ui.css), `.landing-blur-sm`
+  / `-md`, `.landing-cta`, `.landing-dock`, the modern-theme widget (landing.css) and the drawer CTAs
+  (`LandingDrawer.vue`) lose their blur. Controls over a photo take `--landing-solid-ground`, a near-black token in
+  landing.css, so the white label holds on any image; the drawer and the dock take `--theme-bg-elevated`.
+- **Increase Contrast edges reach the menus.** Reka writes an inline `outline: none` on every popper, which beat the
+  edge rule, so menus, popovers, selects and comboboxes never got their edge. The edge is now `!important`, and the rule
+  also names `.material-*`.
+- **Solid surfaces.** Appearance gains a fourth row (`AppearanceSettings.vue`, `data-appearance-solid`). It is per device:
+  `useSolidSurfaces` stores `app-solid-surfaces` in localStorage and toggles `data-a11y-solid` on `<html>`. A head script
+  in `core/nuxt.config.ts` stamps the attribute before first paint on every page, the public site included. The key,
+  the attribute and the script live in `core/shared/a11y/solid-surfaces.ts`.
+- **The rules stay written once.** `core/build/postcss-solid-surfaces.ts` (Earnest's plugin, wired in
+  `core/nuxt.config.ts` `postcss.plugins`) copies every block whose query uses either setting behind the attribute, at
+  the original specificity. One change from Earnest: a selector that starts with `[data-` is no longer taken for
+  `<html>`. Here `[data-slot="dialog-overlay"]` sits on the element, and treating it as the root left the dialog scrims
+  blurred under the switch. Only `[data-tint…]` counts as the root now.
+- **Tests.** `tests/build/postcss-solid-surfaces.test.ts` (Earnest's, plus the `data-slot` case) and
+  `tests/build/solid-surfaces-coverage.test.ts`. The second fails if any blur in a stylesheet or Vue `<style>` (outside
+  `ui/`) has no `backdrop-filter: none` twin under both settings, or if a block answers Reduce Transparency alone. It
+  checks that the twin exists, not that it wins the cascade.
+
+**Checked, and how.** In the Browser pane, signed in as the demo user on Harborview Lofts (`/demo`):
+
+- The switch sets the attribute and the key. After a reload the head script (first script in `<head>`) has the
+  attribute on before the app mounts.
+- With the switch on, no element on the dashboard has a `backdrop-filter`: not with the Create menu open, not with
+  Spotlight open. The bar, dock, pills and menu are opaque with a drawn edge; Spotlight's scrim is a flat 60% black.
+- Checked at 375 dark, 820 light and 1440 light. With the switch off at 1440, the bar, pills and dock blur again.
+- On the login page, test elements wearing every glass and landing class go opaque, light and dark, and the auth card
+  goes from 92% to solid white.
+
+Also run: `audit:all` (21 green, after the near-black moved into a token), `pnpm test` (310 files, 5033 tests),
+`typecheck` (exit 0). A production build has 71 gated rules in the emitted CSS, unprefixed `backdrop-filter: none` kept.
+The build ran out of memory at Node's default heap after writing the client CSS, and finished with
+`NODE_OPTIONS=--max-old-space-size=8192`. Whether that OOM predates this session was not checked; Vercel builds with
+its own memory.
+
+**Not checked.**
+
+- The media-query path itself: the pane cannot emulate either setting (§8), so only the attribute copies were exercised.
+  The coverage test is what ties the two together.
+- The public landing pages in the pane. Their classes were checked on test elements, not on a rendered community page.
+- A slide-over and the bottom sheet open with the switch on. Their rules are in the coverage test, but they were not
+  opened.
+- On a device. Session 1's probe decides whether the media rules ever fire on iOS; whatever it says, the switch is the
+  route there and wants one look on the iPhone.
 
 ## 8. Lessons from Earnest, and what is not verified
 

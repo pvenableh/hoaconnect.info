@@ -238,6 +238,15 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .landing-cta-secondary:hover {
   background: rgba(255, 255, 255, 0.14);
 }
+/* Reduce Transparency / Increase Contrast: no frost. The drawer behind is
+   already opaque under the same settings, so the fills can stay. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .landing-cta-primary,
+  .landing-cta-secondary {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
 
 /* Editorial staggered entrance — mirrors 1033lenox.com's NavDrawer: items
    start nudged right + faded, then settle one after another once the panel is

@@ -17,6 +17,10 @@
    var(--landing-blur-*); no literal blur() in a component. Values match the
    Tailwind utilities they replace, so nothing moves on the page. */
 :root {
+	/* The solid ground for glass over a photo under Reduce Transparency /
+	   Increase Contrast / Solid surfaces: near-black, so a white label keeps
+	   its contrast on any image. */
+	--landing-solid-ground: hsl(0 0% 10%);
 	--landing-blur-sm: 4px;
 	--landing-blur-md: 12px;
 	--landing-blur-cta: 10px;
@@ -32,6 +36,17 @@
 .landing-blur-md {
 	-webkit-backdrop-filter: blur(var(--landing-blur-md));
 	backdrop-filter: blur(var(--landing-blur-md));
+}
+/* Reduce Transparency / Increase Contrast (and the Solid surfaces switch): the
+   blur goes from every landing surface. The frosted header's own fill
+   (--theme-bg-overlay) stays; the dock and the photo CTAs get solid grounds
+   in their own sections below. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	.landing-blur-sm, .landing-blur-md, .landing-cta, .landing-dock,
+	html.theme-modern-light .glass-widget, html.theme-modern-dark .glass-widget {
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
 }
 
 /* ---- Shared scaffolding ---------------------------------------------------- */
@@ -159,6 +174,9 @@
 }
 .landing-cta:active {
 	transform: scale(0.97);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	.landing-cta, .landing-cta:hover { background: var(--landing-solid-ground); }
 }
 
 /* ---- Buttons on light content sections ------------------------------------ */
@@ -343,6 +361,9 @@ html.theme-modern-dark .glass-widget {
 html.theme-modern-dark .landing-dock {
 	background: rgba(26, 30, 35, 0.6);
 	border-color: rgba(255, 255, 255, 0.12);
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	.landing-dock, html.theme-modern-dark .landing-dock { background: var(--theme-bg-elevated); }
 }
 .landing-dock__list {
 	display: flex;

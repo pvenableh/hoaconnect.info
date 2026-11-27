@@ -516,7 +516,7 @@ select,
    neutral elevated ground (with `.glass-bar`, further down).
    Increase contrast: every glass surface gets an edge you can see, drawn as an
    outline so it follows the radius and leaves the rim's box-shadow alone. */
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	.glass, .glass-ultra, .glass-surface, .glass-body, .glass-field {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
@@ -526,11 +526,15 @@ select,
 	}
 	.glass-field { background: var(--theme-bg-elevated, #fff); }
 }
+/* !important on the edge: Reka writes an inline `outline: none` on every
+   popper (menu, popover, select, combobox), which beat this rule, so those
+   surfaces never got their edge (found 2026-11-27, plan session 2). */
 @media (prefers-contrast: more) {
 	.glass, .glass-ultra, .glass-surface, .glass-bar,
+	.material-bar, .material-menu, .material-sheet, .material-solid,
 	html.theme-app [data-sonner-toast][data-styled='true'] {
-		outline: 1px solid var(--theme-text-muted);
-		outline-offset: -1px;
+		outline: 1px solid var(--theme-text-muted) !important;
+		outline-offset: -1px !important;
 	}
 	.ios-card {
 		outline: 1px solid var(--theme-border-secondary);
@@ -554,7 +558,7 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 	border: 0;
 	box-shadow: var(--glass-rim-shadow), var(--glass-lift-shadow);
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
@@ -637,7 +641,7 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 /* Reduced transparency: no blur, and a scrim dark enough to read as "the page
    is behind glass" without the frost. Without this the overlay kept its blur
    while every surface above it had already dropped theirs. */
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	.dialog-overlay-glass,
 	[data-slot='dialog-overlay'],
 	[data-slot='alert-dialog-overlay'],
@@ -1012,7 +1016,7 @@ a[role='button']:not([data-no-press]):active,
 	animation-duration: var(--motion-panel, 460ms);
 }
 /* Honor reduced transparency the same way the slide-over does. */
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	[data-slot="dialog-overlay"],
 	[data-slot="sheet-overlay"] {
 		-webkit-backdrop-filter: none;
@@ -1040,7 +1044,7 @@ a[role='button']:not([data-no-press]):active,
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
 	.glass-bar { background: var(--theme-bg-elevated); }
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	.glass-bar {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
@@ -1280,6 +1284,20 @@ a[role='button']:not([data-no-press]):active,
 		transition: none;
 	}
 }
+/* The public site's glass. Over a photo (the widget and the round buttons) the
+   solid fill is --landing-solid-ground (landing.css), so the white label keeps
+   its contrast on any image; the drawer takes the theme's elevated ground. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	.glass-widget, .landing-drawer, .landing-glass-btn {
+		-webkit-backdrop-filter: none;
+		backdrop-filter: none;
+	}
+	.glass-widget, .glass-widget:hover,
+	.landing-glass-btn, .landing-glass-btn:hover {
+		background: var(--landing-solid-ground);
+	}
+	.landing-drawer { background: var(--theme-bg-elevated); }
+}
 
 /* =============================================================================
    MATERIAL V2 (plan-unified-experience §3). Four named materials, neutral by
@@ -1391,12 +1409,26 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 	box-shadow: var(--mat-hairline), var(--mat-shadow-1);
 }
 
-@media (prefers-reduced-transparency: reduce) {
+/* Reduce Transparency / Increase Contrast (and the Solid surfaces switch, by
+   way of core/build/postcss-solid-surfaces.ts). The fills go to 100%, so each
+   material keeps its own ground — the bar's elevated neutral, the menu and
+   sheet's card — and simply stops showing through; the blur goes.
+   It names the aliases the templates actually wear: `.glass-surface` and
+   `.glass-surface--strong` re-add their blur in the rules above, after the
+   older block near the top of this file, so that block alone lost to them
+   (plan-apple-platform-direction §7, session 1). */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	:root,
+	.dark {
+		--mat-bar-fill: 100%;
+		--mat-menu-fill: 100%;
+		--mat-sheet-fill: 100%;
+	}
 	.material-bar, .glass-bar, .material-menu, .material-sheet,
+	.glass-surface, .glass-surface--strong, .dark .glass-surface--strong,
 	html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='true']) {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;
-		background-color: var(--theme-bg-elevated);
 	}
 }
 
@@ -1437,7 +1469,7 @@ html.theme-app [data-sonner-toast][data-styled='true']:not([data-rich-colors='tr
 	-webkit-backdrop-filter: blur(var(--mat-blur-tscrim)) saturate(1.04);
 	backdrop-filter: blur(var(--mat-blur-tscrim)) saturate(1.04);
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
 	.mat-blur-chrome, .mat-blur-soft, .mat-blur-scrim, .mat-blur-capsule, .mat-blur-modal, .t-scrim {
 		-webkit-backdrop-filter: none;
 		backdrop-filter: none;

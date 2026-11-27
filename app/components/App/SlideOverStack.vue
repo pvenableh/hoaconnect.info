@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
     ),
     rgb(0 0 0 / 0.55);
 }
-@media (prefers-reduced-transparency: reduce) {
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   .app-slide-over-stack__backdrop {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

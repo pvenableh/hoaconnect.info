@@ -10,6 +10,7 @@ import { resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import tailwindcss from "@tailwindcss/vite";
+import { SOLID_SURFACES_PREPAINT_SCRIPT } from "./shared/a11y/solid-surfaces";
 
 // Absolute path to this layer's root, so `#core/...` resolves to core regardless of
 // which app is consuming the layer (the consumer's `~`/`@`/`~~` point at the consumer).
@@ -167,6 +168,15 @@ export default defineNuxtConfig({
   // so our theme tokens (--normal-bg etc. in ui/sonner) can override on top.
   // main.css is referenced by absolute path so it resolves to the layer, not the app.
   css: ["vue-sonner/style.css", resolve(coreDir, "app/assets/css/main.css")],
+
+  // Copies every Reduce Transparency / Increase Contrast rule behind the in-app
+  // "Solid surfaces" switch (`data-a11y-solid` on <html>): iOS exposes neither
+  // setting to a page. See the plugin's header.
+  postcss: {
+    plugins: {
+      [resolve(coreDir, "build/postcss-solid-surfaces.ts")]: {},
+    },
+  },
 
   runtimeConfig: {
     // Server-only keys (never exposed to client-side)
@@ -415,6 +425,9 @@ export default defineNuxtConfig({
         // Note: manifest, favicon, and apple-touch-icon are set dynamically
         // via useOrgBranding composable to support multi-tenant branding
       ],
+      // Solid surfaces (Appearance): stamped before first paint on every page,
+      // so a person who turned it on never sees the glass flash in.
+      script: [{ innerHTML: SOLID_SURFACES_PREPAINT_SCRIPT, tagPosition: "head" }],
     },
     pageTransition: { name: "page", mode: "out-in" },
     layoutTransition: { name: "layout", mode: "out-in" },
