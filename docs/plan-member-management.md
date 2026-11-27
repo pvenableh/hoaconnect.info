@@ -586,8 +586,22 @@ in the wrong order would drop entities out of Jay's mail audiences.
       Phase 5a. The question "which of my active owners is still not on the
       portal?" is answerable in the UI without anyone's `status` being touched:
       1033 Lenox reads *Not invited 58* against *Current 59*.
-- [ ] **The 29 remaining `member_type` readers** — display and analytics only,
-      none decide mail. One at a time.
+- [x] **The 29 remaining `member_type` readers** — display and analytics only,
+      none decide mail. One at a time. ✅ 2026-11-27. One DID decide mail:
+      `orgAudienceUserIds` (notification-events.ts) filtered owners/tenants on
+      `hoa_members.member_type` in Directus, so owner-only notices, meeting bells
+      and reminders went by the member field even when the unit link said
+      tenant. It now reads the links and filters with `residencyFor()`
+      (`tests/server/org-audience-residency.test.ts`). Also resolved: ops
+      view-as holder counts, `useSelectedOrg.memberType`/`isOwner`/`isTenant`,
+      `currentDomainMemberType`, OrgSelector's label, the member-dashboard and
+      home-glance owner/tenant counts, the directory API (sends the resolved
+      value, not the links), AI member context and search. The unit page shows
+      the link's own residency. Left on purpose: writes, invitation and
+      join-request fields, `hoa_member_units.member_type`, the CSV export
+      (stored fields; links export as their own file), demo seed, and the
+      `member_type` arguments to `ownedUnitsInOrg` / unit-record writes, which
+      are the fallback.
 - [x] **The demo guardrail now lives INSIDE the invitation senders.** ✅ 2026-08-27.
       `sendInvitationAcceptedEmail` took no `organizationId` at all and went
       straight to `initSendGrid()`, so SENDING a demo invitation was suppressed

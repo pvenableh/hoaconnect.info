@@ -9,6 +9,7 @@
 import { readItems } from "@directus/sdk";
 import { z } from "zod";
 import { rolePreview } from "#core/shared/ops/view-as";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 import { beginOpsAction, loadOpsCommunityBilling, runOpsAction } from "#core/server/utils/ops-actions";
 
 const readAny = readItems as any;
@@ -36,7 +37,7 @@ export default defineEventHandler(async (event) => {
         .request(
           readAny("hoa_members", {
             filter: { organization: { _eq: c.org.id }, status: { _eq: "active" } },
-            fields: ["role", "member_type"],
+            fields: ["role", "member_type", ...RESIDENCY_UNIT_FIELDS],
             limit: -1,
           })
         )
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event) => {
           : body.role === "property_manager"
             ? members.filter((m) => roleId(m) === config.public.directusRolePropertyManager).length
             : body.role === "tenant" || body.role === "owner"
-              ? members.filter((m) => m.member_type === body.role).length
+              ? members.filter((m) => residencyFor(m) === body.role).length
               : null;
       const label = body.role === "board" ? `board officer (${body.boardTitle ?? "director"})` : body.role.replace("_", " ");
       return {

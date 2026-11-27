@@ -86,7 +86,7 @@ describe("GET /api/org/directory", () => {
     await call({ query: { orgId: ORG } });
     const read = calls.calls.find((c: any) => c.collection === "hoa_members");
     expect(read.query.filter).toEqual({ organization: { _eq: ORG }, status: { _eq: "active" } });
-    expect(read.query.fields).toEqual(["id", "first_name", "last_name", "email", "phone", "member_type"]);
+    expect(read.query.fields).toEqual(["id", "first_name", "last_name", "email", "phone", "member_type", "units.member_type", "units.is_primary_unit", "units.end_date"]);
   });
 });
 

@@ -5,6 +5,7 @@ const [DefineNewsCards, NewsCards] = createReusableTemplate();
 import type { HoaDocument, HoaOrganization, HoaAnnouncement } from "#core/types/directus";
 import { homeFor } from "#core/shared/home/roles";
 import { emptyRoleContext } from "#core/shared/roles/role-context";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 import {
   REQUEST_STEPS,
   balanceSeries,
@@ -218,7 +219,7 @@ const { data: memberStats } = await useAsyncData(
     if (!orgId.value) return { total: 0, owners: 0, tenants: 0 };
     try {
       const result = await listMembers({
-        fields: ["id", "member_type"],
+        fields: ["id", "member_type", ...RESIDENCY_UNIT_FIELDS],
         filter: {
           organization: { _eq: orgId.value },
           status: { _in: ["active", "inactive"] },
@@ -227,8 +228,8 @@ const { data: memberStats } = await useAsyncData(
       const members = result || [];
       return {
         total: members.length,
-        owners: members.filter((m: any) => m.member_type === "owner").length,
-        tenants: members.filter((m: any) => m.member_type === "tenant").length,
+        owners: members.filter((m: any) => residencyFor(m) === "owner").length,
+        tenants: members.filter((m: any) => residencyFor(m) === "tenant").length,
       };
     } catch (e) {
       return { total: 0, owners: 0, tenants: 0 };

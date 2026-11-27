@@ -1,5 +1,6 @@
 // composables/useSelectedOrg.ts
 import type { HoaBoardMember } from "#core/types/directus";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 
 /**
  * Composable to manage the currently selected organization
@@ -161,6 +162,8 @@ export const useSelectedOrg = async () => {
             // RoleContext needs it: an archived or inactive row carries no hats.
             "status",
             "member_type",
+            // The unit links residencyFor() reads first (member_type is the fallback).
+            ...RESIDENCY_UNIT_FIELDS,
             "manager_permissions",
             "board_member_terms.id",
             "board_member_terms.status",
@@ -297,10 +300,8 @@ export const useSelectedOrg = async () => {
     return !!currentOrg.value?.role;
   });
 
-  // Get member type (owner or tenant)
-  const memberType = computed<"owner" | "tenant" | null>(() => {
-    return currentOrg.value?.member_type || null;
-  });
+  // Owner or tenant: the current unit link first, member_type as the fallback.
+  const memberType = computed<"owner" | "tenant" | null>(() => residencyFor(currentOrg.value as any));
 
   // Check if member is an owner
   const isOwner = computed(() => {

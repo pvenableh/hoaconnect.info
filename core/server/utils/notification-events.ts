@@ -19,6 +19,7 @@
 
 import { withMemberName } from "#core/shared/members/display-name";
 import { memberNamePartsFor } from "./member-names";
+import { RESIDENCY_UNIT_FIELDS, residencyFor, type MemberResidency } from "#core/shared/members/residency";
 import { readItem, readItems, readNotifications } from "@directus/sdk";
 import {
   planNotifyEvent,
@@ -255,7 +256,9 @@ export async function adminUserIds(orgId: string): Promise<string[]> {
  *
  * The audience vocabulary comes from the content collections
  * (`all | owners | tenants | board_members`) and has to be translated to the
- * membership model, where "owners"/"tenants" is `member_type` and board
+ * membership model, where "owners"/"tenants" is the residency `residencyFor()`
+ * resolves (the current unit link first, `hoa_members.member_type` as the
+ * fallback) and board
  * membership lives in a separate terms collection. `all` is the common case and
  * is deliberately the fallback for an unrecognised tag: a meeting notice reaching
  * more members than intended is a smaller failure than one reaching nobody.
@@ -285,18 +288,21 @@ export async function orgAudienceUserIds(orgId: string, audience: string): Promi
     ];
   }
 
-  const filter: Record<string, unknown> = {
-    organization: { _eq: orgId },
-    status: { _eq: "active" },
-  };
-  if (tag === "owners" || tag === "tenants") {
-    filter.member_type = { _eq: tag === "owners" ? "owner" : "tenant" };
-  }
-
+  // Owners/tenants are resolved here, not filtered in Directus: a member whose
+  // unit link says tenant can still carry `member_type: "owner"` from before
+  // residency moved onto the link, and a Directus filter on the member field
+  // would mail them as an owner.
+  const byResidency = tag === "owners" || tag === "tenants";
   const rows = (await admin.request(
-    readItems("hoa_members", { filter: filter as never, fields: ["user"], limit: -1 })
-  )) as Array<{ user: unknown }>;
-  return [...new Set((rows || []).map((r) => idOf(r.user)).filter(Boolean) as string[])];
+    readItems("hoa_members", {
+      filter: { organization: { _eq: orgId }, status: { _eq: "active" } } as never,
+      fields: (byResidency ? ["user", "member_type", ...RESIDENCY_UNIT_FIELDS] : ["user"]) as never,
+      limit: -1,
+    })
+  )) as Array<MemberResidency & { user: unknown }>;
+  const want = tag === "owners" ? "owner" : "tenant";
+  const audienceRows = byResidency ? (rows || []).filter((r) => residencyFor(r) === want) : rows || [];
+  return [...new Set(audienceRows.map((r) => idOf(r.user)).filter(Boolean) as string[])];
 }
 
 /**

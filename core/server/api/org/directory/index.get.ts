@@ -8,6 +8,7 @@
  */
 import { readForArea, requireOrgId } from "#core/server/utils/area-reads";
 import type { ReadSpec } from "#core/server/utils/directus-graphql";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 
 const DIRECTORY_FIELDS = ["id", "first_name", "last_name", "email", "phone", "member_type"] as const;
 
@@ -15,7 +16,7 @@ function directorySpec(orgId: string): ReadSpec {
   return {
     collection: "hoa_members",
     filter: { organization: { _eq: orgId }, status: { _eq: "active" } },
-    fields: [...DIRECTORY_FIELDS],
+    fields: [...DIRECTORY_FIELDS, ...RESIDENCY_UNIT_FIELDS],
     sort: ["first_name"],
     limit: -1,
   };
@@ -24,5 +25,11 @@ function directorySpec(orgId: string): ReadSpec {
 export default defineEventHandler(async (event) => {
   const orgId = requireOrgId(getQuery(event).orgId);
   const { rows } = await readForArea(event, orgId, "directory", { directory: directorySpec(orgId) });
-  return { members: rows.directory };
+  // `member_type` goes out resolved (the current unit link first), and the
+  // links themselves stay on the server.
+  const members = ((rows.directory ?? []) as Array<Record<string, any>>).map(({ units, ...m }) => ({
+    ...m,
+    member_type: residencyFor({ member_type: m.member_type, units }),
+  }));
+  return { members };
 });

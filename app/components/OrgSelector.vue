@@ -12,6 +12,7 @@ const config = useRuntimeConfig();
 
 import { hatLine, managerChip } from "#core/shared/roles/hat-badge";
 import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
+import { residencyFor } from "#core/shared/members/residency";
 
 const { currentOrg, memberships, setOrganization, hasMultipleOrgs, isAdmin } =
   await useSelectedOrg();
@@ -66,7 +67,7 @@ const initials = (name?: string | null) =>
     .toUpperCase();
 
 // A friendly role label from the data we actually have on each membership
-// (role is an id, plus member_type and board terms).
+// (role is an id, plus residency from the unit links and board terms).
 const adminRoleIds = [
   config.public.directusRoleAppAdmin,
   config.public.directusRoleHoaAdmin,
@@ -85,8 +86,9 @@ const roleLabel = (m: any): string => {
   if (roleId === config.public.directusRolePropertyManager) return "Manager";
   if (adminRoleIds.includes(roleId)) return "Admin";
   if (hasActiveBoardTerm(m)) return "Board";
-  if (m?.member_type === "owner") return "Owner";
-  if (m?.member_type === "tenant") return "Resident";
+  const residency = residencyFor(m);
+  if (residency === "owner") return "Owner";
+  if (residency === "tenant") return "Resident";
   return "Member";
 };
 

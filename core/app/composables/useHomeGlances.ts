@@ -46,6 +46,7 @@ import {
 } from "#core/shared/home/glances";
 import { buildUpNext, type UpNextInput } from "#core/shared/home/up-next";
 import { orgTimeZone } from "#core/shared/org-timezone";
+import { RESIDENCY_UNIT_FIELDS, residencyFor, type MemberResidency } from "#core/shared/members/residency";
 
 /**
  * Charges — ONE query serving money-in, what is outstanding, and how overdue.
@@ -178,9 +179,8 @@ export async function useUnitsGlance(org: MaybeRefOrGetter<string | null | undef
   };
 }
 
-interface MemberRowLite {
+interface MemberRowLite extends MemberResidency {
   id?: string;
-  member_type?: string | null;
   date_created?: string | null;
 }
 
@@ -194,7 +194,7 @@ export async function useMembersGlance(org: MaybeRefOrGetter<string | null | und
     async () => {
       if (!orgId.value) return [] as MemberRowLite[];
       return (await list({
-        fields: ["id", "member_type", "date_created"],
+        fields: ["id", "member_type", ...RESIDENCY_UNIT_FIELDS, "date_created"],
         filter: {
           organization: { _eq: orgId.value },
           status: { _in: ["active", "inactive"] },
@@ -210,8 +210,8 @@ export async function useMembersGlance(org: MaybeRefOrGetter<string | null | und
     pending,
     rows,
     total: computed(() => rows.value.length),
-    owners: computed(() => rows.value.filter((m) => m.member_type === "owner").length),
-    tenants: computed(() => rows.value.filter((m) => m.member_type === "tenant").length),
+    owners: computed(() => rows.value.filter((m) => residencyFor(m) === "owner").length),
+    tenants: computed(() => rows.value.filter((m) => residencyFor(m) === "tenant").length),
   };
 }
 

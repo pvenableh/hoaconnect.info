@@ -27,6 +27,8 @@ export interface OccupantRecord {
   ownership_percentage?: number | null;
   start_date?: string | null;
   end_date?: string | null;
+  /** This link's own residency; the member's `member_type` is only the fallback. */
+  member_type?: string | null;
   member_id?: UnitRecordMember | null;
 }
 

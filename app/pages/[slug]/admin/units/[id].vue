@@ -171,7 +171,7 @@ const { buildOrgPath } = useOrgNavigation();
                   <span v-if="item.is_primary_unit" class="ml-1 text-[10px] uppercase tracking-wide text-violet-600">primary</span>
                 </p>
                 <p class="text-xs t-text-muted">
-                  <span class="capitalize">{{ item.member_id?.member_type || "resident" }}</span>
+                  <span class="capitalize">{{ item.member_type || item.member_id?.member_type || "resident" }}</span>
                   <span v-if="item.ownership_percentage"> · {{ item.ownership_percentage }}% owner</span>
                   · {{ range(item.start_date, item.end_date) }}
                 </p>

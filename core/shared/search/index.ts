@@ -20,6 +20,7 @@
  */
 import type { Actor, Capability } from "#core/shared/permissions";
 import { hasCapability } from "#core/shared/permissions";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "../members/residency";
 
 export type SearchGroupKey =
   | "members"
@@ -107,12 +108,12 @@ export const SEARCH_GROUPS: SearchGroupDef[] = [
     collection: "hoa_members",
     module: "directory",
     requires: "directory:read",
-    fields: ["id", "first_name", "last_name", "email", "member_type", "company", "user"],
+    fields: ["id", "first_name", "last_name", "email", "member_type", ...RESIDENCY_UNIT_FIELDS, "company", "user"],
     searchFields: ["first_name", "last_name", "email", "company", "phone"],
     toHit: (r) => ({
       id: String(r.id),
       name: [r.first_name, r.last_name].filter(Boolean).join(" ") || r.email || "Member",
-      description: join(r.email, r.member_type),
+      description: join(r.email, residencyFor(r)),
       to: `/admin/members?member=${encodeURIComponent(String(r.id))}`,
       ...(r.user ? { userId: String(typeof r.user === "object" ? r.user.id : r.user) } : {}),
     }),

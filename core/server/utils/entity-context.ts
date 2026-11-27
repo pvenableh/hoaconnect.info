@@ -14,6 +14,7 @@
 // getTypedDirectus is auto-imported from server/utils/directus.ts.
 
 import { readItems } from "@directus/sdk";
+import { RESIDENCY_UNIT_FIELDS, residencyFor } from "#core/shared/members/residency";
 
 /** ~800-token budget (≈ chars/4) for a whole dossier — keep the prompt lean. */
 const ENTITY_BUDGET_CHARS = 3200;
@@ -130,6 +131,7 @@ async function buildMemberContext(orgId: string, id: string): Promise<string | n
     "phone",
     "company",
     "member_type",
+    ...RESIDENCY_UNIT_FIELDS,
     "status",
     "payment_status",
     "outstanding_balance",
@@ -144,7 +146,7 @@ async function buildMemberContext(orgId: string, id: string): Promise<string | n
   const name = [m.first_name, m.last_name].filter(Boolean).join(" ") || "(unnamed member)";
   lines.push(`Member: ${name} [Source: Member]`);
   const bits = [
-    m.member_type ? `${m.member_type}` : "",
+    residencyFor(m) ?? "",
     m.status ? `status ${m.status}` : "",
     m.company ? `company ${clip(m.company, 60)}` : "",
   ].filter(Boolean);

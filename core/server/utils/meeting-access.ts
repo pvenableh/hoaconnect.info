@@ -43,7 +43,7 @@ export function meetingsPageSpecs(orgId: string): Record<"meetings" | "members" 
     members: {
       collection: "hoa_members",
       filter: { organization: { _eq: orgId }, status: { _in: ["active", "inactive"] } },
-      fields: ["id", "first_name", "last_name", "member_type"],
+      fields: ["id", "first_name", "last_name"],
       sort: ["last_name", "first_name"],
       limit: -1,
     },

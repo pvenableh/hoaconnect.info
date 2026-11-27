@@ -22,6 +22,7 @@
 import { normalizeGrants, type AreaKey, type ManagerGrantKey } from "#core/shared/transition/grants";
 import { isCurrentBoardTerm, todayUtc } from "#core/shared/roles/role-context";
 import { roleContextFromMembership, useRoleContext } from "./useRoleContext";
+import { residencyFor } from "#core/shared/members/residency";
 
 export const useCurrentDomainAccess = () => {
   const { activeHoa } = useActiveHoa();
@@ -186,10 +187,12 @@ export const useCurrentDomainAccess = () => {
   // admin's dock, the queue-first home.
   const hasManagerHat = computed(() => roleContext.value.hats.manager);
 
-  // Get member type for current domain
-  const currentDomainMemberType = computed<"owner" | "tenant" | null>(() => {
-    return currentDomainMembership.value?.member_type || null;
-  });
+  // Owner or tenant of this membership whatever its status (the role context
+  // above reads "none" for a row that is not active): the current unit link
+  // first, member_type as the fallback.
+  const currentDomainMemberType = computed<"owner" | "tenant" | null>(() =>
+    residencyFor(currentDomainMembership.value as any)
+  );
 
   return {
     // Context checks

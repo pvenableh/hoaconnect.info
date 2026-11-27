@@ -114,7 +114,7 @@ export default defineEventHandler(async (event) => {
     directus.request(
       readItems("hoa_member_units", {
         filter: { unit_id: { _eq: unitId }, member_id: { organization: { _eq: orgId } } },
-        fields: ["id", "is_primary_unit", "ownership_percentage", "start_date", "end_date", { member_id: ["id", "first_name", "last_name", "member_type", "email"] }],
+        fields: ["id", "is_primary_unit", "ownership_percentage", "start_date", "end_date", "member_type", { member_id: ["id", "first_name", "last_name", "member_type", "email"] }],
         sort: ["-is_primary_unit", "end_date", "-start_date"],
         limit: -1,
       })

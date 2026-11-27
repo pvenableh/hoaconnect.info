@@ -1235,7 +1235,7 @@ describe("POST /api/ops/communities/:id/view-as", () => {
     expect(can(tenant, "documents:read")).toBe(true);
     expect(tenant.preview.support).toEqual({ askCommunity: true, contactHoaConnect: ["bug"] });
     expect(tenant.preview.requests).toEqual({ ownOnly: true, communityInbox: false });
-    expect(tenant.holders).toBe(0); // no seat is marked tenant in the seed; Tom's tenancy is per unit
+    expect(tenant.holders).toBe(1); // no seat is marked tenant in the seed, but Tom's unit link is: residencyFor counts him
 
     const admin = (await call(actions.viewAs, { id: "harbor" }, submit({ role: "hoa_admin" }))).result;
     expect(admin.preview.capabilities.every((c: any) => c.allowed)).toBe(true);
