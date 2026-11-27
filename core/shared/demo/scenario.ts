@@ -320,10 +320,19 @@ export async function seedScenario(c: ScenarioCtx, t: { orgId: string; adminUser
   // ── Money approvals waiting on the board (the rule decides who can vote) ──
   const expense = async (title: string, vendorName: string, amount: number, category: string, daysAgo: number) => {
     const id = await ensure("payment_expenses", title, { vendor: vendorName, amount, category, status: "submitted", entered_by: t.adminUserId, expense_date: at(-daysAgo), date_created: at(-daysAgo, 11) });
-    if (!dry && !(await findOne("money_approvals", { organization: { _eq: t.orgId }, expense: { _eq: id } }))) {
+    if (dry) return;
+    const have = await findOne("money_approvals", { organization: { _eq: t.orgId }, expense: { _eq: id } });
+    if (!have) {
       const a = (await mut(`approval for ${title}`, "POST", "/items/money_approvals", { ...org, kind: "spend", expense: id, round: 1, state: "pending", mode: "majority", needed: 2, requested_by: t.adminUserId, excluded: [t.adminUserId], date_created: at(-daysAgo, 11) }))?.data;
       await dx(`/items/payment_expenses/${id}`, { method: "PATCH", body: JSON.stringify({ approval: a.id }) });
+      return;
     }
+    // Each run reopens the vote: drop the decisions visitors made and put the
+    // round and its expense back where the seed left them.
+    const decisions = (await dx(`/items/money_approval_decisions${qs({ filter: { approval: { _eq: have.id } }, fields: "id", limit: -1 })}`))?.data ?? [];
+    if (decisions.length) await dx("/items/money_approval_decisions", { method: "DELETE", body: JSON.stringify(decisions.map((d: { id: string }) => d.id)) });
+    await dx(`/items/money_approvals/${have.id}`, { method: "PATCH", body: JSON.stringify({ state: "pending", mode: "majority", needed: 2, decided_at: null, excluded: [t.adminUserId] }) });
+    await dx(`/items/payment_expenses/${id}`, { method: "PATCH", body: JSON.stringify({ status: "submitted", approval: have.id }) });
   };
   await expense("Roof gutter repair", "Harbor Roofing", 1800, "maintenance", 3);
   await expense("Elevator controller replacement", "Summit Elevator Service", 4200, "maintenance", 6);

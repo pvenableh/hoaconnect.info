@@ -451,8 +451,10 @@ export async function announceReminderEvent(opts: ReminderEventOptions): Promise
 
 /** One composed reminder through the notify layer: bell, push, and the email twin. */
 export const sendReminder: ReminderSender = async (org, c) => {
-  const [{ notifyUsers }, { reminderEmail }] = await Promise.all([import("./notify"), import("./reminder-email")]);
-  const email = c.channels.includes("email") ? reminderEmail(c) : null;
+  const [{ notifyUsers }, { reminderEmail }, { shouldBlockDemoEmail }] = await Promise.all([import("./notify"), import("./reminder-email"), import("./demo")]);
+  // A demo community gets the bell and the push, never the email: the send
+  // guard would only simulate it, and the log would count it as sent.
+  const email = c.channels.includes("email") && !(await shouldBlockDemoEmail(org.id)) ? reminderEmail(c) : null;
   const entity = c.entities[0];
   return notifyUsers({
     organizationId: org.id,

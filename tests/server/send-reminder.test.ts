@@ -7,12 +7,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let notify: ReturnType<typeof vi.fn>;
 vi.mock("#core/server/utils/notify", () => ({ notifyUsers: (...a: unknown[]) => notify(...a) }));
+let demo = false;
+vi.mock("#core/server/utils/demo", () => ({ shouldBlockDemoEmail: async () => demo }));
 vi.stubGlobal("useRuntimeConfig", () => ({ public: { appUrl: "https://app.test" } }));
 
 const { sendReminder } = await import("#core/server/utils/reminders");
 const { composeReminder } = await import("#core/shared/reminders/messages");
 
 beforeEach(() => {
+  demo = false;
   notify = vi.fn(async () => ({ bell: 1, push: 1, email: 0 }));
 });
 
@@ -72,5 +75,14 @@ describe("sendReminder", () => {
     const c = { ...composed("dues"), channels: ["bell"] } as never;
     await sendReminder(ORG, c);
     expect(notify.mock.calls[0]![0].push).toBe(false);
+  });
+
+  it("a demo community gets the bell and push but no email", async () => {
+    const c = { ...composed("dues"), channels: ["bell", "push", "email"] } as never;
+    await sendReminder(ORG, c);
+    expect(notify.mock.calls[0]![0].email).toBeTruthy();
+    demo = true;
+    await sendReminder(ORG, c);
+    expect(notify.mock.calls[1]![0]).toMatchObject({ email: null, bell: true });
   });
 });
