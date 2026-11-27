@@ -1,6 +1,6 @@
 # Plan — Apple platform direction for HOA Connect
 
-**Status:** Proposed, nothing built · **Author:** Peter + Claude · **Date:** 2026-11-27
+**Status:** Session 1 code side done, device walk pending · **Author:** Peter + Claude · **Date:** 2026-11-27
 
 This plan follows Earnest's `docs/apple-platform-direction-plan.md`, whose eleven phases are all on Earnest's `main`.
 That file holds the Apple evidence (HIG and WWDC25/26 links, §2) and the as-built notes (§6–§6i); this plan cites it as
@@ -92,7 +92,7 @@ reading list; do not survey the repo. Earnest paths are under `~/Sites/earnest/e
 
 | Session | What                                                                                                                                                                                                                                                                                  | Closes  | Model      | Read first                                                                                             | State |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------ | ----- |
-| 1       | **Truth on a device.** Peter walks `push-verification.md` on his iPhone. Copy Earnest's `public/media-probe.html` and read what iOS reports with Increase Contrast and Reduce Transparency on. Find where `material-*` is applied. Add `apple-mobile-web-app-title`.                  | H1 part | Sonnet 5.5 | `docs/push-verification.md`; `earnest-ui.css:1298-1413`; `core/nuxt.config.ts:385-400`                 | [ ]   |
+| 1       | **Truth on a device.** Peter walks `push-verification.md` on his iPhone. Copy Earnest's `public/media-probe.html` and read what iOS reports with Increase Contrast and Reduce Transparency on. Find where `material-*` is applied. Add `apple-mobile-web-app-title`.                  | H1 part | Sonnet 5.5 | `docs/push-verification.md`; `earnest-ui.css:1298-1413`; `core/nuxt.config.ts:385-400`                 | [[~]   |
 | 2       | **Solid surfaces.** Every `backdrop-filter` rule answers Reduce Transparency and Increase Contrast. Appearance gains a per-device Solid surfaces switch that applies the same rules by attribute, stamped before first paint. Port Earnest's PostCSS copy so rules stay written once. | H2      | Sonnet 5.5 | E§7 third bullet; Earnest `scripts/postcss-solid-surfaces.ts`, `useSolidSurfaces`; `useAppearance.ts`  | [ ]   |
 | 3       | **Motion that degrades.** Under reduced motion, slides become 150ms fades (sheet, slide-over, page push). Add `audit:easing` to `audit:all` at today's count and lower it.                                                                                                            | H4      | Sonnet 5.5 | E§6b; `variables.css:50-85`; `core/shared/motion/index.ts`; Earnest `scripts/audit-easing.ts`          | [ ]   |
 | 4       | **Width classes and orientation.** One composable returns `widthClass` and `pointer`; the three `matchMedia` sites read it. Add left, right and top safe-area insets to the shell, dock and sheet, then drop `orientation` from the manifest. No visual change at a phone upright.    | H3, H5  | Opus 5.5   | E§6c first bullet; Earnest `app/composables/useAppsMode.ts`; `Dock.vue:30-45`; `BottomSheet.vue:60-75` | [ ]   |
@@ -118,7 +118,49 @@ a list, not found mid-sweep.
 
 ## 7. As built
 
-Empty. One subsection per session, in Earnest's form: what changed, what was checked and how, what was not checked.
+One subsection per session, in Earnest's form: what changed, what was checked and how, what was not checked.
+
+### Session 1 — Truth on a device (2026-11-27, code side; device walk pending)
+
+**What changed.**
+
+- `public/media-probe.html`: Earnest's probe, copied unchanged but for its header comment. Static, no app code; it lists
+  what the browser reports for `prefers-reduced-transparency`, `prefers-contrast`, reduced motion, inverted and forced
+  colours, colour scheme and display mode, and four swatches that turn green only if CSS applies the query.
+- `apple-mobile-web-app-title`: a default of "HOA Connect" in `core/nuxt.config.ts`, and per host in
+  `useOrgBranding.ts` beside `theme-color`, from a new `homeScreenName` (settings title, then org name, then
+  `companyName`). That is the chain the manifest's `short_name` uses, so the name iOS offers on Add to Home Screen
+  matches the manifest. It is not `siteName`: on the platform host that falls back to `siteTitle`, "HOA Connect -
+  Premier Property Management App", too long for an icon.
+
+**Where `material-*` is applied: nowhere.** No `.vue`, `.ts` or `.js` file in `app/` or `core/` names `material-bar`,
+`-menu`, `-sheet`, `-solid` or `-highlight` (grep, 0 files). The app wears the older aliases that share their rules in
+`earnest-ui.css`: `glass-surface glass-surface--strong` (the sheet material) on 21 files, chiefly the `App/` wrappers for
+dialog, sheet, popover, select, dropdown, tooltip, combobox, confirm and bottom sheet, plus the four auth forms;
+`glass-surface` alone (the menu material) only in `Responsibilities/Map.vue` and `MapSlider.vue`; `glass-bar` (the bar)
+only in `App/Nav.vue`; `glass-active-thumb` (the highlight) in 7; `glass-btn-primary` from `button-variants.ts`.
+
+**Found for session 2.** The `prefers-reduced-transparency` block in `earnest-ui.css` lists `.material-bar`,
+`.glass-bar`, `.material-menu`, `.material-sheet` and the toast, but not `.glass-surface` or `.glass-surface--strong`.
+So every dialog, sheet, popover and menu keeps its blur under Reduce Transparency even in a browser that reports it.
+Session 2 should rename the uses to `material-*` or add the aliases to every solid rule; either way the rule must name
+what the templates name. (Only lines 1298–1413 were read; the scoped-blur block after them was not.)
+
+**Checked, and how.** On the dev server: `/` serves one `apple-mobile-web-app-title` of "HOA Connect" (unhead keeps
+one tag, the composable's); `/demo` serves "Harborview Lofts" and `/demo-classic` "The Beaumont Residences";
+`/media-probe.html` answers 200 `text/html`; `/api/manifest.webmanifest` on the platform host has `short_name` "HOA
+Connect". ESLint on both files (one existing warning, unused `route`) and `audit:all` (21 green). The Browser pane
+refused the localhost tab this session, so checks were by `curl`; nothing here changes layout, so no 375/820/1440 pass.
+
+**Not checked — Peter's device walk.**
+
+- [ ] Media probe, Safari tab and Home Screen, with Reduce Transparency, Increase Contrast and Reduce Motion each
+      toggled. Needs this commit deployed. Record per query: supported or not, and whether it changes live.
+- [ ] `docs/push-verification.md`: "Before you start" and the iPhone row. Record in its Record table.
+- [ ] Add to Home Screen on a community host offers the community's name, not "HOA Connect".
+- [ ] The haptic switch-checkbox from §8, if convenient: it decides whether session 9 builds an iOS haptic path.
+
+When those are in, write the results here, tick session 1 in §6, and move the §8 items they settle.
 
 ## 8. Lessons from Earnest, and what is not verified
 

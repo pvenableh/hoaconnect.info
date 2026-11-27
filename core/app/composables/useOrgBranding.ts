@@ -9,6 +9,8 @@ type ID = string | number;
 
 interface BrandingConfig {
   siteName: string;
+  /** Home Screen name: the manifest's short_name (settings title, org name, then companyName). */
+  homeScreenName: string;
   siteDescription: string;
   themeColor: string;
   faviconUrl: string;
@@ -86,6 +88,11 @@ export const useOrgBranding = () => {
         org?.name ||
         config.public.siteTitle ||
         "HOA Connect",
+      homeScreenName:
+        settings?.title ||
+        org?.name ||
+        config.public.companyName ||
+        "HOA Connect",
       siteDescription:
         settings?.description ||
         settings?.seo?.meta_description ||
@@ -116,6 +123,8 @@ export const useOrgBranding = () => {
       meta: [
         { name: "description", content: b.siteDescription },
         { name: "theme-color", content: b.themeColor },
+        // Home Screen name: the same name the manifest's short_name carries.
+        { name: "apple-mobile-web-app-title", content: b.homeScreenName },
         // Open Graph
         { property: "og:site_name", content: b.siteName },
         { property: "og:description", content: b.siteDescription },

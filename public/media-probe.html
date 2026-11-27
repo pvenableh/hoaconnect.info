@@ -1,0 +1,221 @@
+<!doctype html>
+<!--
+  Media probe — what this browser reports for the accessibility media queries.
+
+  Copied from Earnest 2026-11-27 for docs/plan-apple-platform-direction.md session 1:
+  Earnest found that iOS reports neither Reduce Transparency nor Increase Contrast
+  to a page; this checks the same on HOA Connect's host.
+  Open it in Safari, then add it to the Home Screen (it carries its own
+  apple-mobile-web-app-capable, and no manifest, so it opens standalone as
+  itself) and open it from there. Toggle the settings while it is open; the
+  readout updates live. Static, no app code, no network.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="Probe" />
+		<meta name="robots" content="noindex" />
+		<title>Media probe</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				--bg: #f6f4ef;
+				--fg: #1d1b18;
+				--muted: #6b665d;
+				--line: rgba(0, 0, 0, 0.12);
+				--yes: #1f7a3a;
+				--no: #8a8478;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg: #141311;
+					--fg: #f1eee7;
+					--muted: #a39d92;
+					--line: rgba(255, 255, 255, 0.14);
+					--yes: #5fd17f;
+					--no: #8a8478;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--fg);
+				font: 16px/1.4 -apple-system, system-ui, sans-serif;
+				padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+			}
+			h1 {
+				font-size: 22px;
+				margin: 8px 0 4px;
+			}
+			p {
+				color: var(--muted);
+				margin: 0 0 16px;
+				font-size: 14px;
+			}
+			table {
+				width: 100%;
+				border-collapse: collapse;
+				margin-bottom: 20px;
+			}
+			td {
+				padding: 10px 4px;
+				border-bottom: 1px solid var(--line);
+				vertical-align: top;
+			}
+			td:first-child {
+				font-family: ui-monospace, Menlo, monospace;
+				font-size: 13px;
+				word-break: break-word;
+			}
+			td:last-child {
+				text-align: right;
+				font-weight: 600;
+				white-space: nowrap;
+			}
+			.yes {
+				color: var(--yes);
+			}
+			.no {
+				color: var(--no);
+				font-weight: 400;
+			}
+			.na {
+				color: var(--muted);
+				font-weight: 400;
+				font-style: italic;
+			}
+			h2 {
+				font-size: 15px;
+				margin: 20px 0 8px;
+			}
+			/* The CSS side: each swatch only changes if the engine applies the query. */
+			.swatches {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 10px;
+			}
+			.sw {
+				border-radius: 12px;
+				padding: 14px 12px;
+				font-size: 13px;
+				font-weight: 600;
+				border: 1px solid var(--line);
+				background: var(--line);
+				color: var(--muted);
+			}
+			@media (prefers-reduced-transparency: reduce) {
+				.sw-rt {
+					background: var(--yes);
+					color: #fff;
+				}
+			}
+			@media (prefers-contrast: more) {
+				.sw-pc {
+					background: var(--yes);
+					color: #fff;
+				}
+			}
+			@media (display-mode: standalone) {
+				.sw-sa {
+					background: var(--yes);
+					color: #fff;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				.sw-rm {
+					background: var(--yes);
+					color: #fff;
+				}
+			}
+			#ua {
+				font-family: ui-monospace, Menlo, monospace;
+				font-size: 12px;
+				color: var(--muted);
+				word-break: break-all;
+			}
+			#log {
+				font-family: ui-monospace, Menlo, monospace;
+				font-size: 12px;
+				color: var(--muted);
+				white-space: pre-wrap;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Media probe</h1>
+		<p>Turn each setting on and off with this open; the values update live. Do it once in Safari and once from the Home Screen.</p>
+
+		<table id="rows"></table>
+
+		<h2>CSS applies it? (green = yes)</h2>
+		<div class="swatches">
+			<div class="sw sw-rt">reduced-transparency</div>
+			<div class="sw sw-pc">contrast: more</div>
+			<div class="sw sw-rm">reduced-motion</div>
+			<div class="sw sw-sa">standalone</div>
+		</div>
+
+		<h2>Changes seen</h2>
+		<div id="log">none yet</div>
+
+		<h2>Browser</h2>
+		<div id="ua"></div>
+
+		<script>
+			const queries = [
+				'(prefers-reduced-transparency: reduce)',
+				'(prefers-reduced-transparency: no-preference)',
+				'(prefers-contrast: more)',
+				'(prefers-contrast: less)',
+				'(prefers-contrast: custom)',
+				'(prefers-contrast: no-preference)',
+				'(prefers-reduced-motion: reduce)',
+				'(inverted-colors: inverted)',
+				'(forced-colors: active)',
+				'(prefers-color-scheme: dark)',
+				'(display-mode: standalone)',
+				'(display-mode: browser)',
+			];
+			const rows = document.getElementById('rows');
+			const log = document.getElementById('log');
+			const lines = [];
+			const t0 = Date.now();
+
+			for (const q of queries) {
+				const mql = matchMedia(q);
+				// An engine that does not know the feature reports `not all` as the parsed media.
+				const known = mql.media !== 'not all';
+				const tr = document.createElement('tr');
+				const cell = document.createElement('td');
+				cell.textContent = q;
+				const val = document.createElement('td');
+				tr.append(cell, val);
+				rows.append(tr);
+				const paint = () => {
+					if (!known) {
+						val.textContent = 'not supported';
+						val.className = 'na';
+					} else {
+						val.textContent = mql.matches ? 'yes' : 'no';
+						val.className = mql.matches ? 'yes' : 'no';
+					}
+				};
+				paint();
+				if (known) {
+					mql.addEventListener('change', () => {
+						paint();
+						lines.unshift(`+${Math.round((Date.now() - t0) / 1000)}s  ${q} → ${mql.matches}`);
+						log.textContent = lines.join('\n');
+					});
+				}
+			}
+			document.getElementById('ua').textContent =
+				navigator.userAgent + (navigator.standalone ? '  · navigator.standalone' : '');
+		</script>
+	</body>
+</html>

@@ -398,6 +398,10 @@ export default defineNuxtConfig({
         { name: "mobile-web-app-capable", content: "yes" },
         { name: "apple-mobile-web-app-capable", content: "yes" },
         { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+        // The Home Screen name iOS offers on Add to Home Screen. A community's
+        // host overrides it with the community's name in useOrgBranding, the
+        // same name its manifest gives.
+        { name: "apple-mobile-web-app-title", content: "HOA Connect" },
       ],
       link: [
         {
