@@ -201,8 +201,8 @@ const { data: logoSvg } = useAsyncData(
   background: transparent;
   border-color: transparent;
   /* Drop the glass blur too — it reads as a background disc. */
-  backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   color: var(--theme-text-primary, #1c1a16);
 }
 .landing-header :deep(.landing-glass-btn:hover) {

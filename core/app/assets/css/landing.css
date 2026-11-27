@@ -26,12 +26,12 @@
 	--landing-saturate-dock: 170%;
 }
 .landing-blur-sm {
-	backdrop-filter: blur(var(--landing-blur-sm));
 	-webkit-backdrop-filter: blur(var(--landing-blur-sm));
+	backdrop-filter: blur(var(--landing-blur-sm));
 }
 .landing-blur-md {
-	backdrop-filter: blur(var(--landing-blur-md));
 	-webkit-backdrop-filter: blur(var(--landing-blur-md));
+	backdrop-filter: blur(var(--landing-blur-md));
 }
 
 /* ---- Shared scaffolding ---------------------------------------------------- */
@@ -145,8 +145,8 @@
 	font-size: 0.75rem;
 	color: #fff;
 	cursor: pointer;
-	backdrop-filter: blur(var(--landing-blur-cta));
 	-webkit-backdrop-filter: blur(var(--landing-blur-cta));
+	backdrop-filter: blur(var(--landing-blur-cta));
 	transition: background 0.3s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
 		border-color 0.3s ease;
 }
@@ -319,8 +319,8 @@ html.theme-modern-dark .landing-card:hover {
 html.theme-modern-light .glass-widget,
 html.theme-modern-dark .glass-widget {
 	border-radius: 1rem;
-	backdrop-filter: blur(var(--landing-blur-glass)) saturate(var(--landing-saturate));
 	-webkit-backdrop-filter: blur(var(--landing-blur-glass)) saturate(var(--landing-saturate));
+	backdrop-filter: blur(var(--landing-blur-glass)) saturate(var(--landing-saturate));
 }
 
 /* =============================================================================
@@ -334,8 +334,8 @@ html.theme-modern-dark .glass-widget {
 	border-radius: 9999px;
 	background: rgba(255, 255, 255, 0.55);
 	border: 1px solid rgba(255, 255, 255, 0.6);
-	backdrop-filter: blur(var(--landing-blur-dock)) saturate(var(--landing-saturate-dock));
 	-webkit-backdrop-filter: blur(var(--landing-blur-dock)) saturate(var(--landing-saturate-dock));
+	backdrop-filter: blur(var(--landing-blur-dock)) saturate(var(--landing-saturate-dock));
 	box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.35),
 		0 0 0 1px color-mix(in srgb, var(--theme-accent-primary) 22%, transparent),
 		0 8px 28px -10px color-mix(in srgb, var(--theme-accent-primary) 45%, transparent);

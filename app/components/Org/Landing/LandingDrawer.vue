@@ -220,8 +220,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
 .landing-cta-primary,
 .landing-cta-secondary {
   color: #fff;
-  backdrop-filter: blur(var(--landing-blur-cta));
   -webkit-backdrop-filter: blur(var(--landing-blur-cta));
+  backdrop-filter: blur(var(--landing-blur-cta));
   transition: background 0.2s ease;
 }
 .landing-cta-primary {

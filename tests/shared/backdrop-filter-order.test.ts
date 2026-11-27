@@ -14,12 +14,10 @@ import { join, relative, resolve } from "node:path";
  * from Tailwind utilities). The prefixed-first order survives (with targets it
  * emits both). Dev mode does not minify, which is why it looked fine locally.
  *
- * Scope: the workspace. The public site (Org/Landing*, LandingBuilder/*,
- * landing.css, theme.css) still has the bad order and is a separate change —
- * see the Phase 1a Session log.
+ * Scope: every stylesheet under app/ and core/app/, the public site included
+ * (its last offenders were reordered 2026-11-27).
  */
 const ROOT = process.cwd();
-const SKIP = [/Org\/Landing/, /LandingBuilder\//, /assets\/css\/landing\.css$/, /assets\/css\/theme\.css$/];
 const BAD = /(^|[^-])backdrop-filter:[^;]*;\s*-webkit-backdrop-filter/m;
 
 function* walk(dir: string): Generator<string> {
@@ -36,7 +34,6 @@ describe("backdrop-filter declaration order", () => {
     for (const dir of ["app", "core/app"]) {
       for (const file of walk(resolve(ROOT, dir))) {
         const rel = relative(ROOT, file);
-        if (SKIP.some((re) => re.test(rel))) continue;
         if (BAD.test(readFileSync(file, "utf8"))) offenders.push(rel);
       }
     }
