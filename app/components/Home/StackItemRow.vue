@@ -43,7 +43,7 @@ const emit = defineEmits<{
 const { buildOrgPath, navigateToOrg } = useOrgNavigation();
 
 const dotClass = computed(() =>
-  props.item.domain ? DOMAIN_DOT[props.item.domain] : "bg-slate-400"
+  props.item.domain ? DOMAIN_DOT[props.item.domain] : "bg-[var(--theme-text-muted)]"
 );
 const dotLabel = computed(() =>
   props.item.domain ? DOMAIN_LABEL[props.item.domain] : "General"

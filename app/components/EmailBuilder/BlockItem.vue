@@ -19,7 +19,7 @@ const emit = defineEmits<{
 const editing = ref(false);
 
 const CATEGORY_TINT: Record<string, string> = {
-  header: "text-slate-600 bg-slate-100 dark:bg-slate-500/15",
+  header: "t-text-secondary t-bg-subtle",
   hero: "text-violet-600 bg-violet-100 dark:bg-violet-500/15",
   content: "text-blue-600 bg-blue-100 dark:bg-blue-500/15",
   "two-column": "text-blue-600 bg-blue-100 dark:bg-blue-500/15",
@@ -30,7 +30,7 @@ const CATEGORY_TINT: Record<string, string> = {
   list: "text-indigo-600 bg-indigo-100 dark:bg-indigo-500/15",
   divider: "t-text-secondary t-bg-subtle",
   social: "text-pink-600 bg-pink-100 dark:bg-pink-500/15",
-  footer: "text-slate-500 bg-slate-100 dark:bg-slate-500/15",
+  footer: "t-text-muted t-bg-subtle",
 };
 const tint = computed(() => CATEGORY_TINT[String(props.canvasBlock.block.category)] || "t-text-muted t-bg-subtle");
 

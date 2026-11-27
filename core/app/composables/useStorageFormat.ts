@@ -80,8 +80,8 @@ export const useStorageFormat = () => {
       sheet: "text-green-600",
       slides: "text-orange-500",
       archive: "text-yellow-600",
-      text: "text-slate-500",
-      other: "text-slate-400",
+      text: "t-text-secondary",
+      other: "t-text-muted",
     };
     return map[kind];
   };

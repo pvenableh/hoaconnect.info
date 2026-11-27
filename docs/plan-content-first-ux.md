@@ -168,7 +168,7 @@ onto it.
 - [x] **`group-hover:t-*` was dead** (`9a2943a`). 19 usages compiling to
   nothing; the nine variants are now written out beside the `hover:` ones
   rather than stripped from the call sites, which were right.
-- [ ] **stone-\* palette sweep** — ~18 components still hardcode grey and
+- [x] ✅ 2026-11-27: the last five neutral greys (StackItemRow and governance dots, email block header/footer tints, storage text/other icons) moved to theme tokens; `useAnnouncements` keeps its dark-aware stone tint. **stone-\* palette sweep** — ~18 components still hardcode grey and
   don't follow dark mode. Spun out as its own task; the Requests filter pills
   in `af37fc3` are the reference conversion.
 

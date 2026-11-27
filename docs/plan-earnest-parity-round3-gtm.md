@@ -199,7 +199,7 @@ Gates (this branch): typecheck 0 · vitest 95 files / 1616 tests · build green 
 
 Operator TODOs (Peter):
 
-- [ ] **Public site has the same backdrop-filter bug** (out of this phase's scope, left as is):
+- [x] ✅ 2026-11-27: reordered in LandingNav, LandingDrawer and landing.css (theme.css had none left); the tripwire test has no skip list now. **Public site has the same backdrop-filter bug** (out of this phase's scope, left as is):
       `Org/Landing/LandingNav.vue`, `Org/Landing/LandingDrawer.vue`, `assets/css/landing.css` (3),
       `assets/css/theme.css:951` (`.t-scrim`). Same one-line reorder; the tripwire test skips
       those paths — remove the skip when they are fixed.
@@ -951,8 +951,8 @@ Operator TODOs (Peter):
 - [ ] If `SENDGRID_EMAIL_TEMPLATE_ID` is set on Vercel, look at where the footer lands
       inside the template; optionally place `{{{compliance_footer}}}` in the template
       itself.
-- [ ] `email/[id].delete.ts` and `email/[id].get.ts` still need the org gate (deviation 2):
-      a short session, or Phase 9.
+- [x] `email/[id].delete.ts` and `email/[id].get.ts` still need the org gate (deviation 2):
+      a short session, or Phase 9. ✅ Both call `requireAreaWork(…, "communications")` (get since 2026-11-12; confirmed 2026-11-27).
 - [ ] Still open from Phase 2: `pnpm add:user-app-prefs`.
 
 #### Phase 3b-design — kickoff prompt (Fable 5.1, effort high)
@@ -1342,8 +1342,8 @@ Operator TODOs (Peter):
       through the cron (spec Q2). Both can run until then.
 - [ ] Spec open question 3 (`run_key` vs one row per occurrence) is Phase 4's call;
       question 4 stays open for Phase 4.
-- [ ] Still open from Session 5: `email/[id].get.ts` has no org gate (only `[id].delete`
-      gained one here).
+- [x] Still open from Session 5: `email/[id].get.ts` has no org gate (only `[id].delete`
+      gained one here). ✅ Gated since 2026-11-12.
 
 #### Phase 4 — kickoff prompt (Opus 5.5, effort high)
 

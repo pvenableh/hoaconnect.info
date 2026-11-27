@@ -125,7 +125,7 @@ export const DOMAIN_DOT: Record<StackDomain, string> = {
   people: "bg-sky-500",
   money: "bg-emerald-500",
   comms: "bg-violet-500",
-  governance: "bg-slate-400",
+  governance: "bg-[var(--theme-text-muted)]",
   vendors: "bg-orange-500",
   projects: "bg-indigo-500",
 };
