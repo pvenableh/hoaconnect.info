@@ -78,7 +78,7 @@ const CIRCUMFERENCE = 100; // pathLength="100" on the circle, so dash math is in
 
 <style scoped>
 .ring-arc {
-  transition: stroke-dashoffset 720ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: stroke-dashoffset 720ms var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) {
   .ring-arc {

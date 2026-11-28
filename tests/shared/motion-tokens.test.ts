@@ -32,10 +32,13 @@ describe("motion tokens — TS module and CSS twin agree", () => {
     expect(firstDecl(cssVar)).toBe(`${DURATION[key as keyof typeof DURATION]}ms`);
   });
 
-  it("reduced motion flattens every curve and collapses every duration", () => {
+  it("reduced motion flattens every curve and collapses every duration but the fade", () => {
     const block = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
     for (const v of Object.values(EASING_VARS)) expect(block).toMatch(new RegExp(`${v}:\\s*linear`));
-    for (const v of Object.values(DURATION_VARS)) expect(block).toMatch(new RegExp(`${v}:\\s*1ms`));
+    for (const [k, v] of Object.entries(DURATION_VARS)) {
+      if (k === "fade") expect(block).not.toContain(v);
+      else expect(block).toMatch(new RegExp(`${v}:\\s*1ms`));
+    }
   });
 });
 

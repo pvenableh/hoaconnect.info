@@ -1,6 +1,6 @@
 # Plan — Apple platform direction for HOA Connect
 
-**Status:** Sessions 1 (code side; device walk pending) and 2 done · **Author:** Peter + Claude · **Date:** 2026-11-27
+**Status:** Sessions 1 (code side; device walk pending), 2 and 3 done · **Author:** Peter + Claude · **Date:** 2026-11-27
 
 This plan follows Earnest's `docs/apple-platform-direction-plan.md`, whose eleven phases are all on Earnest's `main`.
 That file holds the Apple evidence (HIG and WWDC25/26 links, §2) and the as-built notes (§6–§6i); this plan cites it as
@@ -94,7 +94,7 @@ reading list; do not survey the repo. Earnest paths are under `~/Sites/earnest/e
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------- | ------------------------------------------------------------------------------------------------------ | ----- |
 | 1       | **Truth on a device.** Peter walks `push-verification.md` on his iPhone. Copy Earnest's `public/media-probe.html` and read what iOS reports with Increase Contrast and Reduce Transparency on. Find where `material-*` is applied. Add `apple-mobile-web-app-title`.                  | H1 part | Sonnet 5.5 | `docs/push-verification.md`; `earnest-ui.css:1298-1413`; `core/nuxt.config.ts:385-400`                 | [[~]   |
 | 2       | **Solid surfaces.** Every `backdrop-filter` rule answers Reduce Transparency and Increase Contrast. Appearance gains a per-device Solid surfaces switch that applies the same rules by attribute, stamped before first paint. Port Earnest's PostCSS copy so rules stay written once. | H2      | Sonnet 5.5 | E§7 third bullet; Earnest `scripts/postcss-solid-surfaces.ts`, `useSolidSurfaces`; `useAppearance.ts`  | [[x]   |
-| 3       | **Motion that degrades.** Under reduced motion, slides become 150ms fades (sheet, slide-over, page push). Add `audit:easing` to `audit:all` at today's count and lower it.                                                                                                            | H4      | Sonnet 5.5 | E§6b; `variables.css:50-85`; `core/shared/motion/index.ts`; Earnest `scripts/audit-easing.ts`          | [ ]   |
+| 3       | **Motion that degrades.** Under reduced motion, slides become 150ms fades (sheet, slide-over, page push). Add `audit:easing` to `audit:all` at today's count and lower it.                                                                                                            | H4      | Sonnet 5.5 | E§6b; `variables.css:50-85`; `core/shared/motion/index.ts`; Earnest `scripts/audit-easing.ts`          | [[x]   |
 | 4       | **Width classes and orientation.** One composable returns `widthClass` and `pointer`; the three `matchMedia` sites read it. Add left, right and top safe-area insets to the shell, dock and sheet, then drop `orientation` from the manifest. No visual change at a phone upright.    | H3, H5  | Opus 5.5   | E§6c first bullet; Earnest `app/composables/useAppsMode.ts`; `Dock.vue:30-45`; `BottomSheet.vue:60-75` | [ ]   |
 | 5       | **The dock gets out of the way.** Compact only: fold on scroll, return on scroll up, tap, focus or route change; a soft scroll edge above it. Hold the page's bottom padding while folded (E§6e "two heights").                                                                       | H6      | Opus 5.5   | E§6e; `App/Dock.vue`; `layouts/auth.vue:225-241`                                                       | [ ]   |
 | 6       | **Sheets.** Detents, header drag, unsaved-changes confirm through `useConfirm()`, ⌘↩ submit, only the topmost sheet hears keys. Then sort the `AppDialogContent` uses into forms, confirms and viewers, and move the forms.                                                          | H7      | Opus 5.5   | E§6d; Earnest `app/components/apps/AppBottomSheet.vue`; `App/BottomSheet.vue`; `audit-form-dialogs.ts` | [ ]   |
@@ -225,6 +225,58 @@ its own memory.
   opened.
 - On a device. Session 1's probe decides whether the media rules ever fire on iOS; whatever it says, the switch is the
   route there and wants one look on the iPhone.
+
+### Session 3 — Motion that degrades (2026-11-27)
+
+**What changed.**
+
+- **A fade token.** `--motion-fade: 150ms` in `variables.css` and `DURATION.fade` in `core/shared/motion`, twinned like
+  the rest (`motion-tokens.test.ts`). It is the one duration the reduced-motion block does not collapse to 1ms; the
+  floor for everything else stays as it was.
+- **Page push, pop and floor moves** (`main.css`): under reduced motion, no transform; the leaving and entering views
+  cross-fade on opacity over `--motion-fade`. Before, they swapped with no transition at all. `motion-kit-a.test.ts`
+  now pins the fade instead of `transition: none`.
+- **Slide-over stack** (`SlideOverStack.vue`): this one was a bug. The panels' inline transition used a 400ms literal,
+  which the token block cannot reach, so under reduced motion they still slid for 400ms on a linear curve. Now
+  `usePreferredReducedMotion` (reactive) keeps every panel at the identity transform and moves only opacity over
+  `DURATION.fade`. The panel behind keeps its 0.6 dimming, and the backdrop fades on the same timing. The unmount
+  timers follow the fade (182ms, not 432ms). The shell's FLIP flight was already skipped under reduced motion.
+- **Bottom sheet**: it already faded instead of rising; its 160 / 140ms fades now read `--motion-fade`.
+- **`audit:easing`** (`scripts/audit-easing.ts`, in `audit:all`, ported from Earnest on `audit-kit`): counts every
+  `cubic-bezier(` outside comments in `app/**` and `core/**`, except the five house tokens in `variables.css`, the JS
+  home `core/shared/motion/index.ts` and `ui/`. **29 at HEAD → 16**:
+  - Deleted as unused (no reader anywhere): `--bounce`, `--curve`, `--bounce2`, `--hoverEasing`, `--returnEasing`, and
+    `--theme-transition-slower` (three definitions, plus its line in theme.css's reduced-motion block).
+  - The four charts' settle (`0.22, 1, 0.36, 1` in Meter, Ring, Sparkline and StatusTrack) is now
+    `var(--ease-out-expo)`, a near-identical expo-out.
+  - theme.css's `var(--spring, cubic-bezier(…))` lost its fallback.
+  - The 16 left are the landing site's editorial ease (landing.css, LandingNav, LandingDrawer), the
+    `--theme-transition-*` scale in theme.css, and `Payment/Methods.vue`.
+
+**Checked, and how.** In the Browser pane, signed in as the demo user on Harborview Lofts.
+
+- **Page moves.** The reduced-motion rules were switched on through the CSSOM (§8). The push, pop, floor and neutral
+  classes then compute to `opacity 0.15s`, `transform: none` and opacity 0 at the from/to poses. `--motion-fade` stays
+  150ms while `--motion-page` drops to 1ms and `--spring` to linear. Before the switch, the push still computed
+  `translateX(100%)` on the spring.
+- **Slide-over.** `matchMedia` was stubbed to report reduced motion, and the stack was remounted by routing through a
+  page on another layout. Opening a request through `?slide=request:…`, the panel stayed at the identity matrix. Its
+  opacity read 0.11, 0.74 and 1.00 at 60, 110 and 250ms, with the backdrop in step. On close it read 0.89 and 0.15 at
+  60 and 120ms, and was unmounted by 220ms. With the stub removed and the stack remounted, the same panel slid in on
+  the spring (`translateX` 520px at 80ms, 80px at 200ms, settled by 700ms).
+- **Sheet.** The served stylesheet carries the sheet's reduced-motion animations on `var(--motion-fade, 150ms)`.
+
+Also run: `audit:all` (22 green, easing at 16), `pnpm test` (310 files, 5034 tests), `typecheck` (exit 0).
+
+**Not checked.**
+
+- A real Reduce Motion setting. The pane cannot emulate it, so the CSS was switched by CSSOM and the stack by a stub. On
+  the iPhone, the media probe's reduced-motion swatch says whether iOS reports it to a page; Earnest's notes do not
+  record that row.
+- An actual page navigation under reduced motion. The computed rules were checked, and the settle hooks end on the
+  shorter transition by construction, but no push was watched with the rules on.
+- The bottom sheet opened under reduced motion: only its CSS was read.
+- The charts on the new curve were not looked at; the change is a near-identical expo-out.
 
 ## 8. Lessons from Earnest, and what is not verified
 

@@ -40,6 +40,8 @@ export const DURATION = {
   base: 240,
   page: 300,
   panel: 460,
+  /** What a slide becomes under reduced motion. The one duration that does not collapse. */
+  fade: 150,
 } as const;
 
 export type EasingName = keyof typeof EASING;
@@ -59,6 +61,7 @@ export const DURATION_VARS: Record<DurationName, string> = {
   base: "--motion-base",
   page: "--motion-page",
   panel: "--motion-panel",
+  fade: "--motion-fade",
 };
 
 /** True when the user asked the OS for less motion. SSR-safe (false). */

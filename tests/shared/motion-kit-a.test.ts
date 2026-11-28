@@ -81,11 +81,13 @@ describe("push/pop by route depth", () => {
 describe("reduced motion in CSS", () => {
   const css = readFileSync(resolve(process.cwd(), "core/app/assets/css/main.css"), "utf8");
   const reduced = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)", css.indexOf(".floor-back-enter-from")));
-  it("page push/pop and floor slides swap instantly", () => {
-    for (const cls of ["page-forward-enter-active", "page-back-leave-active", "page-forward-enter-from", "page-back-leave-to"]) {
+  // Apple swaps a slide for a short cross-fade (plan-apple-platform-direction
+  // session 3): no transform, opacity only, over --motion-fade.
+  it("page push/pop and floor slides become a --motion-fade cross-fade", () => {
+    for (const cls of ["page-forward-enter-active", "page-back-leave-active", "page-forward-enter-from", "page-back-leave-to", "floor-forward-enter-from"]) {
       expect(reduced).toContain(`.${cls}`);
     }
-    expect(reduced).toMatch(/transition:\s*none/);
-    expect(reduced).toMatch(/transform:\s*none/);
+    expect(reduced).toMatch(/transition:\s*opacity var\(--motion-fade, 150ms\) ease/);
+    expect(reduced).toMatch(/transform:\s*none;\s*opacity:\s*0/);
   });
 });

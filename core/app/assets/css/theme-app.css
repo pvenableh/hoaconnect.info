@@ -131,7 +131,6 @@ html.theme-app {
 	--theme-transition-fast: 150ms ease;
 	--theme-transition-base: 200ms ease;
 	--theme-transition-slow: 300ms ease;
-	--theme-transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
 
 	/* --- Sticky chrome --------------------------------------------------------
 	   The top bar and the section capsule publish their rendered heights

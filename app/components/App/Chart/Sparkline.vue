@@ -73,7 +73,7 @@ const points = computed(() => {
 }
 .mark-draw.is-drawn {
   stroke-dashoffset: 0;
-  transition: stroke-dashoffset 640ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: stroke-dashoffset 640ms var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) {
   .mark-draw,

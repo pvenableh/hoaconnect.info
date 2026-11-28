@@ -90,7 +90,7 @@ const stateOf = (i: number) => {
 
 <style scoped>
 .track-fill {
-  transition: transform 640ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 640ms var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) {
   .track-fill {

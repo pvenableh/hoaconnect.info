@@ -72,7 +72,7 @@ const fillColor = computed(() => CHART_STATUS_VARS[status.value]);
 
 <style scoped>
 .meter-fill {
-  transition: width 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 560ms var(--ease-out-expo);
 }
 @media (prefers-reduced-motion: reduce) {
   .meter-fill {

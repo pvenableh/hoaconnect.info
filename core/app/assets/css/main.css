@@ -160,7 +160,9 @@ img {
   opacity: 0;
 }
 
-/* Reduced motion → no slide, no fade: views swap instantly. */
+/* Reduced motion → no slide: every view change is a short cross-fade, the way
+   Apple swaps a push for a fade. --motion-fade stays 150ms under reduced
+   motion (variables.css); app.vue's settle hooks read the shorter transition. */
 @media (prefers-reduced-motion: reduce) {
   .page-enter-active,
   .page-leave-active,
@@ -172,7 +174,8 @@ img {
   .floor-forward-leave-active,
   .floor-back-enter-active,
   .floor-back-leave-active {
-    transition: none;
+    transition: opacity var(--motion-fade, 150ms) ease;
+    will-change: auto;
   }
   .page-enter-from,
   .page-leave-to,
@@ -185,7 +188,7 @@ img {
   .floor-back-enter-from,
   .floor-back-leave-to {
     transform: none;
-    opacity: 1;
+    opacity: 0;
   }
 }
 

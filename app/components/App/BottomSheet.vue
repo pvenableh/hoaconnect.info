@@ -385,14 +385,16 @@ const backdropStyle = computed(() => ({
   to   { opacity: 1; }
 }
 
+/* Reduced motion: the sheet fades in place instead of rising or popping, on the
+   shared --motion-fade (150ms, which does not collapse under reduced motion). */
 @media (prefers-reduced-motion: reduce) {
   .sheet__panel,
   .sheet--dialog .sheet__panel {
-    animation: sheet-fade 160ms ease both;
+    animation: sheet-fade var(--motion-fade, 150ms) ease both;
   }
   .sheet--leaving .sheet__panel,
   .sheet--dialog.sheet--leaving .sheet__panel {
-    animation: sheet-fade-out 140ms ease both;
+    animation: sheet-fade-out var(--motion-fade, 150ms) ease both;
   }
 }
 </style>

@@ -16,6 +16,9 @@
     - Outgoing panel:  translateX(0)    → 100%.
     - Behind panel:    translateX(0) → -20%, scale 0.96, opacity 0.6.
     - Single shared backdrop, deeper dim at depth 2.
+    - Reduced motion: nothing slides. Every panel stays at the identity
+      transform and only its opacity moves, over --motion-fade (150ms);
+      the panel behind keeps its dimming. Unmount timers follow the fade.
 
   Motion stack — compositor + reactive inline-style: enter/leave is driven
   by `{ visible, leaving }` flags building inline styles, NOT Vue
@@ -30,7 +33,8 @@
 -->
 <script setup lang="ts">
 import { FocusScope } from "reka-ui";
-import { useScrollLock } from "@vueuse/core";
+import { usePreferredReducedMotion, useScrollLock } from "@vueuse/core";
+import { DURATION } from "#core/shared/motion";
 import type { FlipFromPayload } from "#core/app/composables/useFlipFromRow";
 import { getPanelComponent } from "~/components/panels/registry";
 
@@ -44,6 +48,12 @@ const { count: trapSuspend } = useSlideOverFocusTrapSuspend();
 
 const SPRING_EASE_FN = "var(--spring)";
 const ANIM_MS = 400;
+// Reduced motion swaps the slide for a fade (plan-apple-platform-direction
+// session 3). Reactive, so turning the setting on mid-session takes effect.
+const motionPreference = usePreferredReducedMotion();
+const reduced = computed(() => motionPreference.value === "reduce");
+const FADE = `${DURATION.fade}ms ease`;
+const animMs = () => (reduced.value ? DURATION.fade : ANIM_MS);
 // One macrotask after mount, then flip `visible` so the closed pose paints
 // first and the CSS transition has something to interpolate from.
 const SETTLE_MS = 16;
@@ -101,7 +111,7 @@ function syncRendered() {
       const t = setTimeout(() => {
         rendered.value = rendered.value.filter((x) => x.key !== r.key);
         leaveTimers.delete(r.key);
-      }, ANIM_MS + 32);
+      }, animMs() + 32);
       leaveTimers.set(r.key, t);
     }
   }
@@ -172,7 +182,16 @@ const renderable = computed(() => {
     const isTop = r.key === topKey && !r.leaving;
     const inSettled = settledKeys.includes(r.key);
     let pose: Record<string, string | number>;
-    if (!r.visible) {
+    if (reduced.value) {
+      // In place: arriving and leaving panels are transparent, the top is
+      // opaque, the one behind keeps its dimming.
+      pose = {
+        transform: "translate3d(0, 0, 0)",
+        opacity: !r.visible || r.leaving ? 0 : isTop ? 1 : inSettled ? 0.6 : 0,
+        boxShadow: "-12px 0 24px -8px rgb(0 0 0 / 0.18)",
+        zIndex: !r.visible || r.leaving ? 3 : isTop ? 2 : 1,
+      };
+    } else if (!r.visible) {
       pose = {
         transform: "translate3d(100%, 0, 0)",
         opacity: 1,
@@ -211,7 +230,9 @@ const renderable = computed(() => {
       isTop,
       style: {
         ...pose,
-        transition: `transform ${ANIM_MS}ms ${SPRING_EASE_FN}, opacity ${ANIM_MS}ms ${SPRING_EASE_FN}, box-shadow ${ANIM_MS}ms ${SPRING_EASE_FN}`,
+        transition: reduced.value
+          ? `opacity ${FADE}`
+          : `transform ${ANIM_MS}ms ${SPRING_EASE_FN}, opacity ${ANIM_MS}ms ${SPRING_EASE_FN}, box-shadow ${ANIM_MS}ms ${SPRING_EASE_FN}`,
       },
     };
   });
@@ -249,7 +270,7 @@ watch(
       backdropLeaveTimer = setTimeout(() => {
         backdropMounted.value = false;
         backdropLeaveTimer = null;
-      }, ANIM_MS + 32);
+      }, animMs() + 32);
     }
   },
   { immediate: true }
@@ -258,7 +279,9 @@ watch(
 const backdropStyle = computed(() => ({
   opacity: backdropVisible.value ? 1 : 0,
   background: settledDepth.value >= 2 ? "rgb(0 0 0 / 0.5)" : "rgb(0 0 0 / 0.35)",
-  transition: `opacity ${ANIM_MS}ms ${SPRING_EASE_FN}, background ${ANIM_MS}ms ${SPRING_EASE_FN}`,
+  transition: reduced.value
+    ? `opacity ${FADE}, background ${FADE}`
+    : `opacity ${ANIM_MS}ms ${SPRING_EASE_FN}, background ${ANIM_MS}ms ${SPRING_EASE_FN}`,
 }));
 
 // Body scroll lock bound to the URL-driven depth (not rendered depth) so it

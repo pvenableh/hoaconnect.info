@@ -427,7 +427,6 @@
 	--theme-transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 	--theme-transition-base: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 	--theme-transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
-	--theme-transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
 
 	/* LUXURY: More generous spacing */
 	--theme-space-xs: 0.5rem;
@@ -515,7 +514,6 @@
 	--theme-transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 	--theme-transition-base: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 	--theme-transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
-	--theme-transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
 
 	/* LUXURY: More generous spacing */
 	--theme-space-xs: 0.5rem;
@@ -755,7 +753,7 @@ html.theme-modern-dark {
      hairline. The full accent ring is still reserved for hover / focus / open. */
   box-shadow: var(--glass-rim-shadow);
   transition: box-shadow 180ms ease, background-color 180ms ease, color 180ms ease,
-    scale var(--motion-fast, 160ms) var(--spring, cubic-bezier(0.36, 0.66, 0.04, 1));
+    scale var(--motion-fast, 160ms) var(--spring);
 }
 /* A pill that carries a word as well as a glyph (the Nav's "+ New"). */
 .header-pill.header-pill--wide {
@@ -1148,7 +1146,6 @@ html.theme-luxury-dark .portal-item__label {
 		--theme-transition-fast: 0ms !important;
 		--theme-transition-base: 0ms !important;
 		--theme-transition-slow: 0ms !important;
-		--theme-transition-slower: 0ms !important;
 	}
 }
 

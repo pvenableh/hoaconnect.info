@@ -39,6 +39,8 @@ export const AUDITS = [
   "page-h1",
   "form-dialogs",
   "filter-pills",
+  // Motion reads the house curves (docs/plan-apple-platform-direction.md, session 3).
+  "easing",
 ] as const;
 
 const verbose = process.argv.includes("--list");
